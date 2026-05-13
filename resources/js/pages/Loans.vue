@@ -1,0 +1,148 @@
+<template>
+  <div class="space-y-5">
+    <div class="flex items-center justify-between">
+      <div>
+        <h2 class="text-xl font-semibold text-gray-800">Business Loans</h2>
+        <p class="text-sm text-gray-500 mt-0.5">Track loans, outstanding balances, and repayments with automatic GL posting</p>
+      </div>
+      <button @click="showCreate = true" class="btn-primary">New Loan</button>
+    </div>
+
+    <div class="card p-0 overflow-hidden">
+      <table class="w-full">
+        <thead class="bg-gray-50 border-b">
+          <tr>
+            <th class="table-th">Loan #</th>
+            <th class="table-th">Lender</th>
+            <th class="table-th">Start</th>
+            <th class="table-th text-right">Principal</th>
+            <th class="table-th text-right">Outstanding</th>
+            <th class="table-th">Status</th>
+            <th class="table-th">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+          <tr v-for="loan in loans.data" :key="loan.id">
+            <td class="table-td font-mono text-xs">{{ loan.loan_number }}</td>
+            <td class="table-td">{{ loan.lender_name }}</td>
+            <td class="table-td text-xs text-gray-500">{{ fmtDate(loan.start_date) }}</td>
+            <td class="table-td text-right">{{ lkr(loan.principal_amount) }}</td>
+            <td class="table-td text-right font-semibold" :class="loan.outstanding_balance > 0 ? 'text-red-700' : 'text-green-700'">
+              {{ lkr(loan.outstanding_balance) }}
+            </td>
+            <td class="table-td">
+              <span class="badge text-xs" :class="loan.status === 'active' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'">
+                {{ loan.status }}
+              </span>
+            </td>
+            <td class="table-td">
+              <button @click="openRepay(loan)" class="px-2.5 py-1 rounded bg-blue-100 text-blue-700 text-xs">Repay</button>
+            </td>
+          </tr>
+          <tr v-if="!loans.data?.length"><td colspan="7" class="table-td text-center text-gray-400 py-8">No loans yet</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div v-if="showCreate" class="fixed inset-0 bg-black/40 z-50 p-4 flex items-center justify-center">
+      <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl p-6 space-y-4">
+        <h3 class="font-semibold text-gray-800">Create Loan</h3>
+        <div class="grid grid-cols-2 gap-4">
+          <div><label class="form-label">Lender *</label><input v-model="createForm.lender_name" class="form-input" /></div>
+          <div><label class="form-label">Principal *</label><input v-model.number="createForm.principal_amount" type="number" min="0" step="0.01" class="form-input" /></div>
+          <div><label class="form-label">Start Date *</label><input v-model="createForm.start_date" type="date" class="form-input" /></div>
+          <div><label class="form-label">Due Date</label><input v-model="createForm.due_date" type="date" class="form-input" /></div>
+          <div><label class="form-label">Liability Account *</label>
+            <select v-model="createForm.liability_account_id" class="form-input">
+              <option value="">Select</option>
+              <option v-for="a in liabilityAccounts" :key="a.id" :value="a.id">{{ a.code }} - {{ a.name }}</option>
+            </select>
+          </div>
+          <div><label class="form-label">Received To Account *</label>
+            <select v-model="createForm.received_to_account_id" class="form-input">
+              <option value="">Select</option>
+              <option v-for="a in assetAccounts" :key="a.id" :value="a.id">{{ a.code }} - {{ a.name }}</option>
+            </select>
+          </div>
+        </div>
+        <div class="flex justify-end gap-2">
+          <button @click="showCreate = false" class="btn-secondary">Cancel</button>
+          <button @click="createLoan" class="btn-primary">Save Loan</button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="repayLoan" class="fixed inset-0 bg-black/40 z-50 p-4 flex items-center justify-center">
+      <div class="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-4">
+        <h3 class="font-semibold text-gray-800">Repay {{ repayLoan.loan_number }}</h3>
+        <div class="grid grid-cols-2 gap-4">
+          <div><label class="form-label">Payment Date *</label><input v-model="repayForm.payment_date" type="date" class="form-input" /></div>
+          <div><label class="form-label">Paid From *</label>
+            <select v-model="repayForm.paid_from_account_id" class="form-input">
+              <option value="">Select</option>
+              <option v-for="a in assetAccounts" :key="a.id" :value="a.id">{{ a.code }} - {{ a.name }}</option>
+            </select>
+          </div>
+          <div><label class="form-label">Principal</label><input v-model.number="repayForm.principal_amount" type="number" min="0" step="0.01" class="form-input" /></div>
+          <div><label class="form-label">Interest</label><input v-model.number="repayForm.interest_amount" type="number" min="0" step="0.01" class="form-input" /></div>
+        </div>
+        <div class="flex justify-end gap-2">
+          <button @click="repayLoan = null" class="btn-secondary">Cancel</button>
+          <button @click="submitRepayment" class="btn-primary">Post Repayment</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { onMounted, ref, computed } from 'vue'
+import axios from 'axios'
+
+const loans = ref({ data: [] })
+const accounts = ref([])
+const showCreate = ref(false)
+const repayLoan = ref(null)
+
+const createForm = ref({
+  lender_name: '', principal_amount: 0, start_date: today(), due_date: '',
+  liability_account_id: '', received_to_account_id: '',
+})
+const repayForm = ref({ payment_date: today(), principal_amount: 0, interest_amount: 0, paid_from_account_id: '' })
+
+const liabilityAccounts = computed(() => accounts.value.filter(a => a.type === 'liability'))
+const assetAccounts = computed(() => accounts.value.filter(a => a.type === 'asset'))
+
+async function load() {
+  const [loanRes, accRes] = await Promise.all([
+    axios.get('/api/loans'),
+    axios.get('/api/accounts/all'),
+  ])
+  loans.value = loanRes.data
+  accounts.value = accRes.data
+}
+
+async function createLoan() {
+  await axios.post('/api/loans', createForm.value)
+  showCreate.value = false
+  createForm.value = { lender_name: '', principal_amount: 0, start_date: today(), due_date: '', liability_account_id: '', received_to_account_id: '' }
+  load()
+}
+
+function openRepay(loan) {
+  repayLoan.value = loan
+  repayForm.value = { payment_date: today(), principal_amount: Number(loan.outstanding_balance || 0), interest_amount: 0, paid_from_account_id: '' }
+}
+
+async function submitRepayment() {
+  await axios.post(`/api/loans/${repayLoan.value.id}/repay`, repayForm.value)
+  repayLoan.value = null
+  load()
+}
+
+function lkr(v) { return Number(v || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }
+function fmtDate(v) { return v ? new Date(v).toLocaleDateString('en-GB') : '—' }
+function today() { return new Date().toISOString().slice(0, 10) }
+
+onMounted(load)
+</script>

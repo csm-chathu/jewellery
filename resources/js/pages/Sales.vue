@@ -1,0 +1,352 @@
+<template>
+  <div class="space-y-5">
+
+    <!-- Header + actions -->
+    <div class="flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="relative">
+          <MagnifyingGlassIcon class="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          <input v-model="search" type="search" placeholder="Search invoice, customer…"
+            class="form-input pl-8 w-52" @input="debouncedFetch" />
+        </div>
+        <input v-model="dateFrom" type="date" class="form-input w-36" @change="fetchData" title="From date" />
+        <span class="text-gray-400 text-xs">to</span>
+        <input v-model="dateTo"   type="date" class="form-input w-36" @change="fetchData" title="To date" />
+        <select v-model="statusFilter" class="form-input w-32" @change="fetchData">
+          <option value="">All status</option>
+          <option value="paid">Paid</option>
+          <option value="pending">Pending</option>
+          <option value="partial">Partial</option>
+          <option value="refunded">Refunded</option>
+        </select>
+        <button v-if="search || dateFrom || dateTo || statusFilter" @click="clearFilters"
+          class="text-xs text-gray-400 hover:text-gray-600 underline">Clear</button>
+      </div>
+      <router-link to="/sales/new"
+        class="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-semibold text-sm shadow-sm transition-colors shrink-0">
+        <PlusIcon class="w-4 h-4" /> New Sale
+      </router-link>
+    </div>
+
+    <!-- Summary cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="card flex items-center gap-4">
+        <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+          <ReceiptPercentIcon class="w-5 h-5 text-blue-600" />
+        </div>
+        <div>
+          <p class="text-xs text-gray-500 uppercase tracking-wide">Total Sales</p>
+          <p class="text-2xl font-bold text-gray-800">{{ sales.total ?? 0 }}</p>
+        </div>
+      </div>
+      <div class="card flex items-center gap-4">
+        <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+          <BanknotesIcon class="w-5 h-5 text-amber-600" />
+        </div>
+        <div>
+          <p class="text-xs text-gray-500 uppercase tracking-wide">Revenue</p>
+          <p class="text-xl font-bold text-amber-700">LKR {{ totalRevenue }}</p>
+        </div>
+      </div>
+      <div class="card flex items-center gap-4">
+        <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+          <CheckCircleIcon class="w-5 h-5 text-green-600" />
+        </div>
+        <div>
+          <p class="text-xs text-gray-500 uppercase tracking-wide">Paid</p>
+          <p class="text-2xl font-bold text-green-700">{{ paidCount }}</p>
+        </div>
+      </div>
+      <div class="card flex items-center gap-4">
+        <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center shrink-0">
+          <ChartBarIcon class="w-5 h-5 text-purple-600" />
+        </div>
+        <div>
+          <p class="text-xs text-gray-500 uppercase tracking-wide">Avg Sale</p>
+          <p class="text-xl font-bold text-purple-700">LKR {{ avgSale }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="card p-0 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[700px]">
+          <thead class="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th class="table-th w-36">Invoice</th>
+              <th class="table-th">Customer</th>
+              <th class="table-th w-28">Date</th>
+              <th class="table-th w-24">Type</th>
+              <th class="table-th w-36 text-right">Total</th>
+              <th class="table-th w-32">Payment</th>
+              <th class="table-th w-24">Delivery</th>
+              <th class="table-th w-24">Status</th>
+              <th class="table-th w-28 text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            <tr v-if="loading">
+              <td colspan="9" class="table-td text-center py-10 text-gray-400">
+                <div class="flex items-center justify-center gap-2">
+                  <ArrowPathIcon class="w-4 h-4 animate-spin" /> Loading…
+                </div>
+              </td>
+            </tr>
+            <template v-else>
+              <tr v-for="s in sales.data" :key="s.id"
+                class="hover:bg-amber-50/40 transition-colors cursor-default group">
+                <td class="table-td">
+                  <span class="font-mono text-xs font-semibold text-gray-700 bg-gray-100 px-2 py-0.5 rounded">
+                    {{ s.invoice_number }}
+                  </span>
+                </td>
+                <td class="table-td">
+                  <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 font-bold text-xs shrink-0">
+                      {{ (s.customer?.name ?? 'W')[0].toUpperCase() }}
+                    </div>
+                    <div>
+                      <p class="text-sm font-medium text-gray-800">{{ s.customer?.name ?? 'Walk-in' }}</p>
+                      <p v-if="s.customer?.phone" class="text-xs text-gray-400">{{ s.customer.phone }}</p>
+                    </div>
+                  </div>
+                </td>
+                <td class="table-td text-xs text-gray-500">
+                  <div>{{ formatDate(s.sold_at) }}</div>
+                  <div class="text-gray-400">{{ formatTime(s.sold_at) }}</div>
+                </td>
+                <td class="table-td">
+                  <span class="badge text-xs" :class="s.sale_type === 'booking' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'">
+                    {{ s.sale_type || 'instant' }}
+                  </span>
+                </td>
+                <td class="table-td text-right">
+                  <span class="font-bold text-amber-700">LKR {{ Number(s.total).toLocaleString() }}</span>
+                </td>
+                <td class="table-td">
+                  <span :class="methodClass(s.payment_method)"
+                    class="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full capitalize">
+                    {{ s.payment_method?.replace('_', ' ') }}
+                  </span>
+                </td>
+                <td class="table-td text-xs">
+                  <span class="badge" :class="deliveryClass(s.delivery_status)">{{ s.delivery_status || 'delivered' }}</span>
+                </td>
+                <td class="table-td">
+                  <span :class="statusClass(s.payment_status)" class="badge capitalize">{{ s.payment_status }}</span>
+                </td>
+                <td class="table-td text-center">
+                  <div class="flex items-center justify-center gap-1.5">
+                    <router-link :to="`/sales/${s.id}`"
+                      class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200">
+                      <PrinterIcon class="w-3.5 h-3.5" /> Receipt
+                    </router-link>
+                    <button @click="del(s)"
+                      class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-red-100 text-red-700 hover:bg-red-200">
+                      <TrashIcon class="w-3.5 h-3.5" />
+                    </button>
+                    <button v-if="s.sale_type === 'booking' && s.delivery_status === 'booked'"
+                      @click="openSettle(s)"
+                      class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-100 text-emerald-700 hover:bg-emerald-200">
+                      Settle
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="!sales.data?.length">
+                <td colspan="9" class="table-td text-center py-12">
+                  <div class="flex flex-col items-center gap-2 text-gray-400">
+                    <ReceiptPercentIcon class="w-10 h-10 opacity-30" />
+                    <span>No sales found</span>
+                    <router-link to="/sales/new" class="text-amber-600 hover:underline text-sm font-medium">Create your first sale →</router-link>
+                  </div>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="px-5 py-3 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-sm text-gray-500 bg-gray-50/50">
+        <span class="text-xs">
+          Showing <strong class="text-gray-700">{{ sales.from ?? 0 }}–{{ sales.to ?? 0 }}</strong>
+          of <strong class="text-gray-700">{{ sales.total ?? 0 }}</strong> records
+        </span>
+        <div class="flex items-center gap-1">
+          <button @click="page--; fetchData()" :disabled="page<=1"
+            class="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium border border-gray-200 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+            <ChevronLeftIcon class="w-3.5 h-3.5" /> Prev
+          </button>
+          <span class="px-3 py-1.5 text-xs font-semibold text-gray-700">Page {{ page }} / {{ sales.last_page ?? 1 }}</span>
+          <button @click="page++; fetchData()" :disabled="page>=(sales.last_page ?? 1)"
+            class="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium border border-gray-200 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+            Next <ChevronRightIcon class="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="settleModal" class="fixed inset-0 z-50 bg-black/40 p-4 flex items-center justify-center">
+      <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
+        <h3 class="font-semibold text-gray-800">Settle Booking</h3>
+        <p class="text-sm text-gray-500">Invoice {{ settleSale?.invoice_number }} · Remaining: LKR {{ settleRemaining }}</p>
+        <div>
+          <label class="form-label">Payment Method</label>
+          <select v-model="settleForm.payment_method" class="form-input">
+            <option value="cash">Cash</option>
+            <option value="card">Card</option>
+            <option value="bank_transfer">Bank Transfer</option>
+            <option value="cheque">Cheque</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Payment Amount</label>
+          <input v-model.number="settleForm.payment_amount" type="number" min="0" step="0.01" class="form-input" />
+        </div>
+        <div>
+          <label class="form-label">Delivered At</label>
+          <input v-model="settleForm.delivered_at" type="datetime-local" class="form-input" />
+        </div>
+        <p v-if="settleError" class="text-sm text-red-600 bg-red-50 px-3 py-2 rounded">{{ settleError }}</p>
+        <div class="flex justify-end gap-2">
+          <button @click="settleModal = false" class="btn-secondary">Cancel</button>
+          <button @click="submitSettle" class="btn-primary" :disabled="settling">{{ settling ? 'Posting…' : 'Settle & Deliver' }}</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import axios from 'axios'
+import {
+  PlusIcon, TrashIcon, EyeIcon, MagnifyingGlassIcon,
+  ReceiptPercentIcon, BanknotesIcon, CheckCircleIcon, PrinterIcon,
+  ChartBarIcon, ArrowPathIcon, ChevronLeftIcon, ChevronRightIcon,
+} from '@heroicons/vue/24/outline'
+
+const sales        = ref({ data: [] })
+const search       = ref('')
+const page         = ref(1)
+const dateFrom     = ref('')
+const dateTo       = ref('')
+const statusFilter = ref('')
+const loading      = ref(false)
+const settleModal  = ref(false)
+const settleSale   = ref(null)
+const settleForm   = ref({ payment_method: 'cash', payment_amount: 0, delivered_at: '' })
+const settleError  = ref('')
+const settling     = ref(false)
+
+let timer = null
+function debouncedFetch() { clearTimeout(timer); timer = setTimeout(() => { page.value = 1; fetchData() }, 400) }
+
+async function fetchData() {
+  loading.value = true
+  try {
+    const { data } = await axios.get('/api/sales', {
+      params: {
+        page:        page.value,
+        search:      search.value,
+        date_from:   dateFrom.value,
+        date_to:     dateTo.value,
+        status:      statusFilter.value,
+      },
+    })
+    sales.value = data
+  } finally { loading.value = false }
+}
+
+function clearFilters() {
+  search.value = ''; dateFrom.value = ''; dateTo.value = ''; statusFilter.value = ''
+  page.value = 1; fetchData()
+}
+
+const totalRevenue = computed(() => {
+  const sum = (sales.value.data ?? []).reduce((acc, s) => acc + Number(s.total), 0)
+  return Number(sum).toLocaleString()
+})
+const paidCount = computed(() => (sales.value.data ?? []).filter(s => s.payment_status === 'paid').length)
+const avgSale = computed(() => {
+  const d = sales.value.data ?? []
+  if (!d.length) return '0'
+  return Number(d.reduce((a, s) => a + Number(s.total), 0) / d.length).toLocaleString('en-LK', { maximumFractionDigits: 0 })
+})
+
+function formatDate(d) {
+  return new Date(d).toLocaleDateString('en-LK', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+function formatTime(d) {
+  return new Date(d).toLocaleTimeString('en-LK', { hour: '2-digit', minute: '2-digit' })
+}
+
+function statusClass(s) {
+  return {
+    paid:     'bg-green-100 text-green-700',
+    pending:  'bg-yellow-100 text-yellow-700',
+    partial:  'bg-blue-100 text-blue-700',
+    refunded: 'bg-red-100 text-red-700',
+  }[s] ?? 'bg-gray-100 text-gray-700'
+}
+function methodClass(m) {
+  return {
+    cash:          'bg-green-50 text-green-600',
+    card:          'bg-blue-50 text-blue-600',
+    bank_transfer: 'bg-purple-50 text-purple-600',
+    cheque:        'bg-orange-50 text-orange-600',
+  }[m] ?? 'bg-gray-50 text-gray-600'
+}
+
+function deliveryClass(s) {
+  return {
+    delivered: 'bg-green-100 text-green-700',
+    booked: 'bg-yellow-100 text-yellow-700',
+    cancelled: 'bg-red-100 text-red-700',
+  }[s] ?? 'bg-gray-100 text-gray-700'
+}
+
+const settleRemaining = computed(() => {
+  if (!settleSale.value) return '0.00'
+  return Number(Math.max(0, Number(settleSale.value.total) - Number(settleSale.value.amount_paid))).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+})
+
+function openSettle(sale) {
+  settleSale.value = sale
+  settleForm.value = {
+    payment_method: 'cash',
+    payment_amount: Math.max(0, Number(sale.total) - Number(sale.amount_paid)),
+    delivered_at: new Date().toISOString().slice(0, 16),
+  }
+  settleError.value = ''
+  settleModal.value = true
+}
+
+async function submitSettle() {
+  if (!settleSale.value) return
+  settling.value = true
+  settleError.value = ''
+  try {
+    await axios.post(`/api/sales/${settleSale.value.id}/settle-booking`, settleForm.value)
+    settleModal.value = false
+    await fetchData()
+  } catch (e) {
+    settleError.value = e.response?.data?.message
+      ?? Object.values(e.response?.data?.errors ?? {}).flat().join(', ')
+      ?? 'Failed to settle booking'
+  } finally {
+    settling.value = false
+  }
+}
+
+async function del(s) {
+  if (!confirm(`Delete invoice ${s.invoice_number}?\nThis will restore stock. This action cannot be undone.`)) return
+  await axios.delete(`/api/sales/${s.id}`)
+  fetchData()
+}
+
+onMounted(fetchData)
+</script>

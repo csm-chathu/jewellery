@@ -1,0 +1,251 @@
+<template>
+  <div class="flex h-screen bg-gray-100 overflow-hidden">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-gray-900 text-white flex flex-col shrink-0">
+      <!-- Logo -->
+      <div class="flex items-center gap-3 px-6 py-5 border-b border-gray-800">
+        <img
+          v-if="branding.logo_url"
+          :src="branding.logo_url"
+          alt="Shop logo"
+          class="h-9 w-9 object-contain rounded"
+        />
+        <span v-else class="text-2xl">💎</span>
+        <div>
+          <p class="font-bold text-gold-400 text-sm leading-tight truncate">{{ branding.shop_name }}</p>
+          <p class="text-xs text-gray-400">Management System</p>
+        </div>
+      </div>
+
+      <!-- Nav -->
+      <nav class="flex-1 py-4 overflow-y-auto">
+        <div class="px-4 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Main</div>
+        <router-link v-for="item in navItems" :key="item.to" :to="item.to"
+          class="flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors"
+          :class="isNavActive(item.to)
+            ? 'bg-gold-600 text-white hover:bg-gold-700'
+            : 'text-gray-300 hover:bg-gray-800 hover:text-white'">
+          <component :is="item.icon" class="w-5 h-5 shrink-0" />
+          {{ item.label }}
+        </router-link>
+
+        <!-- Admin/Role-based sections -->
+        <template v-if="visibleAdminNavItems.length">
+          <div class="px-4 mt-4 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Admin</div>
+          <router-link v-for="item in visibleAdminNavItems" :key="item.to" :to="item.to"
+            class="flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors"
+            :class="isNavActive(item.to)
+              ? 'bg-gold-600 text-white hover:bg-gold-700'
+              : 'text-gray-300 hover:bg-gray-800 hover:text-white'">
+            <component :is="item.icon" class="w-5 h-5 shrink-0" />
+            {{ item.label }}
+          </router-link>
+        </template>
+
+        <template v-if="visibleAccountingNavItems.length">
+          <div class="px-4 mt-4 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Accounting</div>
+          <router-link v-for="item in visibleAccountingNavItems" :key="item.to" :to="item.to"
+            class="flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors"
+            :class="isNavActive(item.to)
+              ? 'bg-gold-600 text-white hover:bg-gold-700'
+              : 'text-gray-300 hover:bg-gray-800 hover:text-white'">
+            <component :is="item.icon" class="w-5 h-5 shrink-0" />
+            {{ item.label }}
+          </router-link>
+        </template>
+
+        <template v-if="visibleHrNavItems.length">
+          <div class="px-4 mt-4 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Human Resources</div>
+          <router-link v-for="item in visibleHrNavItems" :key="item.to" :to="item.to"
+            class="flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors"
+            :class="isNavActive(item.to)
+              ? 'bg-gold-600 text-white hover:bg-gold-700'
+              : 'text-gray-300 hover:bg-gray-800 hover:text-white'">
+            <component :is="item.icon" class="w-5 h-5 shrink-0" />
+            {{ item.label }}
+          </router-link>
+        </template>
+
+        <template v-if="visibleFinanceNavItems.length">
+          <div class="px-4 mt-4 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Finance</div>
+          <router-link v-for="item in visibleFinanceNavItems" :key="item.to" :to="item.to"
+            class="flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors"
+            :class="isNavActive(item.to)
+              ? 'bg-gold-600 text-white hover:bg-gold-700'
+              : 'text-gray-300 hover:bg-gray-800 hover:text-white'">
+            <component :is="item.icon" class="w-5 h-5 shrink-0" />
+            {{ item.label }}
+          </router-link>
+        </template>
+      </nav>
+
+      <!-- User info -->
+      <div class="px-4 py-4 border-t border-gray-800">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-full bg-gold-600 flex items-center justify-center text-sm font-bold">
+            {{ auth.user?.name?.charAt(0) }}
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-white truncate">{{ auth.user?.name }}</p>
+            <p class="text-xs text-gray-400 truncate">{{ auth.user?.email }}</p>
+          </div>
+          <button @click="doLogout" title="Logout"
+            class="p-1 rounded text-gray-400 hover:text-white hover:bg-gray-700 transition-colors">
+            <ArrowRightOnRectangleIcon class="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main area -->
+    <div class="flex-1 flex flex-col min-h-0 min-w-0">
+      <!-- Top bar -->
+      <header class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
+        <h1 class="text-lg font-semibold text-gray-800">{{ pageTitle }}</h1>
+        <div class="flex items-center gap-2 text-sm text-gray-500">
+          <span>{{ currentDate }}</span>
+        </div>
+      </header>
+
+      <!-- Page -->
+      <main class="flex-1 overflow-auto p-6">
+        <router-view />
+      </main>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { computed, onMounted, ref } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import axios from 'axios'
+import { useAuthStore } from '@/stores/auth'
+import {
+  HomeIcon, CubeIcon, TagIcon, UsersIcon,
+  TruckIcon, ShoppingCartIcon, ArchiveBoxIcon,
+  ArrowRightOnRectangleIcon, SparklesIcon,
+  UserGroupIcon, ChartBarIcon, ClipboardDocumentCheckIcon,
+  ClipboardDocumentListIcon, CurrencyDollarIcon, FireIcon,
+  BookOpenIcon, DocumentTextIcon, PresentationChartBarIcon,
+  BanknotesIcon, BuildingLibraryIcon, HomeModernIcon,
+  ReceiptPercentIcon, Cog6ToothIcon, DevicePhoneMobileIcon,
+} from '@heroicons/vue/24/outline'
+
+const auth   = useAuthStore()
+const router = useRouter()
+const route  = useRoute()
+const branding = ref({
+  shop_name: import.meta.env.VITE_APP_NAME ?? 'Jewellery Store',
+  logo_url: '',
+})
+
+const navItems = [
+  { to: '/',           label: 'Dashboard',  icon: HomeIcon },
+  { to: '/products',   label: 'Products',   icon: CubeIcon },
+  { to: '/categories', label: 'Categories', icon: TagIcon },
+  { to: '/customers',  label: 'Customers',  icon: UsersIcon },
+  { to: '/suppliers',  label: 'Suppliers',  icon: TruckIcon },
+  { to: '/sales',      label: 'Sales',      icon: ShoppingCartIcon },
+  { to: '/purchases',  label: 'Purchases',  icon: ArchiveBoxIcon },
+]
+
+const adminNavItems = [
+  { to: '/gold-rates', label: 'Gold Rates', icon: SparklesIcon, roles: ['admin', 'manager'] },
+  { to: '/buy-back', label: 'Buy-Back', icon: CurrencyDollarIcon, roles: ['admin', 'manager', 'cashier', 'branch'] },
+  { to: '/scrap', label: 'Scrap Gold', icon: FireIcon, roles: ['admin', 'manager'] },
+  { to: '/reports', label: 'Reports', icon: ChartBarIcon, roles: ['admin', 'manager', 'accountant'] },
+  { to: '/day-end', label: 'Day End', icon: ClipboardDocumentCheckIcon, roles: ['admin', 'manager', 'cashier', 'branch'] },
+  { to: '/audit-log', label: 'Audit Log', icon: ClipboardDocumentListIcon, roles: ['admin'] },
+  { to: '/users', label: 'Users', icon: UserGroupIcon, roles: ['admin'] },
+  { to: '/shop-settings', label: 'Shop Settings', icon: Cog6ToothIcon, roles: ['admin', 'manager'] },
+  { to: '/expenses', label: 'Expenses', icon: ReceiptPercentIcon, roles: ['admin', 'manager', 'finance'] },
+  { to: '/sms', label: 'SMS Centre', icon: DevicePhoneMobileIcon, roles: ['admin', 'manager'] },
+]
+
+const hrNavItems = [
+  { to: '/employees', label: 'Employees', icon: UserGroupIcon, roles: ['admin', 'manager', 'hr'] },
+  { to: '/salary-payments', label: 'Salary Payments', icon: BanknotesIcon, roles: ['admin', 'manager', 'hr'] },
+]
+
+const financeNavItems = [
+  { to: '/loans', label: 'Business Loans', icon: BuildingLibraryIcon, roles: ['admin', 'manager', 'finance'] },
+  { to: '/rentals', label: 'Monthly Rentals', icon: HomeModernIcon, roles: ['admin', 'manager', 'finance'] },
+  { to: '/gold-loans', label: 'Gold Loans', icon: CurrencyDollarIcon, roles: ['admin', 'manager', 'finance'] },
+]
+
+const accountingNavItems = [
+  { to: '/accounts', label: 'Chart of Accounts', icon: BookOpenIcon, roles: ['admin', 'manager', 'accountant'] },
+  { to: '/journal-entries', label: 'Journal Entries', icon: DocumentTextIcon, roles: ['admin', 'manager', 'accountant'] },
+  { to: '/general-ledger', label: 'General Ledger', icon: PresentationChartBarIcon, roles: ['admin', 'manager', 'accountant'] },
+]
+
+const currentRole = computed(() => auth.user?.role ?? 'branch')
+const canOverrideGoldRate = computed(() => !!auth.user?.can_override_gold_rate)
+
+function isAllowed(item) {
+  if (item.to === '/gold-rates') {
+    return item.roles.includes(currentRole.value) || canOverrideGoldRate.value
+  }
+  return item.roles.includes(currentRole.value)
+}
+
+const visibleAdminNavItems = computed(() => adminNavItems.filter(isAllowed))
+const visibleAccountingNavItems = computed(() => accountingNavItems.filter(isAllowed))
+const visibleHrNavItems = computed(() => hrNavItems.filter(isAllowed))
+const visibleFinanceNavItems = computed(() => financeNavItems.filter(isAllowed))
+
+const pageTitles = {
+  dashboard:         'Dashboard',
+  products:          'Products',
+  categories:        'Categories',
+  customers:         'Customers',
+  suppliers:         'Suppliers',
+  sales:             'Sales',
+  'sales.new':       'New Sale',
+  purchases:         'Purchases',
+  'purchases.new':   'New Purchase',
+  'gold-rates':      'Gold Rate Management',
+  'users':           'User Management',
+  'shop-settings':   'Shop Settings',
+  'reports':         'Reports & Analytics',
+  'day-end':         'Day-End Reconciliation',
+  'audit-log':       'Audit Log',
+  'buy-back':        'Gold Buy-Back',
+  'scrap':           'Scrap Gold Management',
+  'expenses':        'Expense Management',
+  'sms':             'SMS Centre',
+  'accounts':        'Chart of Accounts',
+  'journal-entries': 'Journal Entries',
+  'general-ledger':  'General Ledger',
+  'employees':        'Employees',
+  'salary-payments':  'Salary Payments',
+  'loans':            'Business Loans',
+  'rentals':          'Monthly Rentals',
+  'gold-loans':       'Gold Loans',
+}
+
+const pageTitle  = computed(() => pageTitles[route.name] ?? 'Jewellery MS')
+const currentDate = computed(() => new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }))
+
+onMounted(async () => {
+  try {
+    const { data } = await axios.get('/api/shop-branding')
+    if (data?.shop_name) branding.value.shop_name = data.shop_name
+    if (data?.logo_url) branding.value.logo_url = data.logo_url
+  } catch {
+    // Keep fallback branding if API is unavailable.
+  }
+})
+
+async function doLogout() {
+  await auth.logout()
+  router.push('/login')
+}
+
+function isNavActive(targetPath) {
+  if (targetPath === '/') {
+    return route.path === '/'
+  }
+  return route.path === targetPath || route.path.startsWith(`${targetPath}/`)
+}
+</script>
