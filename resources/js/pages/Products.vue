@@ -73,7 +73,7 @@
               </td>
               <td class="table-td">
                 <div class="flex items-center gap-2">
-                  <button @click="reprintBarcode(p)" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-100 text-emerald-700 hover:bg-emerald-200">
+                  <button @click="reprintBarcode(p)" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-100 text-emerald-700 hover:bg-emerald-200 whitespace-nowrap">
                     <PrinterIcon class="w-3.5 h-3.5" /> Print Barcode
                   </button>
                   <button @click="openEdit(p)" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200">

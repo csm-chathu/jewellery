@@ -34,6 +34,7 @@ const routes = [
             { path: 'day-end',       name: 'day-end',       component: () => import('@/pages/DayEnd.vue') },
             { path: 'audit-log',     name: 'audit-log',     component: () => import('@/pages/AuditLog.vue') },
             // Accounting
+            { path: 'opening-balances',  name: 'opening-balances',  component: () => import('@/pages/OpeningBalances.vue') },
             { path: 'accounts',          name: 'accounts',          component: () => import('@/pages/ChartOfAccounts.vue') },
             { path: 'journal-entries',   name: 'journal-entries',   component: () => import('@/pages/JournalEntries.vue') },
             { path: 'general-ledger',    name: 'general-ledger',    component: () => import('@/pages/GeneralLedger.vue') },
@@ -43,7 +44,12 @@ const routes = [
             // Finance
             { path: 'loans',             name: 'loans',             component: () => import('@/pages/Loans.vue') },
             { path: 'rentals',           name: 'rentals',           component: () => import('@/pages/Rentals.vue') },
-            { path: 'gold-loans',        name: 'gold-loans',        component: () => import('@/pages/GoldLoans.vue') },
+            { path: 'gold-loans',           name: 'gold-loans',           component: () => import('@/pages/GoldLoans.vue') },
+            { path: 'customer-investments', name: 'customer-investments', component: () => import('@/pages/CustomerInvestments.vue') },
+            // Rework / Job Orders
+            { path: 'rework-orders', name: 'rework-orders', component: () => import('@/pages/ReworkOrders.vue') },
+            // Private / off-record
+            { path: 'informal-purchases', name: 'informal-purchases', component: () => import('@/pages/InformalPurchases.vue') },
         ],
     },
     { path: '/:pathMatch(.*)*', redirect: '/' },

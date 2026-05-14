@@ -24,7 +24,7 @@
           <tr v-for="p in purchases.data" :key="p.id" class="hover:bg-gray-50">
             <td class="table-td font-mono text-xs font-medium">{{ p.purchase_number }}</td>
             <td class="table-td">{{ p.supplier?.name }}</td>
-            <td class="table-td text-gray-500 text-xs">{{ new Date(p.purchased_at).toLocaleDateString() }}</td>
+            <td class="table-td text-gray-500 text-xs">{{ fmtDate(p.purchased_at) }}</td>
             <td class="table-td font-semibold">LKR {{ Number(p.total).toLocaleString() }}</td>
             <td class="table-td text-xs text-gray-600 uppercase">{{ p.payment_method || 'cash' }}</td>
             <td class="table-td">
@@ -54,6 +54,7 @@
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
 import { PlusIcon, TrashIcon } from '@heroicons/vue/24/outline'
+import { fmtDate } from '../utils/date.js'
 
 const purchases      = ref({ data: [] })
 const suppliers      = ref([])

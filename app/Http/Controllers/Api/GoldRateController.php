@@ -4,28 +4,33 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Models\Carat;
 use App\Models\GoldRate;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class GoldRateController extends Controller
 {
-    /** Return today's rate + last 30 days history */
+    /** Today's rates per carat + last 30 days history + active carats */
     public function index()
     {
-        $today   = GoldRate::today();
-        $history = GoldRate::with('createdBy:id,name')
+        $carats  = Carat::active()->get();
+        $today   = GoldRate::todayRates();
+
+        $history = GoldRate::with(['carat', 'createdBy:id,name'])
             ->orderByDesc('date')
-            ->take(30)
-            ->get();
+            ->take(90)
+            ->get()
+            ->groupBy(fn ($r) => $r->date->toDateString());
 
         return response()->json([
-            'today'   => $today,
+            'carats'  => $carats,
+            'today'   => $today->values(),
             'history' => $history,
-            'karats'  => GoldRate::$karatPurity,
         ]);
     }
 
-    /** Set or update today's gold rate (admin or authorized users only) */
+    /** Upsert rates for one or more carats */
     public function store(Request $request)
     {
         if (!$request->user()->canOverrideGoldRate()) {
@@ -33,57 +38,68 @@ class GoldRateController extends Controller
         }
 
         $data = $request->validate([
-            'rate_per_gram' => 'required|numeric|min:1',
-            'date'          => 'nullable|date',
+            'date'                    => 'nullable|date',
+            'rates'                   => 'required|array|min:1',
+            'rates.*.carat_id'        => 'required|integer|exists:carats,id',
+            'rates.*.rate_per_gram'   => 'required|numeric|min:1',
         ]);
 
         $date    = $data['date'] ?? today()->toDateString();
-        $oldRate = GoldRate::where('date', $date)->first();
+        $saved   = [];
+        $user    = $request->user();
 
-        $rate = GoldRate::updateOrCreate(
-            ['date' => $date],
-            [
-                'rate_per_gram' => $data['rate_per_gram'],
-                'created_by'    => $request->user()->id,
-            ]
-        );
+        DB::transaction(function () use ($data, $date, $user, &$saved) {
+            foreach ($data['rates'] as $item) {
+                $old = GoldRate::where('date', $date)
+                    ->where('carat_id', $item['carat_id'])
+                    ->first();
 
-        AuditLog::record(
-            'gold_rate_updated',
-            "Gold rate for {$date} set to LKR {$data['rate_per_gram']}/g by {$request->user()->name}",
-            $rate,
-            $oldRate ? ['rate_per_gram' => $oldRate->rate_per_gram] : [],
-            ['rate_per_gram' => $data['rate_per_gram']]
-        );
+                $rate = GoldRate::updateOrCreate(
+                    ['date' => $date, 'carat_id' => $item['carat_id']],
+                    ['rate_per_gram' => $item['rate_per_gram'], 'created_by' => $user->id]
+                );
 
-        return response()->json($rate, 201);
+                $carat = Carat::find($item['carat_id']);
+                AuditLog::record(
+                    'gold_rate_updated',
+                    "Gold rate ({$carat->label}) for {$date} set to LKR {$item['rate_per_gram']}/g by {$user->name}",
+                    $rate,
+                    $old ? ['rate_per_gram' => $old->rate_per_gram] : [],
+                    ['rate_per_gram' => $item['rate_per_gram']]
+                );
+
+                $saved[] = $rate->load('carat');
+            }
+        });
+
+        return response()->json($saved, 201);
     }
 
-    /** Return today's rate only — lightweight for ProductModal */
+    /** All of today's rates — lightweight for other modules */
     public function todayRate()
     {
-        return response()->json(GoldRate::today());
+        return response()->json(GoldRate::todayRates()->values());
     }
 
-    /** Calculate price for weight + karat using today's rate */
+    /** Calculate price for weight + carat_id using today's rate */
     public function calculate(Request $request)
     {
         $request->validate([
-            'weight' => 'required|numeric|min:0',
-            'karat'  => 'required|string',
+            'weight'   => 'required|numeric|min:0',
+            'carat_id' => 'required|integer|exists:carats,id',
         ]);
 
-        $rate = GoldRate::today();
+        $rate = GoldRate::todayForCarat((int) $request->carat_id);
         if (!$rate) {
-            return response()->json(['message' => 'No gold rate set for today.'], 404);
+            return response()->json(['message' => 'No gold rate set for today for this carat.'], 404);
         }
 
-        $price = $rate->calculate((float) $request->weight, $request->karat);
+        $rate->load('carat');
 
         return response()->json([
-            'price'         => $price,
+            'price'         => $rate->calculate((float) $request->weight),
             'rate_per_gram' => $rate->rate_per_gram,
-            'karat_purity'  => GoldRate::$karatPurity[strtolower($request->karat)] ?? null,
+            'carat'         => $rate->carat,
             'date'          => $rate->date,
         ]);
     }

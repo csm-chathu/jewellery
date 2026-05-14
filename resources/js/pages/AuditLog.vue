@@ -80,6 +80,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import axios from 'axios'
+import { fmtDateTime } from '../utils/date.js'
 
 const logs    = ref([])
 const meta    = ref(null)
@@ -104,7 +105,7 @@ async function load() {
 function clearFilters() { filters.action = ''; filters.date_from = ''; filters.date_to = ''; page.value = 1; load() }
 
 function formatTime(ts) {
-  return new Date(ts).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+  return fmtDateTime(ts)
 }
 
 function actionClass(action) {

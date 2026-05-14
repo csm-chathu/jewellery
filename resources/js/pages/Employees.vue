@@ -263,6 +263,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
+import { fmtDate as _fmtDate } from '../utils/date.js'
 import {
   PlusIcon, PencilSquareIcon, TrashIcon, XMarkIcon, ArrowPathIcon,
   UserGroupIcon, BanknotesIcon, BuildingOfficeIcon, CheckCircleIcon,
@@ -371,7 +372,7 @@ function typeClass(t) {
   return { full_time: 'bg-blue-100 text-blue-700', part_time: 'bg-yellow-100 text-yellow-700', contract: 'bg-purple-100 text-purple-700' }[t] ?? 'bg-gray-100 text-gray-600'
 }
 function lkr(v) { return Number(v || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }
-function fmtDate(d) { return d ? new Date(d).toLocaleDateString('en-GB') : '—' }
+function fmtDate(d) { return _fmtDate(d) }
 
 onMounted(fetchEmployees)
 </script>

@@ -114,6 +114,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import axios from 'axios'
+import { fmtDate as _fmtDate } from '../utils/date.js'
 
 const rents = ref({ data: [] })
 const reminders = ref([])
@@ -164,7 +165,7 @@ function statusClass(s) {
   return s === 'paid' ? 'bg-green-100 text-green-700' : (s === 'overdue' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700')
 }
 function lkr(v) { return Number(v || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }
-function fmtDate(v) { return v ? new Date(v).toLocaleDateString('en-GB') : '—' }
+function fmtDate(v) { return _fmtDate(v) }
 function today() { return new Date().toISOString().slice(0, 10) }
 
 onMounted(load)

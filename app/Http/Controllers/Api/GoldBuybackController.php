@@ -74,7 +74,8 @@ class GoldBuybackController extends Controller
 
         $data['user_id']   = $request->user()->id;
         $data['branch_id'] = $request->user()->branch_id;
-        $data['gold_rate_id'] = GoldRate::today()?->id;
+        $data['gold_rate_id'] = GoldRate::todayForKaratLabel($data['declared_karat'])?->id
+            ?? GoldRate::today()?->id;
 
         $buyback = GoldBuyback::create($data);
 
@@ -94,7 +95,7 @@ class GoldBuybackController extends Controller
             ]);
         }
 
-        AuditLog::record('buyback_created', "Buy-back {$buyback->buyback_number} created", $buyback, null, [
+        AuditLog::record('buyback_created', "Buy-back {$buyback->buyback_number} created", $buyback, [], [
             'buyback_number' => $buyback->buyback_number,
             'customer_id'    => $buyback->customer_id,
             'final_price'    => $buyback->final_price,
@@ -154,7 +155,7 @@ class GoldBuybackController extends Controller
 
     public function destroy(GoldBuyback $goldBuyback)
     {
-        AuditLog::record('buyback_deleted', "Buy-back {$goldBuyback->buyback_number} deleted", $goldBuyback, $goldBuyback->toArray(), null);
+        AuditLog::record('buyback_deleted', "Buy-back {$goldBuyback->buyback_number} deleted", $goldBuyback, $goldBuyback->toArray(), []);
         $goldBuyback->delete();
         return response()->noContent();
     }

@@ -133,7 +133,7 @@
         <div v-if="goldCalc" class="bg-gold-50 border border-gold-200 rounded-xl p-4 space-y-3">
           <div class="flex items-center justify-between">
             <p class="text-sm font-semibold text-gold-800">
-              💰 Gold Rate: LKR {{ lkr(goldCalc.rate_per_gram) }}/g (24K) · {{ goldCalc.date }}
+              💰 Gold Rate: LKR {{ lkr(goldCalc.rate_per_gram) }}/g ({{ form.karat?.toUpperCase() }}) · {{ goldCalc.date }}
             </p>
             <span class="badge bg-gold-100 text-gold-700 text-xs uppercase">{{ form.karat }}</span>
           </div>
@@ -197,11 +197,18 @@ const productImages = ref([])
 const productImageUploader = ref(null)
 
 // --- Gold rate auto-calculation ---
-const goldRate  = ref(null)   // today's rate object: { rate_per_gram, date }
-const goldCalc  = ref(null)   // calculated result { price, rate_per_gram, date }
-const markup    = ref(30)     // default 30% markup for selling price
+const goldRateMap = ref({})   // { '24k': {rate_per_gram, carat, date}, ... }
+const goldCalc    = ref(null) // calculated result { price, rate_per_gram, date }
+const markup      = ref(30)   // default 30% markup for selling price
 
-const KARAT_PURITY = { '9k': 9/24, '14k': 14/24, '18k': 18/24, '22k': 22/24, '24k': 24/24 }
+const KARAT_PURITY = { '9k': 9/24, '14k': 14/24, '18k': 18/24, '22k': 22/24, '24k': 1 }
+
+function rateForKarat(karatStr) {
+  const key  = karatStr?.toLowerCase()
+  if (goldRateMap.value[key]) return goldRateMap.value[key].rate_per_gram
+  const r24k = goldRateMap.value['24k']?.rate_per_gram
+  return r24k ? r24k * (KARAT_PURITY[key] ?? 1) : null
+}
 
 function lkr(val) {
   return Number(val).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -210,24 +217,23 @@ function lkr(val) {
 async function loadGoldRate() {
   try {
     const { data } = await axios.get('/api/gold-rates/today')
-    goldRate.value = data
+    const rates = Array.isArray(data) ? data : []
+    goldRateMap.value = Object.fromEntries(rates.map(r => [r.carat?.label?.toLowerCase(), r]).filter(([k]) => k))
     tryAutoCalculate()
   } catch {}
 }
 
 function tryAutoCalculate() {
   const isGoldMaterial = ['Gold', 'White Gold', 'Rose Gold'].includes(form.material)
-  if (!isGoldMaterial || !form.karat || !form.weight || !goldRate.value) {
-    goldCalc.value = null
-    return
-  }
-  const purity = KARAT_PURITY[form.karat] ?? null
-  if (!purity) { goldCalc.value = null; return }
-  const price = goldRate.value.rate_per_gram * parseFloat(form.weight) * purity
+  if (!isGoldMaterial || !form.karat || !form.weight) { goldCalc.value = null; return }
+  const rate = rateForKarat(form.karat)
+  if (!rate) { goldCalc.value = null; return }
+  const price   = rate * parseFloat(form.weight)
+  const refRate = goldRateMap.value[form.karat?.toLowerCase()] ?? goldRateMap.value['24k']
   goldCalc.value = {
     price,
-    rate_per_gram: goldRate.value.rate_per_gram,
-    date: goldRate.value.date,
+    rate_per_gram: refRate?.rate_per_gram ?? rate,
+    date: refRate?.date ?? null,
   }
 }
 

@@ -188,6 +188,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import axios from 'axios'
+import { fmtDate } from '../utils/date.js'
 
 const loans = ref({ data: [] })
 const reminders = ref([])
@@ -321,10 +322,6 @@ function addMonths(dateString, months) {
   const d = new Date(dateString)
   d.setMonth(d.getMonth() + months)
   return d.toISOString().slice(0, 10)
-}
-
-function fmtDate(value) {
-  return value ? new Date(value).toLocaleDateString('en-GB') : '—'
 }
 
 function lkr(value) {

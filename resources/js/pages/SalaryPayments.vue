@@ -310,6 +310,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
+import { fmtDate as _fmtDate } from '../utils/date.js'
 import { useRouter } from 'vue-router'
 import {
   BanknotesIcon, TrashIcon, XMarkIcon, ArrowPathIcon,
@@ -418,7 +419,7 @@ function goToGL(p) {
 }
 
 function lkr(v) { return Number(v || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }
-function fmtDate(d) { return d ? new Date(d).toLocaleDateString('en-GB') : '—' }
+function fmtDate(d) { return _fmtDate(d) }
 function today() { return new Date().toISOString().slice(0, 10) }
 function firstOfMonth() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01` }
 function lastOfMonth() { const d = new Date(new Date().getFullYear(), new Date().getMonth()+1, 0); return d.toISOString().slice(0,10) }

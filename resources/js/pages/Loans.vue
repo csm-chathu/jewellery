@@ -98,6 +98,7 @@
 <script setup>
 import { onMounted, ref, computed } from 'vue'
 import axios from 'axios'
+import { fmtDate as _fmtDate } from '../utils/date.js'
 
 const loans = ref({ data: [] })
 const accounts = ref([])
@@ -141,7 +142,7 @@ async function submitRepayment() {
 }
 
 function lkr(v) { return Number(v || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }
-function fmtDate(v) { return v ? new Date(v).toLocaleDateString('en-GB') : '—' }
+function fmtDate(v) { return _fmtDate(v) }
 function today() { return new Date().toISOString().slice(0, 10) }
 
 onMounted(load)

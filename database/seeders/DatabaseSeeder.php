@@ -46,6 +46,8 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
+        $this->call(CaratSeeder::class);
+
         $categories = [
             ['name' => 'Rings',     'slug' => 'rings'],
             ['name' => 'Necklaces', 'slug' => 'necklaces'],

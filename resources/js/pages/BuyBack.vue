@@ -110,7 +110,13 @@
             <!-- Customer & item -->
             <div class="grid grid-cols-2 gap-4">
               <div class="col-span-2">
-                <label class="form-label">Customer *</label>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="form-label !mb-0">Customer *</label>
+                  <button type="button" @click="showQuickCustomer = true"
+                    class="inline-flex items-center gap-1 text-xs text-gold-600 hover:text-gold-700 font-medium">
+                    <PlusIcon class="w-3.5 h-3.5" /> New Customer
+                  </button>
+                </div>
                 <select v-model="form.customer_id" class="form-input" required>
                   <option value="">Select customer…</option>
                   <option v-for="c in customers" :key="c.id" :value="c.id">
@@ -298,6 +304,43 @@
           </div>
         </div>
       </div>
+      <!-- Quick Add Customer Modal -->
+      <div v-if="showQuickCustomer" class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4" @click.self="showQuickCustomer=false">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+          <div class="flex items-center justify-between px-6 py-4 border-b">
+            <h3 class="font-semibold text-gray-800">Add New Customer</h3>
+            <button @click="showQuickCustomer=false" class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+          </div>
+          <div class="p-6 space-y-4">
+            <div>
+              <label class="form-label">Full Name *</label>
+              <input v-model="qcForm.name" class="form-input" placeholder="e.g. Amara Perera" autofocus />
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="form-label">Phone</label>
+                <input v-model="qcForm.phone" class="form-input" placeholder="+94 77 000 0000" />
+              </div>
+              <div>
+                <label class="form-label">Email</label>
+                <input v-model="qcForm.email" type="email" class="form-input" placeholder="email@example.com" />
+              </div>
+            </div>
+            <div>
+              <label class="form-label">NIC / ID Number</label>
+              <input v-model="qcForm.id_number" class="form-input" placeholder="e.g. 199012345678" />
+            </div>
+            <p class="text-xs text-gray-400">You can add full address and KYC details later from the Customers page.</p>
+            <p v-if="qcError" class="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{{ qcError }}</p>
+          </div>
+          <div class="flex justify-end gap-3 px-6 py-4 border-t bg-gray-50">
+            <button @click="showQuickCustomer=false" class="btn-secondary">Cancel</button>
+            <button @click="saveQuickCustomer" :disabled="qcSaving" class="btn-primary">
+              {{ qcSaving ? 'Adding…' : 'Add & Select' }}
+            </button>
+          </div>
+        </div>
+      </div>
     </teleport>
   </div>
 </template>
@@ -310,7 +353,8 @@ import SmartImageUploader from '@/components/SmartImageUploader.vue'
 
 const buybacks  = ref({ data: [], total: 0, last_page: 1 })
 const customers = ref([])
-const goldRate  = ref(null)
+const goldRateMap = ref({})
+const goldRate    = computed(() => goldRateMap.value['24k'] ?? null)
 const showModal = ref(false)
 const editing   = ref(null)
 const saving    = ref(false)
@@ -319,6 +363,12 @@ const page      = ref(1)
 const filters   = reactive({ search: '', status: '' })
 const proofUploader = ref(null)
 const proofImages = ref([])
+
+// Quick-add customer
+const showQuickCustomer = ref(false)
+const qcSaving = ref(false)
+const qcError  = ref('')
+const qcForm   = reactive({ name: '', phone: '', email: '', id_number: '' })
 
 const KARAT_PURITY = { '9k': 9/24, '14k': 14/24, '18k': 18/24, '22k': 22/24, '24k': 24/24 }
 
@@ -392,6 +442,20 @@ async function save() {
   } finally { saving.value = false }
 }
 
+async function saveQuickCustomer() {
+  if (!qcForm.name.trim()) { qcError.value = 'Name is required.'; return }
+  qcSaving.value = true; qcError.value = ''
+  try {
+    const { data } = await axios.post('/api/customers', { ...qcForm })
+    customers.value.unshift(data)
+    form.customer_id = data.id
+    Object.assign(qcForm, { name: '', phone: '', email: '', id_number: '' })
+    showQuickCustomer.value = false
+  } catch (e) {
+    qcError.value = e.response?.data?.message ?? Object.values(e.response?.data?.errors ?? {}).flat().join(', ') ?? 'Error adding customer'
+  } finally { qcSaving.value = false }
+}
+
 async function del(b) {
   if (!confirm(`Delete buy-back ${b.buyback_number}?`)) return
   await axios.delete(`/api/gold-buybacks/${b.id}`)
@@ -409,7 +473,8 @@ onMounted(async () => {
     axios.get('/api/gold-rates/today').catch(() => ({ data: null })),
   ])
   customers.value = c.data
-  goldRate.value  = gr.data
+  const rates = Array.isArray(gr.data) ? gr.data : []
+  goldRateMap.value = Object.fromEntries(rates.map(r => [r.carat?.label?.toLowerCase(), r]).filter(([k]) => k))
   load()
 })
 </script>

@@ -10,7 +10,7 @@ class BusinessLoan extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'loan_number', 'lender_name', 'principal_amount', 'outstanding_balance',
+        'loan_number', 'source', 'lender_name', 'customer_id', 'principal_amount', 'outstanding_balance',
         'interest_rate', 'monthly_installment', 'start_date', 'due_date',
         'liability_account_id', 'received_to_account_id', 'journal_entry_id',
         'status', 'notes', 'branch_id', 'user_id',
@@ -24,6 +24,11 @@ class BusinessLoan extends Model
         'start_date' => 'date',
         'due_date' => 'date',
     ];
+
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class);
+    }
 
     public function repayments()
     {

@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
 {
-    private const ROLES = ['admin', 'manager', 'accountant', 'hr', 'finance', 'cashier', 'branch'];
+    private const ROLES = ['admin', 'manager', 'accountant', 'hr', 'finance', 'cashier', 'branch', 'auditor'];
 
     public function index(Request $request)
     {

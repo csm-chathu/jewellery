@@ -11,8 +11,10 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\GLController;
 use App\Http\Controllers\Api\GoldBuybackController;
 use App\Http\Controllers\Api\GoldLoanController;
+use App\Http\Controllers\Api\CaratController;
 use App\Http\Controllers\Api\GoldRateController;
 use App\Http\Controllers\Api\JournalEntryController;
+use App\Http\Controllers\Api\OpeningBalanceController;
 use App\Http\Controllers\Api\LoanController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\PurchaseController;
@@ -25,6 +27,8 @@ use App\Http\Controllers\Api\TaxSettingController;
 use App\Http\Controllers\Api\ShopSettingController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\ExpenseController;
+use App\Http\Controllers\Api\InformalPurchaseController;
+use App\Http\Controllers\Api\ReworkOrderController;
 use App\Http\Controllers\Api\SmsController;
 use App\Http\Controllers\Auth\AuthController;
 use Illuminate\Http\Request;
@@ -55,10 +59,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('purchases',  PurchaseController::class)->except(['update']);
 
     // Gold rates
-    Route::get('/gold-rates',           [GoldRateController::class, 'index']);
-    Route::post('/gold-rates',          [GoldRateController::class, 'store']);
-    Route::get('/gold-rates/today',     [GoldRateController::class, 'todayRate']);
-    Route::post('/gold-rates/calculate',[GoldRateController::class, 'calculate']);
+    Route::get('/gold-rates',            [GoldRateController::class, 'index']);
+    Route::post('/gold-rates',           [GoldRateController::class, 'store']);
+    Route::get('/gold-rates/today',      [GoldRateController::class, 'todayRate']);
+    Route::post('/gold-rates/calculate', [GoldRateController::class, 'calculate']);
+
+    // Carat master data
+    Route::get('/carats',             [CaratController::class, 'index']);
+    Route::post('/carats',            [CaratController::class, 'store']);
+    Route::delete('/carats/{carat}',  [CaratController::class, 'destroy']);
+    Route::patch('/carats/{carat}/toggle', [CaratController::class, 'toggle']);
 
     // Tax settings
     Route::apiResource('tax-settings', TaxSettingController::class);
@@ -66,6 +76,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Shop Settings
     Route::get('/shop-settings', [ShopSettingController::class, 'index']);
     Route::post('/shop-settings', [ShopSettingController::class, 'update']);
+    Route::post('/shop-settings/logo', [ShopSettingController::class, 'uploadLogo']);
 
     // Expenses
     Route::get('/expenses', [ExpenseController::class, 'index']);
@@ -91,11 +102,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/branches',           [UserController::class, 'branches']);
 
     // Reports
-    Route::get('/reports/metal-balance', [ReportController::class, 'metalBalance']);
-    Route::get('/reports/rate-pnl',      [ReportController::class, 'ratePnl']);
-    Route::get('/reports/day-end',       [ReportController::class, 'dayEnd']);
-    Route::post('/reports/day-end',      [ReportController::class, 'storeDayEnd']);
-    Route::get('/reports/sales-summary', [ReportController::class, 'salesSummary']);
+    Route::get('/reports/metal-balance',    [ReportController::class, 'metalBalance']);
+    Route::get('/reports/rate-pnl',         [ReportController::class, 'ratePnl']);
+    Route::get('/reports/day-end',          [ReportController::class, 'dayEnd']);
+    Route::post('/reports/day-end',         [ReportController::class, 'storeDayEnd']);
+    Route::get('/reports/sales-summary',    [ReportController::class, 'salesSummary']);
+    Route::get('/reports/purchases',        [ReportController::class, 'purchasesSummary']);
+    Route::get('/reports/gold-rate-history',[ReportController::class, 'goldRateHistory']);
+    Route::get('/reports/buybacks',         [ReportController::class, 'buybacksReport']);
+    Route::get('/reports/salary',           [ReportController::class, 'salaryReport']);
+    Route::get('/reports/expenses',         [ReportController::class, 'expensesReport']);
+    Route::get('/reports/gold-loans',       [ReportController::class, 'goldLoansReport']);
 
     // Audit log
     Route::get('/audit-logs', [AuditLogController::class, 'index']);
@@ -128,6 +145,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/accounts/{account}', [AccountController::class, 'destroy']);
 
     // Journal Entries
+    Route::get('/opening-balances',  [OpeningBalanceController::class, 'index']);
+    Route::post('/opening-balances', [OpeningBalanceController::class, 'store']);
+
     Route::get('/journal-entries',                   [JournalEntryController::class, 'index']);
     Route::post('/journal-entries',                  [JournalEntryController::class, 'store']);
     Route::get('/journal-entries/{journalEntry}',    [JournalEntryController::class, 'show']);
@@ -162,4 +182,20 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/rent-payments',                  [RentPaymentController::class, 'store']);
     Route::post('/rent-payments/{rentPayment}/pay',[RentPaymentController::class, 'pay']);
     Route::get('/rent-payments/reminders',         [RentPaymentController::class, 'reminders']);
+
+    // Informal / off-record gold purchases (admin + manager only, not logged to audit trail)
+    Route::get('/informal-purchases',                         [InformalPurchaseController::class, 'index']);
+    Route::post('/informal-purchases',                        [InformalPurchaseController::class, 'store']);
+    Route::put('/informal-purchases/{informalGoldPurchase}',  [InformalPurchaseController::class, 'update']);
+    Route::delete('/informal-purchases/{informalGoldPurchase}',[InformalPurchaseController::class, 'destroy']);
+
+    // Rework / Job Orders
+    Route::get('/rework-orders',                          [ReworkOrderController::class, 'index']);
+    Route::post('/rework-orders',                         [ReworkOrderController::class, 'store']);
+    Route::put('/rework-orders/{reworkOrder}',            [ReworkOrderController::class, 'update']);
+    Route::post('/rework-orders/{reworkOrder}/complete',  [ReworkOrderController::class, 'complete']);
+    Route::delete('/rework-orders/{reworkOrder}',         [ReworkOrderController::class, 'destroy']);
+    Route::get('/rework-orders/options/buybacks',         [ReworkOrderController::class, 'buybackOptions']);
+    Route::get('/rework-orders/options/scraps',           [ReworkOrderController::class, 'scrapOptions']);
+    Route::get('/rework-orders/options/categories',       [ReworkOrderController::class, 'categories']);
 });

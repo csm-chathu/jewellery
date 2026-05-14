@@ -255,6 +255,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
+import { fmtDate as _fmtDate } from '../utils/date.js'
 import { PlusIcon, TrashIcon, XMarkIcon, ArrowPathIcon } from '@heroicons/vue/24/outline'
 
 const entries      = ref({ data: [] })
@@ -359,7 +360,7 @@ async function deleteEntry(entry) {
 }
 
 function lkr(v) { return Number(v || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }
-function fmtDate(d) { return d ? new Date(d).toLocaleDateString('en-GB') : '—' }
+function fmtDate(d) { return _fmtDate(d) }
 
 onMounted(async () => {
   const { data } = await axios.get('/api/accounts/all')

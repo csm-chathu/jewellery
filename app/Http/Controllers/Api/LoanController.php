@@ -16,7 +16,10 @@ class LoanController extends Controller
 {
     public function index(Request $request)
     {
-        return BusinessLoan::with(['liabilityAccount:id,code,name', 'receivedToAccount:id,code,name'])
+        // source: 'customer' | 'owner' | 'bank' (default)
+        $source = $request->source ?? 'bank';
+        return BusinessLoan::with(['liabilityAccount:id,code,name', 'receivedToAccount:id,code,name', 'customer:id,name,phone'])
+            ->where('source', $source)
             ->when($request->status, fn($q, $v) => $q->where('status', $v))
             ->when($request->search, fn($q, $v) => $q->where(function ($x) use ($v) {
                 $x->where('loan_number', 'like', "%{$v}%")
@@ -29,32 +32,52 @@ class LoanController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'lender_name'            => 'required|string|max:200',
+            'source'                 => 'nullable|in:bank,customer,owner',
+            'lender_name'            => 'nullable|string|max:200',
+            'customer_id'            => 'nullable|exists:customers,id',
             'principal_amount'       => 'required|numeric|min:0.01',
             'interest_rate'          => 'nullable|numeric|min:0',
             'monthly_installment'    => 'nullable|numeric|min:0',
             'start_date'             => 'required|date',
             'due_date'               => 'nullable|date|after_or_equal:start_date',
-            'liability_account_id'   => 'required|exists:accounts,id',
-            'received_to_account_id' => 'required|exists:accounts,id',
+            'liability_account_id'   => 'nullable|exists:accounts,id',
+            'received_to_account_id' => 'nullable|exists:accounts,id',
             'status'                 => 'nullable|in:active,closed',
             'notes'                  => 'nullable|string|max:1000',
             'post_to_gl'             => 'nullable|boolean',
         ]);
 
+        // Auto-populate lender_name from customer when customer_id is given
+        if (!empty($data['customer_id']) && empty($data['lender_name'])) {
+            $customer = \App\Models\Customer::find($data['customer_id']);
+            $data['lender_name'] = $customer?->name ?? 'Customer';
+        }
+
+        if (empty($data['lender_name'])) {
+            return response()->json(['errors' => ['lender_name' => ['Lender / owner name is required.']]], 422);
+        }
+
         DB::beginTransaction();
         try {
             $seq = BusinessLoan::withTrashed()->count() + 1;
+            $source = $data['source'] ?? 'bank';
+            $prefix = match($source) { 'owner' => 'OINV', 'customer' => 'CINV', default => 'LOAN' };
             $loan = BusinessLoan::create([
                 ...$data,
-                'loan_number'         => 'LOAN-' . date('Ym') . '-' . str_pad($seq, 4, '0', STR_PAD_LEFT),
+                'source'              => $source,
+                'loan_number'         => $prefix . '-' . date('Ym') . '-' . str_pad($seq, 4, '0', STR_PAD_LEFT),
                 'outstanding_balance' => $data['principal_amount'],
                 'status'              => $data['status'] ?? 'active',
                 'branch_id'           => auth()->user()->branch_id,
                 'user_id'             => auth()->id(),
             ]);
 
-            if (($data['post_to_gl'] ?? true) && $loan->status === 'active') {
+            $postToGl = ($data['post_to_gl'] ?? true)
+                && $loan->status === 'active'
+                && $loan->liability_account_id
+                && $loan->received_to_account_id;
+
+            if ($postToGl) {
                 $entry = $this->postLoanDisbursement($loan);
                 $loan->update(['journal_entry_id' => $entry->id]);
             }
@@ -124,8 +147,10 @@ class LoanController extends Controller
                 'user_id'                     => auth()->id(),
             ]);
 
-            $entry = $this->postRepayment($loan, $repayment);
-            $repayment->update(['journal_entry_id' => $entry->id]);
+            if ($loan->liability_account_id) {
+                $entry = $this->postRepayment($loan, $repayment);
+                $repayment->update(['journal_entry_id' => $entry->id]);
+            }
 
             $loan->outstanding_balance = max(0, round($loan->outstanding_balance - $principal, 2));
             $loan->status = $loan->outstanding_balance <= 0.0001 ? 'closed' : 'active';

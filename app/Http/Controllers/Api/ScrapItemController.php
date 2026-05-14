@@ -42,17 +42,19 @@ class ScrapItemController extends Controller
         ]);
 
         $product  = Product::findOrFail($data['product_id']);
-        $goldRate = GoldRate::today();
-
         // Deduct from product stock
         if ($product->stock_quantity < 1) {
             return response()->json(['message' => 'Product has no stock to convert.'], 422);
         }
         $product->decrement('stock_quantity');
 
-        $karatPurity = ['9k' => 9/24, '14k' => 14/24, '18k' => 18/24, '22k' => 22/24, '24k' => 24/24];
-        $purity      = $karatPurity[$product->karat] ?? 1;
-        $estValue    = $goldRate ? round($goldRate->rate_per_gram * $data['weight_g'] * $purity, 2) : 0;
+        $karatKey  = strtolower($product->karat ?? '24k');
+        $goldRates = GoldRate::todayRatesByLabel();
+        $karatRate = $goldRates[$karatKey] ?? null;
+        $rate24k   = $goldRates['24k'] ?? null;
+        $ratePerGram = $karatRate?->rate_per_gram
+            ?? ($rate24k ? $rate24k->rate_per_gram * GoldRate::purityForLabel($karatKey) : null);
+        $estValue    = $ratePerGram ? round($ratePerGram * $data['weight_g'], 2) : 0;
 
         $scrap = ScrapItem::create([
             'description'     => "Converted from: {$product->name} ({$product->sku})",
@@ -68,7 +70,7 @@ class ScrapItemController extends Controller
             'notes'           => $data['notes'] ?? null,
         ]);
 
-        AuditLog::record('scrap_converted', "Product {$product->sku} converted to scrap {$scrap->sku}", $scrap, null, [
+        AuditLog::record('scrap_converted', "Product {$product->sku} converted to scrap {$scrap->sku}", $scrap, [], [
             'product_id' => $product->id,
             'weight_g'   => $data['weight_g'],
         ]);
@@ -96,7 +98,7 @@ class ScrapItemController extends Controller
 
     public function destroy(ScrapItem $scrapItem)
     {
-        AuditLog::record('scrap_deleted', "Scrap {$scrapItem->sku} deleted", $scrapItem, $scrapItem->toArray(), null);
+        AuditLog::record('scrap_deleted', "Scrap {$scrapItem->sku} deleted", $scrapItem, $scrapItem->toArray(), []);
         $scrapItem->delete();
         return response()->noContent();
     }

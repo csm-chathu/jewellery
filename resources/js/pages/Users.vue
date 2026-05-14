@@ -22,6 +22,7 @@
         <option value="finance">Finance</option>
         <option value="cashier">Cashier</option>
         <option value="branch">Branch</option>
+        <option value="auditor">Tax Auditor</option>
       </select>
       <select v-model="filterBranch" class="form-input w-48" @change="load">
         <option value="">All Branches</option>
@@ -116,6 +117,7 @@
                 <option value="finance">Finance</option>
                 <option value="cashier">Cashier</option>
                 <option value="branch">Branch User</option>
+                <option value="auditor">Tax Auditor</option>
               </select>
             </div>
             <div>
@@ -250,6 +252,7 @@ function roleBadgeClass(role) {
     finance: 'bg-emerald-100 text-emerald-700',
     cashier: 'bg-amber-100 text-amber-700',
     branch: 'bg-blue-100 text-blue-700',
+    auditor: 'bg-orange-100 text-orange-700',
   }
   return classes[role] ?? 'bg-gray-100 text-gray-700'
 }

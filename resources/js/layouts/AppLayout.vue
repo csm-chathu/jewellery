@@ -126,9 +126,10 @@ import {
   ArrowRightOnRectangleIcon, SparklesIcon,
   UserGroupIcon, ChartBarIcon, ClipboardDocumentCheckIcon,
   ClipboardDocumentListIcon, CurrencyDollarIcon, FireIcon,
-  BookOpenIcon, DocumentTextIcon, PresentationChartBarIcon,
+  ScaleIcon, BookOpenIcon, DocumentTextIcon, PresentationChartBarIcon,
   BanknotesIcon, BuildingLibraryIcon, HomeModernIcon,
-  ReceiptPercentIcon, Cog6ToothIcon, DevicePhoneMobileIcon,
+  ReceiptPercentIcon, Cog6ToothIcon, DevicePhoneMobileIcon, LockClosedIcon,
+  WrenchScrewdriverIcon,
 } from '@heroicons/vue/24/outline'
 
 const auth   = useAuthStore()
@@ -153,13 +154,15 @@ const adminNavItems = [
   { to: '/gold-rates', label: 'Gold Rates', icon: SparklesIcon, roles: ['admin', 'manager'] },
   { to: '/buy-back', label: 'Buy-Back', icon: CurrencyDollarIcon, roles: ['admin', 'manager', 'cashier', 'branch'] },
   { to: '/scrap', label: 'Scrap Gold', icon: FireIcon, roles: ['admin', 'manager'] },
-  { to: '/reports', label: 'Reports', icon: ChartBarIcon, roles: ['admin', 'manager', 'accountant'] },
+  { to: '/rework-orders', label: 'Rework / Jobs', icon: WrenchScrewdriverIcon, roles: ['admin', 'manager', 'cashier', 'branch'] },
+  { to: '/reports', label: 'Reports', icon: ChartBarIcon, roles: ['admin', 'manager', 'accountant', 'auditor'] },
   { to: '/day-end', label: 'Day End', icon: ClipboardDocumentCheckIcon, roles: ['admin', 'manager', 'cashier', 'branch'] },
   { to: '/audit-log', label: 'Audit Log', icon: ClipboardDocumentListIcon, roles: ['admin'] },
   { to: '/users', label: 'Users', icon: UserGroupIcon, roles: ['admin'] },
   { to: '/shop-settings', label: 'Shop Settings', icon: Cog6ToothIcon, roles: ['admin', 'manager'] },
-  { to: '/expenses', label: 'Expenses', icon: ReceiptPercentIcon, roles: ['admin', 'manager', 'finance'] },
+  { to: '/expenses', label: 'Expenses', icon: ReceiptPercentIcon, roles: ['admin', 'manager', 'finance', 'auditor'] },
   { to: '/sms', label: 'SMS Centre', icon: DevicePhoneMobileIcon, roles: ['admin', 'manager'] },
+  { to: '/informal-purchases', label: 'Private Purchases', icon: LockClosedIcon, roles: ['admin', 'manager'] },
 ]
 
 const hrNavItems = [
@@ -168,15 +171,17 @@ const hrNavItems = [
 ]
 
 const financeNavItems = [
-  { to: '/loans', label: 'Business Loans', icon: BuildingLibraryIcon, roles: ['admin', 'manager', 'finance'] },
-  { to: '/rentals', label: 'Monthly Rentals', icon: HomeModernIcon, roles: ['admin', 'manager', 'finance'] },
-  { to: '/gold-loans', label: 'Gold Loans', icon: CurrencyDollarIcon, roles: ['admin', 'manager', 'finance'] },
+  { to: '/loans', label: 'Business Loans', icon: BuildingLibraryIcon, roles: ['admin', 'manager', 'finance', 'auditor'] },
+  { to: '/customer-investments', label: 'Owner Investments', icon: CurrencyDollarIcon, roles: ['admin', 'manager', 'finance'] },
+  { to: '/rentals', label: 'Monthly Rentals', icon: HomeModernIcon, roles: ['admin', 'manager', 'finance', 'auditor'] },
+  { to: '/gold-loans', label: 'Gold Loans', icon: CurrencyDollarIcon, roles: ['admin', 'manager', 'finance', 'auditor'] },
 ]
 
 const accountingNavItems = [
-  { to: '/accounts', label: 'Chart of Accounts', icon: BookOpenIcon, roles: ['admin', 'manager', 'accountant'] },
-  { to: '/journal-entries', label: 'Journal Entries', icon: DocumentTextIcon, roles: ['admin', 'manager', 'accountant'] },
-  { to: '/general-ledger', label: 'General Ledger', icon: PresentationChartBarIcon, roles: ['admin', 'manager', 'accountant'] },
+  { to: '/opening-balances', label: 'Opening Balances', icon: ScaleIcon, roles: ['admin', 'manager', 'accountant', 'auditor'] },
+  { to: '/accounts', label: 'Chart of Accounts', icon: BookOpenIcon, roles: ['admin', 'manager', 'accountant', 'auditor'] },
+  { to: '/journal-entries', label: 'Journal Entries', icon: DocumentTextIcon, roles: ['admin', 'manager', 'accountant', 'auditor'] },
+  { to: '/general-ledger', label: 'General Ledger', icon: PresentationChartBarIcon, roles: ['admin', 'manager', 'accountant', 'auditor'] },
 ]
 
 const currentRole = computed(() => auth.user?.role ?? 'branch')
@@ -221,7 +226,10 @@ const pageTitles = {
   'salary-payments':  'Salary Payments',
   'loans':            'Business Loans',
   'rentals':          'Monthly Rentals',
-  'gold-loans':       'Gold Loans',
+  'gold-loans':            'Gold Loans',
+  'customer-investments':  'Owner Investments',
+  'rework-orders':        'Rework / Job Orders',
+  'informal-purchases':   'Private Purchases',
 }
 
 const pageTitle  = computed(() => pageTitles[route.name] ?? 'Jewellery MS')
@@ -231,7 +239,11 @@ onMounted(async () => {
   try {
     const { data } = await axios.get('/api/shop-branding')
     if (data?.shop_name) branding.value.shop_name = data.shop_name
-    if (data?.logo_url) branding.value.logo_url = data.logo_url
+    if (data?.logo_url) {
+      branding.value.logo_url = data.logo_url
+      const favicon = document.getElementById('app-favicon')
+      if (favicon) favicon.href = data.logo_url
+    }
   } catch {
     // Keep fallback branding if API is unavailable.
   }

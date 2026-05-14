@@ -10,15 +10,27 @@
     <div class="card space-y-5">
       <h3 class="font-semibold text-gray-700 border-b border-gray-100 pb-2">Business Information</h3>
 
-      <!-- Logo preview -->
+      <!-- Logo upload -->
       <div>
-        <label class="form-label">Logo URL</label>
-        <input v-model="form.logo_url" type="url" placeholder="https://..." class="form-input" />
-        <div v-if="form.logo_url" class="mt-2 flex items-center gap-3">
-          <img :src="form.logo_url" alt="Shop Logo" class="h-16 object-contain border border-gray-200 rounded-lg p-1 bg-white" />
-          <span class="text-xs text-gray-500">Logo preview</span>
+        <label class="form-label">Shop Logo</label>
+        <div class="flex items-center gap-4">
+          <div class="w-20 h-20 border-2 border-dashed border-gray-200 rounded-xl flex items-center justify-center bg-gray-50 shrink-0 overflow-hidden">
+            <img v-if="form.logo_url" :src="form.logo_url" alt="Logo" class="w-full h-full object-contain p-1" />
+            <PhotoIcon v-else class="w-8 h-8 text-gray-300" />
+          </div>
+          <div class="flex-1 space-y-2">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input ref="logoInput" type="file" accept="image/*" class="hidden" @change="onLogoChange" />
+              <button type="button" @click="logoInput.click()"
+                class="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                <ArrowUpTrayIcon class="w-4 h-4" />
+                {{ logoUploading ? 'Uploading…' : 'Choose Image' }}
+              </button>
+            </label>
+            <p class="text-xs text-gray-400">PNG, JPG, GIF or WebP · max 2 MB</p>
+            <p v-if="logoError" class="text-xs text-red-500">{{ logoError }}</p>
+          </div>
         </div>
-        <p class="text-xs text-gray-400 mt-1">Upload your logo to Cloudinary or any image host and paste the URL here.</p>
       </div>
 
       <div>
@@ -95,7 +107,7 @@ import { ref, onMounted } from 'vue'
 import axios from 'axios'
 import {
   Cog6ToothIcon, PrinterIcon, DocumentTextIcon,
-  ArrowPathIcon, CheckCircleIcon,
+  ArrowPathIcon, CheckCircleIcon, PhotoIcon, ArrowUpTrayIcon,
 } from '@heroicons/vue/24/outline'
 
 const form = ref({
@@ -106,9 +118,12 @@ const form = ref({
   logo_url:   '',
   print_mode: 'pos',
 })
-const saving = ref(false)
-const saved  = ref(false)
-const error  = ref('')
+const saving       = ref(false)
+const saved        = ref(false)
+const error        = ref('')
+const logoInput    = ref(null)
+const logoUploading = ref(false)
+const logoError    = ref('')
 
 onMounted(async () => {
   try {
@@ -120,6 +135,26 @@ onMounted(async () => {
     // settings table may be empty on first load
   }
 })
+
+async function onLogoChange(e) {
+  const file = e.target.files[0]
+  if (!file) return
+  logoError.value    = ''
+  logoUploading.value = true
+  try {
+    const fd = new FormData()
+    fd.append('logo', file)
+    const { data } = await axios.post('/api/shop-settings/logo', fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    form.value.logo_url = data.logo_url
+  } catch (e) {
+    logoError.value = e.response?.data?.message ?? 'Upload failed.'
+  } finally {
+    logoUploading.value = false
+    e.target.value = ''
+  }
+}
 
 async function save() {
   saving.value = true

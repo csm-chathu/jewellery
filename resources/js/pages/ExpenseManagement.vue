@@ -80,7 +80,7 @@
           </thead>
           <tbody class="divide-y divide-gray-100">
             <tr v-for="exp in expenses" :key="exp.id" class="hover:bg-gray-50">
-              <td class="table-td text-sm">{{ formatDate(exp.expense_date) }}</td>
+              <td class="table-td text-sm">{{ fmtDate(exp.expense_date) }}</td>
               <td class="table-td">
                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                   {{ categories[exp.category] || exp.category }}
@@ -188,6 +188,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { PlusIcon, PencilSquareIcon, TrashIcon } from '@heroicons/vue/24/outline'
 import axios from 'axios'
+import { fmtDate } from '../utils/date.js'
 
 const expenses = ref([])
 const users = ref([])
@@ -225,10 +226,6 @@ const avgExpense = computed(() => {
   const total = expenses.value.reduce((sum, e) => sum + parseFloat(e.amount), 0)
   return total / expenses.value.length
 })
-
-function formatDate(d) {
-  return new Date(d).toLocaleDateString('en-LK', { day: '2-digit', month: 'short', year: 'numeric' })
-}
 
 function formatNumber(val, decimals = 2) {
   const num = parseFloat(val || 0)

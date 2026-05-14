@@ -1,7 +1,7 @@
 ﻿<template>
   <div :data-print-mode="printMode">
 
-    <!-- â”€â”€ Screen toolbar (no-print) â”€â”€ -->
+    <!-- â"€â"€ Screen toolbar (no-print) â"€â"€ -->
     <div class="no-print flex flex-wrap items-center justify-between gap-3 mb-6">
       <div class="flex items-center gap-3">
         <router-link to="/sales"
@@ -80,9 +80,9 @@
           <!-- INVOICE META -->
           <div style="font-size:10px; margin-bottom:4px;">
             <div class="flex-row"><span>Invoice :</span><span style="font-weight:bold; float:right;">{{ sale.invoice_number }}</span></div>
-            <div class="flex-row"><span>Date    :</span><span style="float:right;">{{ formatDate(sale.sold_at) }}</span></div>
+            <div class="flex-row"><span>Date    :</span><span style="float:right;">{{ fmtDate(sale.sold_at) }}</span></div>
             <div class="flex-row"><span>Time    :</span><span style="float:right;">{{ formatTime(sale.sold_at) }}</span></div>
-            <div class="flex-row"><span>Cashier :</span><span style="float:right;">{{ sale.user?.name ?? 'â€”' }}</span></div>
+            <div class="flex-row"><span>Cashier :</span><span style="float:right;">{{ sale.user?.name ?? 'â€"' }}</span></div>
             <div class="flex-row"><span>Payment :</span><span style="float:right; text-transform:capitalize;">{{ sale.payment_method?.replace('_',' ') }}</span></div>
             <div class="flex-row">
               <span>Status  :</span>
@@ -187,7 +187,7 @@
           <!-- FOOTER -->
           <div style="text-align:center; font-size:10px; line-height:1.6;">
             <div style="font-weight:bold;">*** Thank You! Come Again ***</div>
-            <div style="font-size:9px; color:#555;">{{ formatDate(sale.sold_at) }}</div>
+            <div style="font-size:9px; color:#555;">{{ fmtDate(sale.sold_at) }}</div>
           </div>
 
         </div>
@@ -211,14 +211,10 @@
               </div>
             </div>
             <div class="inv-meta-block">
-              <div class="inv-title">INVOICE</div>
               <table class="inv-meta-table">
                 <tr><td>Invoice No</td><td><strong>{{ sale.invoice_number }}</strong></td></tr>
-                <tr><td>Date</td><td>{{ formatDate(sale.sold_at) }}</td></tr>
-                <tr><td>Time</td><td>{{ formatTime(sale.sold_at) }}</td></tr>
-                <tr><td>Cashier</td><td>{{ sale.user?.name ?? 'â€”' }}</td></tr>
-                <tr><td>Payment</td><td style="text-transform:capitalize;">{{ sale.payment_method?.replace('_', ' ') }}</td></tr>
-                <tr><td>Status</td><td><strong style="text-transform:uppercase;">{{ sale.payment_status }}</strong></td></tr>
+                <tr><td>Date &amp; Time</td><td>{{ fmtDate(sale.sold_at) }}, {{ formatTime(sale.sold_at) }}</td></tr>
+                <tr><td>Cashier</td><td>{{ sale.user?.name ?? 'â€"' }}</td></tr>
               </table>
             </div>
           </div>
@@ -227,14 +223,15 @@
           <div class="inv-customer">
             <strong>Bill To:</strong>
             {{ sale.customer?.name ?? 'Walk-in Customer' }}
-            <span v-if="sale.customer?.phone">  |  Tel: {{ sale.customer.phone }}</span>
+            <span v-if="sale.customer?.phone"> &nbsp;|&nbsp; Tel: {{ sale.customer.phone }}</span>
+            <span style="text-transform:capitalize;"> &nbsp;|&nbsp; Payment: {{ sale.payment_method?.replace('_', ' ') }}</span>
+            <span> &nbsp;|&nbsp; Status: <strong style="text-transform:uppercase;">{{ sale.payment_status }}</strong></span>
           </div>
 
           <!-- ITEMS TABLE -->
           <table class="inv-items-table">
             <thead>
               <tr>
-                <th style="text-align:left; width:32px;">#</th>
                 <th style="text-align:left;">Item / Description</th>
                 <th style="text-align:center; width:40px;">Qty</th>
                 <th style="text-align:right; width:90px;">Unit Price</th>
@@ -243,8 +240,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(item, i) in sale.items" :key="item.id">
-                <td style="color:#888;">{{ i + 1 }}</td>
+              <tr v-for="item in sale.items" :key="item.id">
                 <td>
                   <div style="font-weight:600;">{{ item.product?.name ?? 'Unknown' }}</div>
                   <div style="font-size:10px; color:#666;">
@@ -262,7 +258,7 @@
                 </td>
                 <td style="text-align:center;">{{ item.quantity }}</td>
                 <td style="text-align:right;">LKR {{ lkr(item.unit_price) }}</td>
-                <td style="text-align:right;">{{ Number(item.discount) > 0 ? 'LKR ' + lkr(item.discount) : 'â€”' }}</td>
+                <td style="text-align:right;">{{ Number(item.discount) > 0 ? 'LKR ' + lkr(item.discount) : 'â€"' }}</td>
                 <td style="text-align:right; font-weight:700;">LKR {{ lkr(item.total) }}</td>
               </tr>
             </tbody>
@@ -302,9 +298,7 @@
 
           <!-- FOOTER -->
           <div class="inv-footer">
-            <canvas ref="barcodeCanvasA5" class="inv-barcode"></canvas>
-            <div style="font-size:9px; letter-spacing:2px; margin-top:2px;">{{ sale.invoice_number }}</div>
-            <div style="margin-top:8px; font-weight:600;">Thank you for your purchase!</div>
+            <div style="font-weight:600;">Thank you for your purchase!</div>
             <div v-if="shop.shop_name" style="font-size:10px; color:#888; margin-top:2px;">{{ shop.shop_name }}</div>
           </div>
 
@@ -326,25 +320,22 @@ import { ref, onMounted, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import axios from 'axios'
 import { ArrowLeftIcon, PrinterIcon, ArrowPathIcon, DocumentTextIcon } from '@heroicons/vue/24/outline'
+import { fmtDate } from '../utils/date.js'
 
 const route           = useRoute()
 const sale            = ref(null)
 const loading         = ref(true)
-const barcodeCanvas   = ref(null)
-const barcodeCanvasA5 = ref(null)
+const barcodeCanvas = ref(null)
 const appName         = import.meta.env.VITE_APP_NAME ?? 'Jewellery Store'
 const preferredPrinter  = import.meta.env.VITE_THERMAL_PRINTER ?? ''
 const directPrinting  = ref(false)
 const directPrintError = ref('')
 
-const shop = ref({ shop_name: '', address: '', phone: '', br_number: '', logo_url: '', print_mode: 'pos' })
-const printMode = ref('pos')
+const shop = ref({ shop_name: '', address: '', phone: '', br_number: '', logo_url: '', print_mode: 'a5' })
+const printMode = ref('a5')
 
 function lkr(val) {
   return Number(val || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
-function formatDate(d) {
-  return new Date(d).toLocaleDateString('en-LK', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 function formatTime(d) {
   return new Date(d).toLocaleTimeString('en-LK', { hour: '2-digit', minute: '2-digit' })
@@ -385,7 +376,6 @@ function drawBarcode(canvas, text) {
 function drawAllBarcodes() {
   if (sale.value) {
     drawBarcode(barcodeCanvas.value, sale.value.invoice_number)
-    drawBarcode(barcodeCanvasA5.value, sale.value.invoice_number)
   }
 }
 
@@ -476,7 +466,7 @@ async function directPrint() {
   }
 }
 
-watch([barcodeCanvas, barcodeCanvasA5], () => drawAllBarcodes())
+watch(barcodeCanvas, () => drawAllBarcodes())
 
 onMounted(async () => {
   try {
@@ -499,7 +489,7 @@ onMounted(async () => {
 </script>
 
 <style>
-/* â”€â”€ Screen: POS preview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* â"€â"€ Screen: POS preview â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */
 .receipt-paper {
   width: 287px;
   padding: 16px 14px;
@@ -516,7 +506,7 @@ onMounted(async () => {
 .receipt-divider-solid  { border: none; border-top: 1px solid #555; margin: 6px 0; }
 .receipt-divider-double { border: none; border-top: 3px double #333; margin: 6px 0; }
 
-/* â”€â”€ Screen: A5 invoice preview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* â"€â"€ Screen: A5 invoice preview â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */
 .a5-paper {
   width: 148mm;
   min-height: 200mm;
@@ -554,9 +544,8 @@ onMounted(async () => {
 .inv-total-line   { display:flex; justify-content:space-between; font-size:11px; padding:3px 0; border-bottom:1px dashed #e5e7eb; }
 .inv-grand-total  { font-size:14px; font-weight:800; border-top:2px solid #1a1a1a; border-bottom:2px solid #1a1a1a; padding:4px 0; margin:2px 0; }
 .inv-footer       { text-align:center; margin-top:16px; padding-top:10px; border-top:1px dashed #ccc; font-size:11px; }
-.inv-barcode      { max-width:240px; height:40px; }
 
-/* â”€â”€ @media print â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* â"€â"€ @media print â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */
 @media print {
   .no-print, aside, nav, header, footer { display: none !important; }
   html, body { margin:0 !important; padding:0 !important; height:auto !important; overflow:visible !important; background:#fff !important; }

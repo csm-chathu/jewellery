@@ -11,9 +11,9 @@
         <span class="text-gray-300">/</span>
         <h2 class="text-lg font-semibold text-gray-800">New Sale</h2>
       </div>
-      <div v-if="goldRate" class="flex items-center gap-2 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-full">
+      <div v-if="goldRate24k" class="flex items-center gap-2 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-full">
         <SparklesIcon class="w-4 h-4 text-amber-500" />
-        <span class="text-xs font-semibold text-amber-700">Gold Rate: LKR {{ Number(goldRate.rate_per_gram).toLocaleString() }}/g today</span>
+        <span class="text-xs font-semibold text-amber-700">Gold Rate: LKR {{ Number(goldRate24k.rate_per_gram).toLocaleString() }}/g today</span>
       </div>
     </div>
 
@@ -66,7 +66,7 @@
 
           <!-- Cart item rows -->
           <div class="space-y-3">
-            <div v-for="(item, i) in form.items" :key="i" class="border border-gray-200 rounded-xl overflow-hidden">
+            <div v-for="(item, i) in form.items" :key="i" class="border border-gray-200 rounded-xl">
 
               <!-- Item header row -->
               <div class="bg-gray-50 px-4 py-2.5 flex items-start gap-3 border-b border-gray-100">
@@ -81,7 +81,7 @@
                     @focus="item.product_search?.trim() ? openProductDropdown(item) : null"
                     @keyup.enter.prevent="openProductDropdown(item)"
                   />
-                  <div v-if="item.product_dropdown_open" class="absolute left-0 right-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+                  <div v-if="item.product_dropdown_open" class="absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
                     <button
                       v-for="p in searchProducts(item.product_search)"
                       :key="p.id"
@@ -89,7 +89,11 @@
                       class="flex w-full items-start justify-between gap-3 px-3 py-2 text-left hover:bg-amber-50 border-b border-gray-100 last:border-b-0"
                       @mousedown.prevent="selectProduct(item, p)"
                     >
-                      <div class="min-w-0">
+                      <div class="shrink-0 w-10 h-10 rounded-md bg-gray-100 overflow-hidden flex items-center justify-center">
+                        <img v-if="p.image" :src="p.image" :alt="p.name" class="w-full h-full object-cover" />
+                        <span v-else class="text-gray-300 text-lg">💎</span>
+                      </div>
+                      <div class="min-w-0 flex-1">
                         <p class="text-sm font-medium text-gray-800 truncate">{{ p.name }}</p>
                         <p class="text-[11px] text-gray-500 truncate">
                           SKU: {{ p.sku }}<span v-if="p.barcode"> · Barcode: {{ p.barcode }}</span>
@@ -421,7 +425,8 @@ const router        = useRouter()
 const products      = ref([])
 const customers     = ref([])
 const taxes         = ref([])
-const goldRate      = ref(null)
+const goldRateMap   = ref({})  // { '24k': {rate_per_gram, carat}, '22k': ... }
+const goldRate24k   = computed(() => goldRateMap.value['24k'] ?? null)
 const saving        = ref(false)
 const error         = ref('')
 const selectedTaxId    = ref('')
@@ -471,7 +476,15 @@ function scanBarcode() {
   barcodeError.value = ''
 }
 
-const KARAT_PURITY = { '9k': 9/24, '14k': 14/24, '18k': 18/24, '22k': 22/22, '24k': 24/24 }
+const KARAT_PURITY = { '9k': 9/24, '14k': 14/24, '18k': 18/24, '22k': 22/24, '24k': 1 }
+
+function rateForKarat(karatStr) {
+  const key = karatStr?.toLowerCase()
+  if (goldRateMap.value[key]) return goldRateMap.value[key].rate_per_gram
+  const r24k = goldRateMap.value['24k']?.rate_per_gram
+  if (!r24k) return null
+  return r24k * (KARAT_PURITY[key] ?? 1)
+}
 
 function addMonths(date, months) {
   const d = new Date(date)
@@ -566,9 +579,9 @@ function fillProduct(item) {
     .join(' · ')
   item.unit_price  = p.selling_price
 
-  if (goldRate.value && p.weight && p.karat) {
-    const purity         = KARAT_PURITY[p.karat.toLowerCase()] ?? 1
-    item.gold_value_auto = Math.round(goldRate.value.rate_per_gram * p.weight * purity * 100) / 100
+  if (p.weight && p.karat) {
+    const rate = rateForKarat(p.karat)
+    item.gold_value_auto = rate ? Math.round(rate * p.weight * 100) / 100 : 0
     item.gold_value      = item.gold_value_auto
   }
 
@@ -583,9 +596,9 @@ function fillProduct(item) {
     item.making_charge      = item.making_charge_auto
   }
 
-  if (goldRate.value && p.wastage_percent > 0 && p.weight && p.karat) {
-    const purity        = KARAT_PURITY[p.karat.toLowerCase()] ?? 1
-    item.wastage_auto   = Math.round(goldRate.value.rate_per_gram * p.weight * (p.wastage_percent / 100) * purity * 100) / 100
+  if (p.wastage_percent > 0 && p.weight && p.karat) {
+    const rate = rateForKarat(p.karat)
+    item.wastage_auto   = rate ? Math.round(rate * p.weight * (p.wastage_percent / 100) * 100) / 100 : 0
     item.wastage_amount = item.wastage_auto
   }
 
@@ -637,7 +650,7 @@ function applyTax() {
 async function submit() {
   saving.value = true; error.value = ''
   try {
-    await axios.post('/api/sales', {
+    const { data } = await axios.post('/api/sales', {
       customer_id:    form.customer_id || null,
       payment_method: form.payment_method,
       payment_status: form.payment_status,
@@ -661,7 +674,7 @@ async function submit() {
         wastage_amount: i.wastage_amount,
       })),
     })
-    router.push('/sales')
+    router.push(`/sales/${data.id}`)
   } catch (e) {
     error.value = e.response?.data?.message
       ?? Object.values(e.response?.data?.errors ?? {}).flat().join(', ')
@@ -679,7 +692,8 @@ onMounted(async () => {
   products.value  = p.data.data
   customers.value = c.data
   taxes.value     = t.data.filter(x => x.is_active)
-  goldRate.value  = gr.data
+  const rates = Array.isArray(gr.data) ? gr.data : []
+  goldRateMap.value = Object.fromEntries(rates.map(r => [r.carat?.label?.toLowerCase(), r]).filter(([k]) => k))
 })
 </script>
 

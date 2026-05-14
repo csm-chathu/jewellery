@@ -61,7 +61,7 @@ class SaleController extends Controller
 
         DB::beginTransaction();
         try {
-            $goldRate  = GoldRate::today();
+            $goldRates = GoldRate::todayRatesByLabel(); // ['24k' => GoldRate, ...]
             $subtotal  = 0;
             $goldTotal = 0; $gemTotal = 0; $mcTotal = 0; $wasteTotal = 0;
 
@@ -91,21 +91,29 @@ class SaleController extends Controller
                     };
                 }
 
+                // Resolve today's rate for this product's karat
+                $karatKey  = strtolower($product->karat ?? '24k');
+                $karatRate = $goldRates[$karatKey] ?? null;
+                $rate24k   = $goldRates['24k'] ?? null;
+
                 // Wastage
                 $wastage = $item['wastage_amount'] ?? 0;
                 if ($wastage == 0 && $product->wastage_percent > 0 && $product->weight) {
-                    $wastage = $goldRate
-                        ? $goldRate->rate_per_gram * ($product->weight * $product->wastage_percent / 100)
-                              * (GoldRate::$karatPurity[strtolower($product->karat ?? '24k')] ?? 1)
-                              * $qty
+                    $ratePerGram = $karatRate?->rate_per_gram
+                        ?? ($rate24k ? $rate24k->rate_per_gram * GoldRate::purityForLabel($karatKey) : null);
+                    $wastage = $ratePerGram
+                        ? round($ratePerGram * ($product->weight * $product->wastage_percent / 100) * $qty, 2)
                         : 0;
                 }
 
                 // Gold value from rate
                 $goldV = $item['gold_value'] ?? 0;
-                if ($goldV == 0 && $goldRate && $product->weight && $product->karat) {
-                    $purity = GoldRate::$karatPurity[strtolower($product->karat)] ?? 1;
-                    $goldV  = round($goldRate->rate_per_gram * $product->weight * $purity, 2) * $qty;
+                if ($goldV == 0 && $product->weight && $product->karat) {
+                    $ratePerGram = $karatRate?->rate_per_gram
+                        ?? ($rate24k ? $rate24k->rate_per_gram * GoldRate::purityForLabel($karatKey) : null);
+                    if ($ratePerGram) {
+                        $goldV = round($ratePerGram * $product->weight, 2) * $qty;
+                    }
                 }
 
                 // Gemstone value

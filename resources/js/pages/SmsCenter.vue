@@ -119,7 +119,7 @@
           <div class="flex items-end">
             <div class="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 w-full text-center">
               <p class="text-2xl font-bold text-amber-700">{{ birthdayCustomers.length }}</p>
-              <p class="text-xs text-gray-600">customers with birthdays on {{ formatDate(birthdayDate) }}</p>
+              <p class="text-xs text-gray-600">customers with birthdays on {{ fmtDate(birthdayDate) }}</p>
             </div>
           </div>
         </div>
@@ -251,7 +251,7 @@
             </thead>
             <tbody class="divide-y divide-gray-100">
               <tr v-for="log in smsLogs" :key="log.id" class="hover:bg-gray-50">
-                <td class="table-td text-sm">{{ formatDateTime(log.created_at) }}</td>
+                <td class="table-td text-sm">{{ fmtDateTime(log.created_at) }}</td>
                 <td class="table-td">
                   <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
                     :class="typeBadge(log.type)">
@@ -307,6 +307,7 @@ import {
   ClockIcon,
 } from '@heroicons/vue/24/outline'
 import axios from 'axios'
+import { fmtDate, fmtDateTime } from '../utils/date.js'
 
 // ─── Tabs ────────────────────────────────────────────────────────────────────
 const tabs = [
@@ -460,16 +461,6 @@ const placeholders = [
 
 function insertText(form, text) {
   form.message += text
-}
-
-function formatDate(d) {
-  if (!d) return ''
-  return new Date(d).toLocaleDateString('en-LK', { day: '2-digit', month: 'short', year: 'numeric' })
-}
-
-function formatDateTime(d) {
-  if (!d) return ''
-  return new Date(d).toLocaleString('en-LK', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
 function typeBadge(type) {

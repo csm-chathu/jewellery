@@ -113,7 +113,7 @@
                   </div>
                 </td>
                 <td class="table-td text-xs text-gray-500">
-                  <div>{{ formatDate(s.sold_at) }}</div>
+                  <div>{{ fmtDate(s.sold_at) }}</div>
                   <div class="text-gray-400">{{ formatTime(s.sold_at) }}</div>
                 </td>
                 <td class="table-td">
@@ -228,6 +228,7 @@ import {
   ReceiptPercentIcon, BanknotesIcon, CheckCircleIcon, PrinterIcon,
   ChartBarIcon, ArrowPathIcon, ChevronLeftIcon, ChevronRightIcon,
 } from '@heroicons/vue/24/outline'
+import { fmtDate } from '../utils/date.js'
 
 const sales        = ref({ data: [] })
 const search       = ref('')
@@ -277,9 +278,6 @@ const avgSale = computed(() => {
   return Number(d.reduce((a, s) => a + Number(s.total), 0) / d.length).toLocaleString('en-LK', { maximumFractionDigits: 0 })
 })
 
-function formatDate(d) {
-  return new Date(d).toLocaleDateString('en-LK', { day: '2-digit', month: 'short', year: 'numeric' })
-}
 function formatTime(d) {
   return new Date(d).toLocaleTimeString('en-LK', { hour: '2-digit', minute: '2-digit' })
 }
