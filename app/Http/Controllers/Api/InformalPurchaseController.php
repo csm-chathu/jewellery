@@ -41,7 +41,10 @@ class InformalPurchaseController extends Controller
             'rate_per_gram'    => 'required|numeric|min:0',
             'final_price'      => 'required|numeric|min:0',
             'payment_method'   => 'required|in:cash,bank_transfer',
-            'notes'            => 'nullable|string|max:1000',
+            'notes'             => 'nullable|string|max:1000',
+            'nic_front_url'     => 'nullable|string|max:500',
+            'nic_back_url'      => 'nullable|string|max:500',
+            'invoice_photo_url' => 'nullable|string|max:500',
         ]);
 
         $data['recorded_by'] = $request->user()->id;
@@ -67,7 +70,10 @@ class InformalPurchaseController extends Controller
             'rate_per_gram'    => 'sometimes|numeric|min:0',
             'final_price'      => 'sometimes|numeric|min:0',
             'payment_method'   => 'sometimes|in:cash,bank_transfer',
-            'notes'            => 'nullable|string|max:1000',
+            'notes'             => 'nullable|string|max:1000',
+            'nic_front_url'     => 'nullable|string|max:500',
+            'nic_back_url'      => 'nullable|string|max:500',
+            'invoice_photo_url' => 'nullable|string|max:500',
         ]);
 
         $informalGoldPurchase->update($data);
@@ -85,7 +91,7 @@ class InformalPurchaseController extends Controller
     private function authorise(Request $request): void
     {
         $role = $request->user()->role ?? '';
-        if (!in_array($role, ['admin', 'manager'])) {
+        if ($role !== 'gold_buyer') {
             abort(403, 'Access restricted.');
         }
     }

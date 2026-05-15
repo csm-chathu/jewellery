@@ -19,8 +19,10 @@
 
       <!-- Nav -->
       <nav class="flex-1 py-4 overflow-y-auto">
-        <div class="px-4 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Main</div>
-        <router-link v-for="item in navItems" :key="item.to" :to="item.to"
+        <template v-if="visibleNavItems.length">
+          <div class="px-4 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Main</div>
+        </template>
+        <router-link v-for="item in visibleNavItems" :key="item.to" :to="item.to"
           class="flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors"
           :class="isNavActive(item.to)
             ? 'bg-gold-600 text-white hover:bg-gold-700'
@@ -31,7 +33,9 @@
 
         <!-- Admin/Role-based sections -->
         <template v-if="visibleAdminNavItems.length">
-          <div class="px-4 mt-4 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Admin</div>
+          <div class="px-4 mt-4 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            {{ currentRole === 'gold_buyer' ? 'Gold Purchasing' : 'Admin' }}
+          </div>
           <router-link v-for="item in visibleAdminNavItems" :key="item.to" :to="item.to"
             class="flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors"
             :class="isNavActive(item.to)
@@ -130,6 +134,7 @@ import {
   BanknotesIcon, BuildingLibraryIcon, HomeModernIcon,
   ReceiptPercentIcon, Cog6ToothIcon, DevicePhoneMobileIcon, LockClosedIcon,
   WrenchScrewdriverIcon,
+  SquaresPlusIcon,
 } from '@heroicons/vue/24/outline'
 
 const auth   = useAuthStore()
@@ -140,14 +145,16 @@ const branding = ref({
   logo_url: '',
 })
 
+const ALL_STANDARD = ['admin', 'manager', 'accountant', 'hr', 'finance', 'cashier', 'branch', 'auditor']
+
 const navItems = [
-  { to: '/',           label: 'Dashboard',  icon: HomeIcon },
-  { to: '/products',   label: 'Products',   icon: CubeIcon },
-  { to: '/categories', label: 'Categories', icon: TagIcon },
-  { to: '/customers',  label: 'Customers',  icon: UsersIcon },
-  { to: '/suppliers',  label: 'Suppliers',  icon: TruckIcon },
-  { to: '/sales',      label: 'Sales',      icon: ShoppingCartIcon },
-  { to: '/purchases',  label: 'Purchases',  icon: ArchiveBoxIcon },
+  { to: '/',           label: 'Dashboard',  icon: HomeIcon,          roles: ALL_STANDARD },
+  { to: '/products',   label: 'Products',   icon: CubeIcon,          roles: ALL_STANDARD },
+  { to: '/categories', label: 'Categories', icon: TagIcon,            roles: ALL_STANDARD },
+  { to: '/customers',  label: 'Customers',  icon: UsersIcon,          roles: ALL_STANDARD },
+  { to: '/suppliers',  label: 'Suppliers',  icon: TruckIcon,          roles: ALL_STANDARD },
+  { to: '/sales',      label: 'Sales',      icon: ShoppingCartIcon,  roles: ALL_STANDARD },
+  { to: '/purchases',  label: 'Purchases',  icon: ArchiveBoxIcon,    roles: ALL_STANDARD },
 ]
 
 const adminNavItems = [
@@ -155,6 +162,7 @@ const adminNavItems = [
   { to: '/buy-back', label: 'Buy-Back', icon: CurrencyDollarIcon, roles: ['admin', 'manager', 'cashier', 'branch'] },
   { to: '/scrap', label: 'Scrap Gold', icon: FireIcon, roles: ['admin', 'manager'] },
   { to: '/rework-orders', label: 'Rework / Jobs', icon: WrenchScrewdriverIcon, roles: ['admin', 'manager', 'cashier', 'branch'] },
+  { to: '/layaways', label: 'Layaways', icon: SquaresPlusIcon, roles: ['admin', 'manager', 'cashier', 'branch'] },
   { to: '/reports', label: 'Reports', icon: ChartBarIcon, roles: ['admin', 'manager', 'accountant', 'auditor'] },
   { to: '/day-end', label: 'Day End', icon: ClipboardDocumentCheckIcon, roles: ['admin', 'manager', 'cashier', 'branch'] },
   { to: '/audit-log', label: 'Audit Log', icon: ClipboardDocumentListIcon, roles: ['admin'] },
@@ -162,7 +170,7 @@ const adminNavItems = [
   { to: '/shop-settings', label: 'Shop Settings', icon: Cog6ToothIcon, roles: ['admin', 'manager'] },
   { to: '/expenses', label: 'Expenses', icon: ReceiptPercentIcon, roles: ['admin', 'manager', 'finance', 'auditor'] },
   { to: '/sms', label: 'SMS Centre', icon: DevicePhoneMobileIcon, roles: ['admin', 'manager'] },
-  { to: '/informal-purchases', label: 'Private Purchases', icon: LockClosedIcon, roles: ['admin', 'manager'] },
+  { to: '/informal-purchases', label: 'Private Gold Book', icon: LockClosedIcon, roles: ['gold_buyer'] },
 ]
 
 const hrNavItems = [
@@ -194,6 +202,7 @@ function isAllowed(item) {
   return item.roles.includes(currentRole.value)
 }
 
+const visibleNavItems = computed(() => navItems.filter(isAllowed))
 const visibleAdminNavItems = computed(() => adminNavItems.filter(isAllowed))
 const visibleAccountingNavItems = computed(() => accountingNavItems.filter(isAllowed))
 const visibleHrNavItems = computed(() => hrNavItems.filter(isAllowed))
@@ -229,7 +238,8 @@ const pageTitles = {
   'gold-loans':            'Gold Loans',
   'customer-investments':  'Owner Investments',
   'rework-orders':        'Rework / Job Orders',
-  'informal-purchases':   'Private Purchases',
+  'layaways':             'Layaway / Installments',
+  'informal-purchases':   'Private Gold Book',
 }
 
 const pageTitle  = computed(() => pageTitles[route.name] ?? 'Jewellery MS')

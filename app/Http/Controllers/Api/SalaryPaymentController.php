@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Account;
 use App\Models\AuditLog;
+use App\Models\EpfEtfSetting;
 use App\Models\JournalEntry;
 use App\Models\JournalEntryLine;
 use App\Models\SalaryPayment;
@@ -35,6 +36,7 @@ class SalaryPaymentController extends Controller
             'basic_salary'         => 'required|numeric|min:0',
             'allowances'           => 'nullable|numeric|min:0',
             'deductions'           => 'nullable|numeric|min:0',
+            'apply_epf_etf'        => 'nullable|boolean',
             'payment_method'       => 'required|in:cash,bank_transfer,cheque',
             'paid_from_account_id' => 'required|exists:accounts,id',
             'status'               => 'nullable|in:draft,paid',
@@ -43,7 +45,27 @@ class SalaryPaymentController extends Controller
 
         $data['allowances'] = $data['allowances'] ?? 0;
         $data['deductions'] = $data['deductions'] ?? 0;
-        $data['net_salary'] = $data['basic_salary'] + $data['allowances'] - $data['deductions'];
+
+        // EPF / ETF calculation
+        $epfEtfSetting   = EpfEtfSetting::current();
+        $applyEpfEtf     = $data['apply_epf_etf'] ?? false;
+        $grossSalary     = $data['basic_salary'] + $data['allowances'];
+        $epfEmployee     = 0;
+        $epfEmployer     = 0;
+        $etfEmployer     = 0;
+
+        if ($applyEpfEtf && $epfEtfSetting->exists) {
+            $epfEmployee = round($grossSalary * $epfEtfSetting->epf_employee_rate / 100, 2);
+            $epfEmployer = round($grossSalary * $epfEtfSetting->epf_employer_rate / 100, 2);
+            $etfEmployer = round($grossSalary * $epfEtfSetting->etf_employer_rate / 100, 2);
+        }
+
+        $data['gross_salary']     = $grossSalary;
+        $data['epf_employee']     = $epfEmployee;
+        $data['epf_employer']     = $epfEmployer;
+        $data['etf_employer']     = $etfEmployer;
+        $data['epf_etf_setting_id'] = ($applyEpfEtf && $epfEtfSetting->exists) ? $epfEtfSetting->id : null;
+        $data['net_salary']       = $grossSalary - $epfEmployee - $data['deductions'];
 
         if ($data['net_salary'] <= 0) {
             return response()->json(['message' => 'Net salary must be greater than zero.'], 422);
@@ -103,10 +125,13 @@ class SalaryPaymentController extends Controller
             ->select(
                 'e.id', 'e.employee_number', 'e.name', 'e.designation', 'e.department',
                 DB::raw('COUNT(sp.id) as payment_count'),
-                DB::raw('SUM(sp.basic_salary) as total_basic'),
-                DB::raw('SUM(sp.allowances)   as total_allowances'),
-                DB::raw('SUM(sp.deductions)   as total_deductions'),
-                DB::raw('SUM(sp.net_salary)   as total_net')
+                DB::raw('SUM(sp.basic_salary)  as total_basic'),
+                DB::raw('SUM(sp.allowances)    as total_allowances'),
+                DB::raw('SUM(sp.deductions)    as total_deductions'),
+                DB::raw('SUM(sp.epf_employee)  as total_epf_employee'),
+                DB::raw('SUM(sp.epf_employer)  as total_epf_employer'),
+                DB::raw('SUM(sp.etf_employer)  as total_etf_employer'),
+                DB::raw('SUM(sp.net_salary)    as total_net')
             )
             ->orderBy('e.name')
             ->get();

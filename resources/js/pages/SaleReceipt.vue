@@ -10,9 +10,20 @@
         </router-link>
         <span class="text-gray-300">/</span>
         <span class="text-sm font-medium text-gray-700">{{ sale?.invoice_number }}</span>
+        <span v-if="sale?.sale_type === 'booking'" class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full"
+          :class="sale.delivery_status === 'booked' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'">
+          {{ sale.delivery_status === 'booked' ? 'Booking — Pending Collection' : 'Booking — Collected' }}
+        </span>
       </div>
 
       <div class="flex flex-wrap gap-2 items-center">
+        <!-- Settle shortcut for pending bookings -->
+        <button v-if="sale?.sale_type === 'booking' && sale?.delivery_status === 'booked'"
+          @click="settleModal = true"
+          class="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium text-sm shadow-sm transition-colors">
+          <CheckCircleIcon class="w-4 h-4" /> Settle &amp; Deliver
+        </button>
+
         <!-- Print mode toggle -->
         <div class="flex border border-gray-200 rounded-lg overflow-hidden text-sm">
           <button @click="printMode = 'pos'"
@@ -34,6 +45,15 @@
           <ArrowPathIcon v-if="directPrinting" class="w-4 h-4 animate-spin" />
           <PrinterIcon v-else class="w-4 h-4" />
           {{ directPrinting ? 'Printing...' : 'Direct Print' }}
+        </button>
+
+        <!-- Send SMS -->
+        <button v-if="sale" @click="openSmsModal"
+          class="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium text-sm shadow-sm transition-colors">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+          </svg>
+          Send SMS
         </button>
 
         <!-- Standard Print -->
@@ -79,14 +99,21 @@
 
           <!-- INVOICE META -->
           <div style="font-size:10px; margin-bottom:4px;">
+            <div v-if="sale.sale_type === 'booking'" style="text-align:center; font-weight:bold; font-size:11px; background:#111; color:#fff; padding:2px 0; margin-bottom:4px; letter-spacing:1px;">&#9733; BOOKING ADVANCE &#9733;</div>
             <div class="flex-row"><span>Invoice :</span><span style="font-weight:bold; float:right;">{{ sale.invoice_number }}</span></div>
             <div class="flex-row"><span>Date    :</span><span style="float:right;">{{ fmtDate(sale.sold_at) }}</span></div>
             <div class="flex-row"><span>Time    :</span><span style="float:right;">{{ formatTime(sale.sold_at) }}</span></div>
-            <div class="flex-row"><span>Cashier :</span><span style="float:right;">{{ sale.user?.name ?? 'â€"' }}</span></div>
+            <div class="flex-row"><span>Cashier :</span><span style="float:right;">{{ sale.user?.name ?? '&mdash;' }}</span></div>
             <div class="flex-row"><span>Payment :</span><span style="float:right; text-transform:capitalize;">{{ sale.payment_method?.replace('_',' ') }}</span></div>
             <div class="flex-row">
               <span>Status  :</span>
               <span style="float:right; font-weight:bold; text-transform:capitalize;">{{ sale.payment_status?.toUpperCase() }}</span>
+            </div>
+            <div v-if="sale.sale_type === 'booking' && sale.booking_expires_at" class="flex-row" style="color:#b91c1c; font-weight:bold;">
+              <span>Expires :</span><span style="float:right;">{{ fmtDate(sale.booking_expires_at) }}</span>
+            </div>
+            <div v-if="sale.delivery_status === 'delivered' && sale.delivered_at" class="flex-row" style="color:#166534; font-weight:bold;">
+              <span>Delivered:</span><span style="float:right;">{{ fmtDate(sale.delivered_at) }}</span>
             </div>
           </div>
 
@@ -211,10 +238,21 @@
               </div>
             </div>
             <div class="inv-meta-block">
+              <div v-if="sale.sale_type === 'booking'" style="text-align:right; margin-bottom:6px;">
+                <span style="background:#7c3aed; color:#fff; font-size:10px; font-weight:700; padding:2px 8px; border-radius:4px; letter-spacing:1px; text-transform:uppercase;">Booking Advance</span>
+              </div>
               <table class="inv-meta-table">
                 <tr><td>Invoice No</td><td><strong>{{ sale.invoice_number }}</strong></td></tr>
                 <tr><td>Date &amp; Time</td><td>{{ fmtDate(sale.sold_at) }}, {{ formatTime(sale.sold_at) }}</td></tr>
-                <tr><td>Cashier</td><td>{{ sale.user?.name ?? 'â€"' }}</td></tr>
+                <tr><td>Cashier</td><td>{{ sale.user?.name ?? '&mdash;' }}</td></tr>
+                <tr v-if="sale.sale_type === 'booking' && sale.booking_expires_at">
+                  <td style="color:#b91c1c;">Expires</td>
+                  <td style="color:#b91c1c; font-weight:700;">{{ fmtDate(sale.booking_expires_at) }}</td>
+                </tr>
+                <tr v-if="sale.delivery_status === 'delivered' && sale.delivered_at">
+                  <td style="color:#166534;">Delivered</td>
+                  <td style="color:#166534; font-weight:700;">{{ fmtDate(sale.delivered_at) }}</td>
+                </tr>
               </table>
             </div>
           </div>
@@ -312,24 +350,192 @@
       <p>Sale not found.</p>
       <router-link to="/sales" class="text-amber-600 hover:underline text-sm mt-2 inline-block">â† Back to Sales</router-link>
     </div>
+
+    <!-- Settle Modal (accessible from receipt page for pending bookings) -->
+    <teleport to="body">
+      <div v-if="settleModal" class="fixed inset-0 z-50 bg-black/40 p-4 flex items-center justify-center no-print">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
+          <h3 class="font-semibold text-gray-800 flex items-center gap-2">
+            <CheckCircleIcon class="w-5 h-5 text-purple-600" /> Settle Booking &amp; Deliver
+          </h3>
+          <div class="bg-purple-50 border border-purple-200 rounded-lg p-3 text-sm">
+            <div class="font-medium text-purple-900">{{ sale?.invoice_number }}</div>
+            <div class="text-purple-700 mt-1">Remaining: <strong>LKR {{ settleRemaining }}</strong></div>
+          </div>
+          <div>
+            <label class="form-label">Payment Method</label>
+            <select v-model="settleForm.payment_method" class="form-input">
+              <option value="cash">Cash</option>
+              <option value="card">Card</option>
+              <option value="bank_transfer">Bank Transfer</option>
+              <option value="cheque">Cheque</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Payment Amount (LKR)</label>
+            <input v-model.number="settleForm.payment_amount" type="number" min="0" step="0.01" class="form-input" />
+          </div>
+          <div>
+            <label class="form-label">Delivered At</label>
+            <input v-model="settleForm.delivered_at" type="datetime-local" class="form-input" />
+          </div>
+          <p v-if="settleError" class="text-sm text-red-600 bg-red-50 px-3 py-2 rounded">{{ settleError }}</p>
+          <div class="flex justify-end gap-2">
+            <button @click="settleModal = false" class="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+            <button @click="submitSettle" :disabled="settling" class="px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 font-medium">
+              {{ settling ? 'Posting…' : 'Settle & Deliver' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </teleport>
+
+    <!-- SMS Modal -->
+    <teleport to="body">
+      <div v-if="smsModal" class="fixed inset-0 z-50 bg-black/40 p-4 flex items-center justify-center no-print">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
+          <h3 class="font-semibold text-gray-800 flex items-center gap-2">
+            <svg class="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+            </svg>
+            Send Receipt SMS
+          </h3>
+
+          <!-- Recipient -->
+          <div>
+            <label class="form-label">Recipient Phone Number</label>
+            <input v-model="smsPhone" type="tel" placeholder="e.g. 0771234567"
+              class="form-input" />
+            <p v-if="sale?.customer?.name" class="text-xs text-gray-400 mt-1">
+              Customer: {{ sale.customer.name }}
+            </p>
+          </div>
+
+          <!-- Message -->
+          <div>
+            <label class="form-label">Message</label>
+            <textarea v-model="smsMessage" rows="4"
+              class="form-input resize-none text-sm font-mono"></textarea>
+            <p class="text-xs text-gray-400 mt-1">{{ smsMessage.length }} characters</p>
+          </div>
+
+          <p v-if="smsError" class="text-sm text-red-600 bg-red-50 px-3 py-2 rounded">{{ smsError }}</p>
+          <p v-if="smsSent" class="text-sm text-green-700 bg-green-50 px-3 py-2 rounded flex items-center gap-1.5">
+            <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+            SMS sent successfully!
+          </p>
+          <div class="flex justify-end gap-2">
+            <button @click="smsModal = false; smsSent = false" class="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">Close</button>
+            <button @click="submitSms" :disabled="sendingSms || smsSent || !smsPhone.trim()"
+              class="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium flex items-center gap-2">
+              <svg v-if="sendingSms" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+              </svg>
+              {{ sendingSms ? 'Sending…' : smsSent ? 'Sent' : 'Send SMS' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </teleport>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import axios from 'axios'
-import { ArrowLeftIcon, PrinterIcon, ArrowPathIcon, DocumentTextIcon } from '@heroicons/vue/24/outline'
+import { ArrowLeftIcon, PrinterIcon, ArrowPathIcon, DocumentTextIcon, CheckCircleIcon } from '@heroicons/vue/24/outline'
 import { fmtDate } from '../utils/date.js'
 
 const route           = useRoute()
 const sale            = ref(null)
 const loading         = ref(true)
-const barcodeCanvas = ref(null)
+const barcodeCanvas   = ref(null)
 const appName         = import.meta.env.VITE_APP_NAME ?? 'Jewellery Store'
-const preferredPrinter  = import.meta.env.VITE_THERMAL_PRINTER ?? ''
+const preferredPrinter = import.meta.env.VITE_THERMAL_PRINTER ?? ''
 const directPrinting  = ref(false)
 const directPrintError = ref('')
+
+// Settle booking
+const settleModal  = ref(false)
+const settling     = ref(false)
+const settleError  = ref('')
+const settleForm   = ref({ payment_method: 'cash', payment_amount: 0, delivered_at: '' })
+
+// SMS
+const smsModal    = ref(false)
+const sendingSms  = ref(false)
+const smsSent     = ref(false)
+const smsError    = ref('')
+const smsMessage  = ref('')
+const smsPhone    = ref('')
+
+function openSmsModal() {
+  if (!sale.value) return
+  smsSent.value = false
+  smsError.value = ''
+  smsPhone.value = sale.value.customer?.phone ?? ''
+  const appUrl = window.location.origin
+  const link = `${appUrl}/receipt/${sale.value.view_token}`
+  const type = sale.value.sale_type === 'booking' ? 'Booking' : 'Invoice'
+  const name = sale.value.customer?.name ?? 'Customer'
+  smsMessage.value = `Dear ${name}, your ${type} ${sale.value.invoice_number} of LKR ${Number(sale.value.total).toLocaleString('en-LK', { minimumFractionDigits: 2 })} has been created. View receipt: ${link} . Thank you!`
+  smsModal.value = true
+}
+
+async function submitSms() {
+  sendingSms.value = true; smsError.value = ''
+  try {
+    await axios.post(`/api/sales/${sale.value.id}/send-sms`, {
+      message: smsMessage.value,
+      phone:   smsPhone.value.trim(),
+    })
+    smsSent.value = true
+  } catch (e) {
+    smsError.value = e.response?.data?.message ?? 'Failed to send SMS'
+  } finally {
+    sendingSms.value = false
+  }
+}
+
+const settleRemaining = computed(() => {
+  if (!sale.value) return '0.00'
+  return Number(Math.max(0, Number(sale.value.total) - Number(sale.value.amount_paid)))
+    .toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+})
+
+watch(settleModal, (open) => {
+  if (open && sale.value) {
+    settleForm.value = {
+      payment_method: 'cash',
+      payment_amount: Math.max(0, Number(sale.value.total) - Number(sale.value.amount_paid)),
+      delivered_at: new Date().toISOString().slice(0, 16),
+    }
+    settleError.value = ''
+  }
+})
+
+async function submitSettle() {
+  settling.value = true
+  settleError.value = ''
+  try {
+    const { data } = await axios.post(`/api/sales/${sale.value.id}/settle-booking`, settleForm.value)
+    sale.value = data
+    settleModal.value = false
+    await nextTick()
+    drawAllBarcodes()
+  } catch (e) {
+    settleError.value = e.response?.data?.message
+      ?? Object.values(e.response?.data?.errors ?? {}).flat().join(', ')
+      ?? 'Failed to settle booking'
+  } finally {
+    settling.value = false
+  }
+}
 
 const shop = ref({ shop_name: '', address: '', phone: '', br_number: '', logo_url: '', print_mode: 'a5' })
 const printMode = ref('a5')

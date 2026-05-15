@@ -10,6 +10,7 @@ class InformalGoldPurchase extends Model
         'reference_number', 'purchase_date', 'description', 'item_type',
         'gross_weight', 'deduction_weight', 'net_weight', 'declared_karat',
         'rate_per_gram', 'final_price', 'payment_method', 'notes',
+        'nic_front_url', 'nic_back_url', 'invoice_photo_url',
         'recorded_by', 'branch_id',
     ];
 

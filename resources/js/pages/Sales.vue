@@ -19,7 +19,12 @@
           <option value="partial">Partial</option>
           <option value="refunded">Refunded</option>
         </select>
-        <button v-if="search || dateFrom || dateTo || statusFilter" @click="clearFilters"
+        <select v-model="typeFilter" class="form-input w-32" @change="fetchData">
+          <option value="">All types</option>
+          <option value="instant">Instant</option>
+          <option value="booking">Booking</option>
+        </select>
+        <button v-if="search || dateFrom || dateTo || statusFilter || typeFilter" @click="clearFilters"
           class="text-xs text-gray-400 hover:text-gray-600 underline">Clear</button>
       </div>
       <router-link to="/sales/new"
@@ -222,6 +227,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import axios from 'axios'
 import {
   PlusIcon, TrashIcon, EyeIcon, MagnifyingGlassIcon,
@@ -230,12 +236,14 @@ import {
 } from '@heroicons/vue/24/outline'
 import { fmtDate } from '../utils/date.js'
 
+const router       = useRouter()
 const sales        = ref({ data: [] })
 const search       = ref('')
 const page         = ref(1)
 const dateFrom     = ref('')
 const dateTo       = ref('')
 const statusFilter = ref('')
+const typeFilter   = ref('')
 const loading      = ref(false)
 const settleModal  = ref(false)
 const settleSale   = ref(null)
@@ -256,6 +264,7 @@ async function fetchData() {
         date_from:   dateFrom.value,
         date_to:     dateTo.value,
         status:      statusFilter.value,
+        sale_type:   typeFilter.value,
       },
     })
     sales.value = data
@@ -263,7 +272,8 @@ async function fetchData() {
 }
 
 function clearFilters() {
-  search.value = ''; dateFrom.value = ''; dateTo.value = ''; statusFilter.value = ''
+  search.value = ''; dateFrom.value = ''; dateTo.value = ''
+  statusFilter.value = ''; typeFilter.value = ''
   page.value = 1; fetchData()
 }
 
@@ -330,7 +340,7 @@ async function submitSettle() {
   try {
     await axios.post(`/api/sales/${settleSale.value.id}/settle-booking`, settleForm.value)
     settleModal.value = false
-    await fetchData()
+    router.push(`/sales/${settleSale.value.id}`)
   } catch (e) {
     settleError.value = e.response?.data?.message
       ?? Object.values(e.response?.data?.errors ?? {}).flat().join(', ')

@@ -28,6 +28,11 @@ use App\Http\Controllers\Api\ShopSettingController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\InformalPurchaseController;
+use App\Http\Controllers\Api\PrivateCashAdjustmentController;
+use App\Http\Controllers\Api\PrivateExpenseController;
+use App\Http\Controllers\Api\PrivateSaleController;
+use App\Http\Controllers\Api\EpfEtfSettingController;
+use App\Http\Controllers\Api\LayawayController;
 use App\Http\Controllers\Api\ReworkOrderController;
 use App\Http\Controllers\Api\SmsController;
 use App\Http\Controllers\Auth\AuthController;
@@ -35,6 +40,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/shop-branding', [ShopSettingController::class, 'branding']);
+
+// Public — no auth required
+Route::get('/sales/public/{token}', [SaleController::class, 'publicView']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', fn(Request $request) => $request->user()->load('branch:id,name,code'));
@@ -56,6 +64,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('customers',  CustomerController::class);
     Route::apiResource('sales',      SaleController::class)->except(['update']);
     Route::post('/sales/{sale}/settle-booking', [SaleController::class, 'settleBooking']);
+    Route::post('/sales/{sale}/send-sms',       [SaleController::class, 'sendSms']);
     Route::apiResource('purchases',  PurchaseController::class)->except(['update']);
 
     // Gold rates
@@ -172,6 +181,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/salary-payments/{salaryPayment}',  [SalaryPaymentController::class, 'destroy']);
     Route::get('/salary-payments/summary',             [SalaryPaymentController::class, 'summary']);
 
+    // EPF / ETF rate settings
+    Route::get('/epf-etf-settings',         [EpfEtfSettingController::class, 'index']);
+    Route::get('/epf-etf-settings/current', [EpfEtfSettingController::class, 'current']);
+    Route::post('/epf-etf-settings',        [EpfEtfSettingController::class, 'store']);
+
     // ── Finance: Loans & Monthly Rent ──────────────────────────────────────
     Route::get('/loans',                   [LoanController::class, 'index']);
     Route::post('/loans',                  [LoanController::class, 'store']);
@@ -183,11 +197,37 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/rent-payments/{rentPayment}/pay',[RentPaymentController::class, 'pay']);
     Route::get('/rent-payments/reminders',         [RentPaymentController::class, 'reminders']);
 
-    // Informal / off-record gold purchases (admin + manager only, not logged to audit trail)
+    // Private book — off-record gold purchases & sales (admin, manager, gold_buyer)
     Route::get('/informal-purchases',                         [InformalPurchaseController::class, 'index']);
     Route::post('/informal-purchases',                        [InformalPurchaseController::class, 'store']);
     Route::put('/informal-purchases/{informalGoldPurchase}',  [InformalPurchaseController::class, 'update']);
     Route::delete('/informal-purchases/{informalGoldPurchase}',[InformalPurchaseController::class, 'destroy']);
+
+    Route::get('/private-sales',                 [PrivateSaleController::class, 'index']);
+    Route::post('/private-sales',                [PrivateSaleController::class, 'store']);
+    Route::put('/private-sales/{privateSale}',   [PrivateSaleController::class, 'update']);
+    Route::delete('/private-sales/{privateSale}',[PrivateSaleController::class, 'destroy']);
+    Route::get('/private-cashbook',              [PrivateSaleController::class, 'cashbook']);
+
+    Route::get('/private-expenses',                  [PrivateExpenseController::class, 'index']);
+    Route::post('/private-expenses',                 [PrivateExpenseController::class, 'store']);
+    Route::put('/private-expenses/{privateExpense}', [PrivateExpenseController::class, 'update']);
+    Route::delete('/private-expenses/{privateExpense}', [PrivateExpenseController::class, 'destroy']);
+
+    Route::get('/private-cash-adjustments',                         [PrivateCashAdjustmentController::class, 'index']);
+    Route::post('/private-cash-adjustments',                        [PrivateCashAdjustmentController::class, 'store']);
+    Route::put('/private-cash-adjustments/{privateCashAdjustment}', [PrivateCashAdjustmentController::class, 'update']);
+    Route::delete('/private-cash-adjustments/{privateCashAdjustment}', [PrivateCashAdjustmentController::class, 'destroy']);
+
+    // Layaway / Installment Bookings
+    Route::get('/layaways',                          [LayawayController::class, 'index']);
+    Route::post('/layaways',                         [LayawayController::class, 'store']);
+    Route::get('/layaways/{layaway}',                [LayawayController::class, 'show']);
+    Route::put('/layaways/{layaway}',                [LayawayController::class, 'update']);
+    Route::post('/layaways/{layaway}/pay',           [LayawayController::class, 'pay']);
+    Route::post('/layaways/{layaway}/cancel',        [LayawayController::class, 'cancel']);
+    Route::post('/layaways/{layaway}/convert-to-sale', [LayawayController::class, 'convertToSale']);
+    Route::delete('/layaways/{layaway}',             [LayawayController::class, 'destroy']);
 
     // Rework / Job Orders
     Route::get('/rework-orders',                          [ReworkOrderController::class, 'index']);

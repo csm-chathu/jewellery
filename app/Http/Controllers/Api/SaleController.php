@@ -12,6 +12,8 @@ use App\Models\JournalEntryLine;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SaleItem;
+use App\Models\ShopSetting;
+use App\Services\SmsService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -282,6 +284,64 @@ class SaleController extends Controller
             DB::rollBack();
             return response()->json(['message' => $e->getMessage()], 422);
         }
+    }
+
+    /** Public receipt view — no auth required, keyed by view_token */
+    public function publicView(string $token)
+    {
+        $sale = Sale::with(['items.product:id,name,sku,karat,weight', 'customer:id,name,phone,email'])
+            ->where('view_token', $token)
+            ->firstOrFail();
+
+        $shop = ShopSetting::first();
+
+        return response()->json([
+            'sale' => $sale,
+            'shop' => $shop ? [
+                'shop_name' => $shop->shop_name,
+                'address'   => $shop->address,
+                'phone'     => $shop->phone,
+                'logo_url'  => $shop->logo_url,
+            ] : [],
+        ]);
+    }
+
+    /** Send (or resend) receipt SMS — phone can be overridden in the request body */
+    public function sendSms(Request $request, Sale $sale)
+    {
+        $data = $request->validate([
+            'phone'   => 'nullable|string|max:20',
+            'message' => 'nullable|string|max:500',
+        ]);
+
+        // Resolve phone: use override → customer phone → error
+        $phone = trim($data['phone'] ?? '');
+        if (!$phone && $sale->customer_id) {
+            $phone = optional($sale->customer ?? $sale->load('customer')->customer)->phone ?? '';
+        }
+        if (!$phone) {
+            return response()->json(['message' => 'Please enter a phone number to send the SMS to.'], 422);
+        }
+
+        $shopName = optional(ShopSetting::first())->shop_name ?? 'Our Shop';
+        $viewUrl  = rtrim(config('app.url'), '/') . '/receipt/' . $sale->view_token;
+        $saleType = $sale->sale_type === 'booking' ? 'Booking advance' : 'Invoice';
+        $custName = $sale->customer->name ?? 'Customer';
+
+        $message = $data['message'] ?? (
+            "Dear {$custName}, {$saleType} {$sale->invoice_number} of LKR " .
+            number_format($sale->total, 2) . " has been created. " .
+            "View receipt: {$viewUrl} . Thank you! - {$shopName}"
+        );
+
+        $smsService = app(SmsService::class);
+        $result     = $smsService->sendSingle($phone, $message);
+
+        if (!$result['success']) {
+            return response()->json(['message' => 'SMS could not be delivered. Check SMS gateway settings.'], 422);
+        }
+
+        return response()->json(['message' => 'SMS sent successfully.', 'phone' => $phone]);
     }
 
     public function destroy(Sale $sale)

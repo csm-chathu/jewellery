@@ -48,9 +48,16 @@ const routes = [
             { path: 'customer-investments', name: 'customer-investments', component: () => import('@/pages/CustomerInvestments.vue') },
             // Rework / Job Orders
             { path: 'rework-orders', name: 'rework-orders', component: () => import('@/pages/ReworkOrders.vue') },
+            // Layaway / Installments
+            { path: 'layaways', name: 'layaways', component: () => import('@/pages/Layaways.vue') },
             // Private / off-record
             { path: 'informal-purchases', name: 'informal-purchases', component: () => import('@/pages/InformalPurchases.vue') },
         ],
+    },
+    {
+        path: '/receipt/:token',
+        name: 'public-receipt',
+        component: () => import('@/pages/PublicSaleReceipt.vue'),
     },
     { path: '/:pathMatch(.*)*', redirect: '/' },
 ]
@@ -63,7 +70,13 @@ const router = createRouter({
 router.beforeEach((to) => {
     const auth = useAuthStore()
     if (to.meta.requiresAuth && !auth.token) return '/login'
-    if (to.meta.guest && auth.token) return '/'
+    if (to.meta.guest && auth.token) {
+        return auth.user?.role === 'gold_buyer' ? '/informal-purchases' : '/'
+    }
+    // Redirect gold_buyer away from the dashboard root to their home page
+    if (to.path === '/' && auth.token && auth.user?.role === 'gold_buyer') {
+        return '/informal-purchases'
+    }
 })
 
 export default router

@@ -23,6 +23,7 @@
         <option value="cashier">Cashier</option>
         <option value="branch">Branch</option>
         <option value="auditor">Tax Auditor</option>
+        <option value="gold_buyer">Gold Buyer</option>
       </select>
       <select v-model="filterBranch" class="form-input w-48" @change="load">
         <option value="">All Branches</option>
@@ -49,8 +50,8 @@
             <td class="table-td font-medium">{{ u.name }}</td>
             <td class="table-td text-gray-500 text-sm">{{ u.email }}</td>
             <td class="table-td">
-              <span :class="roleBadgeClass(u.role)" class="badge capitalize">
-                {{ u.role }}
+              <span :class="roleBadgeClass(u.role)" class="badge">
+                {{ roleLabel(u.role) }}
               </span>
             </td>
             <td class="table-td text-sm text-gray-600">{{ u.branch?.name ?? '—' }}</td>
@@ -118,6 +119,7 @@
                 <option value="cashier">Cashier</option>
                 <option value="branch">Branch User</option>
                 <option value="auditor">Tax Auditor</option>
+                <option value="gold_buyer">Gold Buyer</option>
               </select>
             </div>
             <div>
@@ -243,6 +245,13 @@ onMounted(async () => {
   branches.value = b.data
 })
 
+const ROLE_LABELS = {
+  admin: 'Admin', manager: 'Manager', accountant: 'Accountant',
+  hr: 'HR', finance: 'Finance', cashier: 'Cashier',
+  branch: 'Branch', auditor: 'Tax Auditor', gold_buyer: 'Gold Buyer',
+}
+function roleLabel(role) { return ROLE_LABELS[role] ?? role }
+
 function roleBadgeClass(role) {
   const classes = {
     admin: 'bg-purple-100 text-purple-700',
@@ -253,6 +262,7 @@ function roleBadgeClass(role) {
     cashier: 'bg-amber-100 text-amber-700',
     branch: 'bg-blue-100 text-blue-700',
     auditor: 'bg-orange-100 text-orange-700',
+    gold_buyer: 'bg-yellow-100 text-yellow-800',
   }
   return classes[role] ?? 'bg-gray-100 text-gray-700'
 }

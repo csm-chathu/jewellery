@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class Sale extends Model
 {
@@ -16,8 +17,17 @@ class Sale extends Model
         'making_charges_total', 'wastage_total', 'tax_rate', 'total',
         'payment_method', 'payment_status', 'sale_type', 'delivery_status',
         'booking_expires_at', 'delivered_at', 'amount_paid', 'notes',
-        'journal_entry_id', 'sold_at',
+        'journal_entry_id', 'sold_at', 'view_token',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $model) {
+            if (empty($model->view_token)) {
+                $model->view_token = Str::random(32);
+            }
+        });
+    }
 
     protected $casts = [
         'sold_at'    => 'datetime',

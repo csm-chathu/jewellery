@@ -13,7 +13,9 @@ class SalaryPayment extends Model
     protected $fillable = [
         'payment_number', 'employee_id', 'branch_id', 'user_id', 'journal_entry_id',
         'period_from', 'period_to', 'payment_date',
-        'basic_salary', 'allowances', 'deductions', 'net_salary',
+        'basic_salary', 'gross_salary', 'allowances', 'deductions',
+        'epf_employee', 'epf_employer', 'etf_employer',
+        'net_salary', 'epf_etf_setting_id',
         'payment_method', 'paid_from_account_id', 'status', 'notes',
     ];
 
@@ -22,8 +24,12 @@ class SalaryPayment extends Model
         'period_to'     => 'date',
         'payment_date'  => 'date',
         'basic_salary'  => 'float',
+        'gross_salary'  => 'float',
         'allowances'    => 'float',
         'deductions'    => 'float',
+        'epf_employee'  => 'float',
+        'epf_employer'  => 'float',
+        'etf_employer'  => 'float',
         'net_salary'    => 'float',
     ];
 
