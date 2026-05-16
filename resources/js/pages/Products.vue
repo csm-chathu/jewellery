@@ -165,31 +165,20 @@ function createBarcodeSvg(value) {
 
 function printProductBarcode(product) {
   if (!product?.sku) return
-  // Use custom barcode if set, otherwise fall back to SKU
   const barcodeValue = product.barcode?.trim() || product.sku
-  const popup = window.open('', '_blank', 'width=150,height=120')
-  if (!popup) {
-    alert('Popup blocked. Allow popups to print barcode labels.')
-    return
-  }
 
-  const barcodeSvg = createBarcodeSvg(barcodeValue)
-  const safeName  = (product.name ?? '').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  const safeSku   = product.sku.replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const barcodeSvg  = createBarcodeSvg(barcodeValue)
+  const safeName    = (product.name ?? '').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   const safeBarcode = barcodeValue.replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  const safePrice = Number(product.selling_price ?? 0).toLocaleString('en-LK', { minimumFractionDigits: 2 })
-  const safeMeta  = [
-    product.karat ? product.karat.toUpperCase() : '',
-    product.weight ? `${product.weight}g` : '',
-  ].filter(Boolean).join(' · ')
 
-  popup.document.write(`<!doctype html>
+  const html = `<!doctype html>
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Label - ${safeSku}</title>
   <style>
-    @page { size: 30mm 20mm; margin: 0; }
+    @media print {
+      @page { size: 1.181in 0.787in; margin: 0; }
+    }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
       width: 30mm; height: 20mm;
@@ -200,39 +189,21 @@ function printProductBarcode(product) {
       print-color-adjust: exact;
     }
     .label {
-      width: 30mm;
-      height: 20mm;
+      width: 30mm; height: 20mm;
       padding: 0.8mm 1.5mm 0.5mm;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: space-between;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: space-between;
       overflow: hidden;
     }
     .name {
-      font-size: 6.5pt;
-      font-weight: 700;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      width: 100%;
-      text-align: center;
-      line-height: 1;
-      flex-shrink: 0;
+      font-size: 6.5pt; font-weight: 700;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      width: 100%; text-align: center; line-height: 1; flex-shrink: 0;
     }
-    svg {
-      width: 100%;
-      height: 9.5mm;
-      display: block;
-      flex-shrink: 0;
-    }
+    svg { width: 100%; height: 9.5mm; display: block; flex-shrink: 0; }
     .sku {
-      font-size: 8pt;
-      font-weight: 700;
-      letter-spacing: 1px;
-      text-align: center;
-      margin-top: 0.4mm;
-      line-height: 1;
+      font-size: 8pt; font-weight: 700; letter-spacing: 1px;
+      text-align: center; margin-top: 0.4mm; line-height: 1;
     }
   </style>
 </head>
@@ -242,10 +213,19 @@ function printProductBarcode(product) {
     ${barcodeSvg}
     <div class="sku">${safeBarcode}</div>
   </div>
-  <script>window.onload = function(){ window.print(); }<\/script>
 </body>
-</html>`)
-  popup.document.close()
+</html>`
+
+  const iframe = document.createElement('iframe')
+  iframe.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;border:none;'
+  document.body.appendChild(iframe)
+  iframe.contentDocument.open()
+  iframe.contentDocument.write(html)
+  iframe.contentDocument.close()
+  iframe.contentWindow.addEventListener('load', () => {
+    iframe.contentWindow.print()
+    setTimeout(() => document.body.removeChild(iframe), 2000)
+  })
 }
 
 function reprintBarcode(product) {
