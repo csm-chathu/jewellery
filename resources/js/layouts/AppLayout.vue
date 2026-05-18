@@ -106,7 +106,12 @@
       <!-- Top bar -->
       <header class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
         <h1 class="text-lg font-semibold text-gray-800">{{ pageTitle }}</h1>
-        <div class="flex items-center gap-2 text-sm text-gray-500">
+        <div class="flex items-center gap-3 text-sm text-gray-500">
+          <router-link to="/getting-started"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gold-50 text-gold-700 border border-gold-200 hover:bg-gold-100 transition-colors font-medium text-xs">
+            <QuestionMarkCircleIcon class="w-4 h-4" />
+            Getting Started
+          </router-link>
           <span>{{ currentDate }}</span>
         </div>
       </header>
