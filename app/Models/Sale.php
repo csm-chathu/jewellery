@@ -69,4 +69,9 @@ class Sale extends Model
     {
         return $this->belongsTo(JournalEntry::class);
     }
+
+    public function returns()
+    {
+        return $this->hasMany(SaleReturn::class);
+    }
 }

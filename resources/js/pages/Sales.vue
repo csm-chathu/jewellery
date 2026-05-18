@@ -156,6 +156,11 @@
                       class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-100 text-emerald-700 hover:bg-emerald-200">
                       Settle
                     </button>
+                    <button v-if="['paid','partial'].includes(s.payment_status)"
+                      @click="openReturn(s)"
+                      class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-orange-100 text-orange-700 hover:bg-orange-200">
+                      <ArrowUturnLeftIcon class="w-3.5 h-3.5" /> Return
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -188,6 +193,93 @@
           <button @click="page++; fetchData()" :disabled="page>=(sales.last_page ?? 1)"
             class="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium border border-gray-200 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
             Next <ChevronRightIcon class="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Return Modal ── -->
+    <div v-if="returnModal" class="fixed inset-0 z-50 bg-black/40 p-4 flex items-center justify-center">
+      <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between px-6 py-4 border-b shrink-0">
+          <div>
+            <h3 class="font-semibold text-gray-800">Process Return</h3>
+            <p class="text-xs text-gray-500 mt-0.5">{{ returnSale?.invoice_number }} · {{ returnSale?.customer?.name ?? 'Walk-in' }}</p>
+          </div>
+          <button @click="returnModal = false" class="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
+        </div>
+
+        <div class="overflow-y-auto flex-1 p-6 space-y-5">
+          <!-- Loading items -->
+          <div v-if="returnLoading" class="text-center py-8 text-gray-400">
+            <ArrowPathIcon class="w-5 h-5 animate-spin mx-auto mb-2" /> Loading items…
+          </div>
+          <template v-else>
+            <!-- Items selection -->
+            <div>
+              <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Select Items to Return</p>
+              <div class="space-y-2">
+                <div v-for="item in returnItems" :key="item.sale_item_id"
+                  class="flex items-center gap-3 p-3 rounded-lg border"
+                  :class="item.returnQty > 0 ? 'border-orange-300 bg-orange-50' : 'border-gray-200'">
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-gray-800 truncate">{{ item.product_name }}</p>
+                    <p class="text-xs text-gray-400">
+                      Sold: {{ item.sold_qty }} &nbsp;·&nbsp;
+                      Already returned: {{ item.already_returned }} &nbsp;·&nbsp;
+                      Returnable: <span class="font-semibold text-orange-700">{{ item.returnable }}</span>
+                    </p>
+                  </div>
+                  <div class="text-right shrink-0">
+                    <p class="text-xs text-gray-500 mb-1">LKR {{ fmtN(item.unit_price) }}/pc</p>
+                    <input v-model.number="item.returnQty" type="number" min="0" :max="item.returnable"
+                      class="form-input w-20 text-center text-sm"
+                      :disabled="item.returnable === 0" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Refund amount preview -->
+            <div class="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 flex justify-between items-center">
+              <span class="text-sm text-gray-600">Calculated Refund Amount</span>
+              <span class="text-lg font-bold text-orange-700">LKR {{ fmtN(returnRefundAmount) }}</span>
+            </div>
+
+            <!-- Refund method -->
+            <div>
+              <label class="form-label">Refund Method</label>
+              <select v-model="returnForm.refund_method" class="form-input">
+                <option value="cash">Cash</option>
+                <option value="card">Card</option>
+                <option value="bank_transfer">Bank Transfer</option>
+                <option value="store_credit">Store Credit</option>
+                <option value="none">No Refund</option>
+              </select>
+            </div>
+
+            <!-- Reason -->
+            <div>
+              <label class="form-label">Reason <span class="text-red-500">*</span></label>
+              <input v-model="returnForm.reason" type="text" class="form-input"
+                placeholder="e.g. Defective item, Customer changed mind…" />
+            </div>
+
+            <!-- Notes -->
+            <div>
+              <label class="form-label">Notes (optional)</label>
+              <textarea v-model="returnForm.notes" class="form-input" rows="2" />
+            </div>
+
+            <p v-if="returnError" class="text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-lg">{{ returnError }}</p>
+          </template>
+        </div>
+
+        <div class="flex justify-end gap-2 px-6 py-4 border-t shrink-0">
+          <button @click="returnModal = false" class="btn-secondary">Cancel</button>
+          <button @click="submitReturn" :disabled="returnSubmitting || returnRefundAmount === 0"
+            class="btn-primary bg-orange-600 hover:bg-orange-700 border-orange-600">
+            {{ returnSubmitting ? 'Processing…' : `Process Return — LKR ${fmtN(returnRefundAmount)}` }}
           </button>
         </div>
       </div>
@@ -233,6 +325,7 @@ import {
   PlusIcon, TrashIcon, EyeIcon, MagnifyingGlassIcon,
   ReceiptPercentIcon, BanknotesIcon, CheckCircleIcon, PrinterIcon,
   ChartBarIcon, ArrowPathIcon, ChevronLeftIcon, ChevronRightIcon,
+  ArrowUturnLeftIcon,
 } from '@heroicons/vue/24/outline'
 import { fmtDate } from '../utils/date.js'
 
@@ -354,6 +447,100 @@ async function del(s) {
   if (!confirm(`Delete invoice ${s.invoice_number}?\nThis will restore stock. This action cannot be undone.`)) return
   await axios.delete(`/api/sales/${s.id}`)
   fetchData()
+}
+
+// ── Sales Return ──────────────────────────────────────────────────────────────
+
+const returnModal      = ref(false)
+const returnSale       = ref(null)
+const returnItems      = ref([])
+const returnLoading    = ref(false)
+const returnSubmitting = ref(false)
+const returnError      = ref('')
+const returnForm       = ref({ refund_method: 'cash', reason: '', notes: '' })
+
+const returnRefundAmount = computed(() => {
+  return returnItems.value.reduce((sum, item) => {
+    return sum + (item.returnQty > 0 ? item.unit_price * item.returnQty : 0)
+  }, 0)
+})
+
+function fmtN(v) {
+  return Number(v || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+async function openReturn(sale) {
+  returnSale.value  = sale
+  returnItems.value = []
+  returnError.value = ''
+  returnForm.value  = { refund_method: 'cash', reason: '', notes: '' }
+  returnModal.value = true
+  returnLoading.value = true
+
+  try {
+    // Load full sale with items
+    const [{ data: fullSale }, { data: existingReturns }] = await Promise.all([
+      axios.get(`/api/sales/${sale.id}`),
+      axios.get(`/api/sales/${sale.id}/returns`),
+    ])
+
+    // Tally already-returned quantities per sale_item_id
+    const returnedQtyMap = {}
+    for (const ret of existingReturns) {
+      for (const ri of ret.items ?? []) {
+        returnedQtyMap[ri.sale_item_id] = (returnedQtyMap[ri.sale_item_id] ?? 0) + ri.quantity
+      }
+    }
+
+    returnItems.value = fullSale.items.map(item => {
+      const alreadyReturned = returnedQtyMap[item.id] ?? 0
+      const returnable      = item.quantity - alreadyReturned
+      return {
+        sale_item_id:     item.id,
+        product_name:     item.product?.name ?? `Item #${item.product_id}`,
+        sold_qty:         item.quantity,
+        already_returned: alreadyReturned,
+        returnable,
+        unit_price:       returnable > 0 ? item.total / item.quantity : 0,
+        returnQty:        0,
+      }
+    }).filter(i => i.returnable > 0)
+  } catch {
+    returnError.value = 'Failed to load sale items. Please try again.'
+  } finally {
+    returnLoading.value = false
+  }
+}
+
+async function submitReturn() {
+  returnError.value = ''
+  if (!returnForm.value.reason.trim()) {
+    returnError.value = 'Reason is required.'
+    return
+  }
+  const selectedItems = returnItems.value.filter(i => i.returnQty > 0)
+  if (!selectedItems.length) {
+    returnError.value = 'Select at least one item to return.'
+    return
+  }
+
+  returnSubmitting.value = true
+  try {
+    await axios.post(`/api/sales/${returnSale.value.id}/return`, {
+      reason:        returnForm.value.reason,
+      refund_method: returnForm.value.refund_method,
+      notes:         returnForm.value.notes,
+      items:         selectedItems.map(i => ({ sale_item_id: i.sale_item_id, quantity: i.returnQty })),
+    })
+    returnModal.value = false
+    fetchData()
+  } catch (e) {
+    returnError.value = e.response?.data?.message
+      ?? Object.values(e.response?.data?.errors ?? {}).flat().join(', ')
+      ?? 'Failed to process return.'
+  } finally {
+    returnSubmitting.value = false
+  }
 }
 
 onMounted(fetchData)

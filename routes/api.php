@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\PurchaseController;
 use App\Http\Controllers\Api\RentPaymentController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\SaleController;
+use App\Http\Controllers\Api\SaleReturnController;
 use App\Http\Controllers\Api\ScrapItemController;
 use App\Http\Controllers\Api\SupplierController;
 use App\Http\Controllers\Api\TaxSettingController;
@@ -34,6 +35,7 @@ use App\Http\Controllers\Api\PrivateSaleController;
 use App\Http\Controllers\Api\EpfEtfSettingController;
 use App\Http\Controllers\Api\LayawayController;
 use App\Http\Controllers\Api\ReworkOrderController;
+use App\Http\Controllers\Api\CustomMadeOrderController;
 use App\Http\Controllers\Api\SmsController;
 use App\Http\Controllers\Auth\AuthController;
 use Illuminate\Http\Request;
@@ -65,6 +67,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('sales',      SaleController::class)->except(['update']);
     Route::post('/sales/{sale}/settle-booking', [SaleController::class, 'settleBooking']);
     Route::post('/sales/{sale}/send-sms',       [SaleController::class, 'sendSms']);
+    Route::get('/sales/{sale}/returns',         [SaleReturnController::class, 'index']);
+    Route::post('/sales/{sale}/return',         [SaleReturnController::class, 'store']);
     Route::apiResource('purchases',  PurchaseController::class)->except(['update']);
     Route::post('purchases/{purchase}/receive',      [PurchaseController::class, 'receive']);
     Route::post('purchases/{purchase}/settle-cheque',[PurchaseController::class, 'settleChequePurchase']);
@@ -124,6 +128,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/reports/salary',           [ReportController::class, 'salaryReport']);
     Route::get('/reports/expenses',         [ReportController::class, 'expensesReport']);
     Route::get('/reports/gold-loans',       [ReportController::class, 'goldLoansReport']);
+    Route::get('/reports/stock-ledger',       [ReportController::class, 'stockLedger']);
+    Route::get('/reports/category-stock',     [ReportController::class, 'categoryStockValue']);
 
     // Audit log
     Route::get('/audit-logs', [AuditLogController::class, 'index']);
@@ -230,6 +236,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/layaways/{layaway}/cancel',        [LayawayController::class, 'cancel']);
     Route::post('/layaways/{layaway}/convert-to-sale', [LayawayController::class, 'convertToSale']);
     Route::delete('/layaways/{layaway}',             [LayawayController::class, 'destroy']);
+
+    // Custom Made Orders (private gold book)
+    Route::get('/custom-made-orders',                              [CustomMadeOrderController::class, 'index']);
+    Route::post('/custom-made-orders',                             [CustomMadeOrderController::class, 'store']);
+    Route::put('/custom-made-orders/{customMadeOrder}',            [CustomMadeOrderController::class, 'update']);
+    Route::post('/custom-made-orders/{customMadeOrder}/complete',  [CustomMadeOrderController::class, 'complete']);
+    Route::post('/custom-made-orders/{customMadeOrder}/issue',     [CustomMadeOrderController::class, 'issue']);
+    Route::delete('/custom-made-orders/{customMadeOrder}',         [CustomMadeOrderController::class, 'destroy']);
+    Route::get('/custom-made-orders/options/customers',            [CustomMadeOrderController::class, 'customers']);
 
     // Rework / Job Orders
     Route::get('/rework-orders',                          [ReworkOrderController::class, 'index']);

@@ -31,6 +31,7 @@ const routes = [
             { path: 'expenses',      name: 'expenses',      component: () => import('@/pages/ExpenseManagement.vue') },
             { path: 'sms',           name: 'sms',           component: () => import('@/pages/SmsCenter.vue') },
             { path: 'reports',       name: 'reports',       component: () => import('@/pages/Reports.vue') },
+            { path: 'stock-ledger',      name: 'stock-ledger',      component: () => import('@/pages/StockLedger.vue') },
             { path: 'day-end',       name: 'day-end',       component: () => import('@/pages/DayEnd.vue') },
             { path: 'audit-log',     name: 'audit-log',     component: () => import('@/pages/AuditLog.vue') },
             // Accounting
@@ -52,6 +53,8 @@ const routes = [
             { path: 'layaways', name: 'layaways', component: () => import('@/pages/Layaways.vue') },
             // Private / off-record
             { path: 'informal-purchases', name: 'informal-purchases', component: () => import('@/pages/InformalPurchases.vue') },
+            // Custom Made Orders (private gold book)
+            { path: 'custom-made-orders', name: 'custom-made-orders', component: () => import('@/pages/CustomMadeOrders.vue') },
         ],
     },
     {

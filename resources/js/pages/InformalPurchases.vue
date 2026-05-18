@@ -1183,10 +1183,42 @@ async function loadShopSettings() {
 
 // ── EXPORT / PRINT HELPERS ────────────────────────────
 function openPrint(html) {
-  const win = window.open('', '_blank', 'width=960,height=720')
+  const win = window.open('', '_blank', 'width=800,height=900')
   win.document.write(html)
   win.document.close()
   win.addEventListener('load', () => { win.focus(); win.print() })
+}
+
+function a5Css() {
+  return `
+    @media print { @page { size: A5; margin: 10mm 12mm; } }
+    * { box-sizing: border-box; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #111; margin: 0; padding: 12px 16px; }
+    .hdr { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:12px; padding-bottom:10px; border-bottom:2px solid #1a1a1a; }
+    .logo { max-height:52px; max-width:80px; object-fit:contain; }
+    .shop-name { font-size:15px; font-weight:800; letter-spacing:0.5px; text-transform:uppercase; margin-bottom:2px; }
+    .shop-sub { font-size:10px; color:#555; line-height:1.5; }
+    .meta-r { text-align:right; min-width:140px; }
+    .inv-title { font-size:17px; font-weight:900; letter-spacing:2px; margin-bottom:6px; color:#1a1a1a; }
+    .meta-table { font-size:10px; border-collapse:collapse; margin-left:auto; }
+    .meta-table td { padding:1px 4px; }
+    .meta-table td:first-child { color:#888; text-align:right; }
+    .meta-table td:last-child { font-size:11px; text-align:left; }
+    .cust { font-size:11px; background:#f9f9f9; border:1px solid #e5e7eb; padding:6px 10px; border-radius:4px; margin-bottom:10px; }
+    table.items { width:100%; border-collapse:collapse; font-size:11px; margin-bottom:10px; }
+    table.items thead tr { background:#1a1a1a; color:#fff; }
+    table.items th { padding:5px 6px; font-size:10px; font-weight:700; letter-spacing:0.3px; }
+    table.items tbody tr { border-bottom:1px solid #e5e7eb; }
+    table.items tbody tr:nth-child(even) { background:#fafafa; }
+    table.items td { padding:5px 6px; vertical-align:top; }
+    .totals { display:flex; justify-content:flex-end; margin-top:8px; }
+    .totals-box { min-width:220px; }
+    .tline { display:flex; justify-content:space-between; font-size:11px; padding:3px 0; border-bottom:1px dashed #e5e7eb; }
+    .grand { display:flex; justify-content:space-between; font-size:14px; font-weight:800; border-top:2px solid #1a1a1a; border-bottom:2px solid #1a1a1a; padding:4px 0; margin:2px 0; }
+    .footer { text-align:center; margin-top:16px; padding-top:10px; border-top:1px dashed #ccc; font-size:11px; }
+    .sigs { display:flex; justify-content:space-between; margin-top:32px; }
+    .sig { border-top:1px solid #374151; width:160px; text-align:center; padding-top:4px; font-size:10px; color:#6b7280; }
+  `
 }
 
 function fmtLkr(val) {
@@ -1279,123 +1311,138 @@ function printCashbook() {
 // ── PURCHASE INVOICE PRINT ────────────────────────────
 function printPurchaseInvoice(p) {
   const shop = shopSettings.value
-  const today = new Date().toLocaleDateString('en-LK')
-  const imgOrNone = (url) => url
-    ? `<img src="${url}" style="max-width:110px;max-height:75px;border:1px solid #e5e7eb;border-radius:4px;object-fit:cover">`
-    : `<span style="font-size:10px;color:#9ca3af">Not provided</span>`
-
+  const today = new Date().toLocaleDateString('en-LK', { day: '2-digit', month: 'short', year: 'numeric' })
+  const css = a5Css()
   openPrint(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Purchase — ${p.reference_number}</title>
-  <style>
-    body{font-family:Arial,sans-serif;font-size:12px;margin:0;padding:24px;color:#111}
-    .hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #dc2626;padding-bottom:12px;margin-bottom:18px}
-    .shop{font-size:20px;font-weight:700}.meta{font-size:10px;color:#6b7280;margin-top:2px}
-    .title{font-size:17px;font-weight:700;color:#dc2626;text-align:right}
-    .ref{font-size:12px;font-family:monospace;text-align:right;margin-top:3px}
-    .dt{font-size:10px;color:#6b7280;text-align:right}
-    table.d{width:100%;border-collapse:collapse;margin-bottom:14px}
-    table.d td:first-child{width:40%;font-weight:600;color:#374151;padding:6px 0;border-bottom:1px solid #f3f4f6}
-    table.d td:last-child{padding:6px 0;border-bottom:1px solid #f3f4f6}
-    .amt{background:#fef2f2;border:2px solid #dc2626;border-radius:8px;padding:10px 18px;text-align:right;margin:14px 0}
-    .amt-label{font-size:10px;color:#dc2626;text-transform:uppercase;letter-spacing:.05em}
-    .amt-val{font-size:24px;font-weight:700;color:#dc2626}
-    .photos{display:flex;gap:14px;margin-top:12px}
-    .photo-box{text-align:center}
-    .photo-label{font-size:10px;color:#6b7280;margin-bottom:4px}
-    .sigs{display:flex;justify-content:space-between;margin-top:36px}
-    .sig{border-top:1px solid #374151;width:170px;text-align:center;padding-top:4px;font-size:10px;color:#6b7280}
-    .foot{margin-top:18px;font-size:9px;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:6px}
-    @media print{@page{size:A5;margin:10mm}}
-  </style></head><body>
+  <style>${css}</style></head><body>
   <div class="hdr">
-    <div><div class="shop">${shop.shop_name || ''}</div>
-      <div class="meta">${[shop.address, shop.phone].filter(Boolean).join(' · ')}</div></div>
-    <div><div class="title">PURCHASE RECEIPT</div>
-      <div class="ref">${p.reference_number}</div>
-      <div class="dt">Date: ${p.purchase_date}</div>
-      <div class="dt">Printed: ${today}</div></div>
+    <div style="display:flex;align-items:flex-start;gap:10px">
+      ${shop.logo_url ? `<img src="${shop.logo_url}" class="logo">` : ''}
+      <div>
+        <div class="shop-name">${shop.shop_name || ''}</div>
+        ${shop.address ? `<div class="shop-sub" style="white-space:pre-line">${shop.address}</div>` : ''}
+        ${shop.phone ? `<div class="shop-sub">Tel: ${shop.phone}</div>` : ''}
+        ${shop.br_number ? `<div class="shop-sub">BR No: ${shop.br_number}</div>` : ''}
+      </div>
+    </div>
+    <div class="meta-r">
+      <div class="inv-title" style="color:#dc2626">PURCHASE</div>
+      <table class="meta-table">
+        <tr><td>Ref No</td><td><strong>${p.reference_number}</strong></td></tr>
+        <tr><td>Date</td><td>${p.purchase_date}</td></tr>
+        <tr><td>Printed</td><td>${today}</td></tr>
+      </table>
+    </div>
   </div>
-  <table class="d">
-    <tr><td>Item Type</td><td>${(p.item_type || '').replace(/^\w/, c => c.toUpperCase())}</td></tr>
-    <tr><td>Description</td><td>${p.description || '—'}</td></tr>
-    <tr><td>Declared Karat</td><td><strong>${p.declared_karat}</strong></td></tr>
-    <tr><td>Gross Weight</td><td>${Number(p.gross_weight || 0).toFixed(3)} g</td></tr>
-    <tr><td>Deduction</td><td>${Number(p.deduction_weight || 0).toFixed(3)} g</td></tr>
-    <tr><td>Net Weight (Payable)</td><td><strong>${Number(p.net_weight || 0).toFixed(3)} g</strong></td></tr>
-    <tr><td>Rate per Gram</td><td>${fmtLkr(p.rate_per_gram)}</td></tr>
-    <tr><td>Payment Method</td><td style="text-transform:capitalize">${(p.payment_method || '').replace('_', ' ')}</td></tr>
-    ${p.notes ? `<tr><td>Notes</td><td>${p.notes}</td></tr>` : ''}
+  <table class="items">
+    <thead><tr>
+      <th style="text-align:left">Description</th>
+      <th style="text-align:center;width:55px">Karat</th>
+      <th style="text-align:right;width:75px">Gross Wt</th>
+      <th style="text-align:right;width:75px">Net Wt</th>
+      <th style="text-align:right;width:100px">Rate / g</th>
+      <th style="text-align:right;width:110px">Amount</th>
+    </tr></thead>
+    <tbody>
+      <tr>
+        <td>
+          <div style="font-weight:600">${p.description || '—'}</div>
+          <div style="font-size:10px;color:#666;text-transform:capitalize">${(p.item_type || '').replace(/_/g, ' ')}</div>
+          ${p.notes ? `<div style="font-size:10px;color:#888;margin-top:2px">Note: ${p.notes}</div>` : ''}
+        </td>
+        <td style="text-align:center;font-weight:700">${p.declared_karat}</td>
+        <td style="text-align:right">${Number(p.gross_weight || 0).toFixed(3)} g</td>
+        <td style="text-align:right;font-weight:700">${Number(p.net_weight || 0).toFixed(3)} g</td>
+        <td style="text-align:right">${fmtLkr(p.rate_per_gram)}</td>
+        <td style="text-align:right;font-weight:700">${fmtLkr(p.final_price)}</td>
+      </tr>
+    </tbody>
   </table>
-  <div class="amt">
-    <div class="amt-label">Total Amount Paid</div>
-    <div class="amt-val">${fmtLkr(p.final_price)}</div>
-  </div>
-  <div><div style="font-size:11px;font-weight:600;color:#374151;margin-bottom:8px">Reference Photos</div>
-    <div class="photos">
-      <div class="photo-box"><div class="photo-label">NIC Front</div>${imgOrNone(p.nic_front_url)}</div>
-      <div class="photo-box"><div class="photo-label">NIC Back</div>${imgOrNone(p.nic_back_url)}</div>
-      <div class="photo-box"><div class="photo-label">Invoice</div>${imgOrNone(p.invoice_photo_url)}</div>
+  <div class="totals">
+    <div class="totals-box">
+      ${Number(p.deduction_weight) > 0 ? `<div class="tline"><span>Deduction</span><span>${Number(p.deduction_weight).toFixed(3)} g</span></div>` : ''}
+      <div class="grand"><span>TOTAL PAID</span><span style="color:#dc2626">${fmtLkr(p.final_price)}</span></div>
+      <div class="tline"><span>Payment Method</span><span style="text-transform:capitalize">${(p.payment_method || '').replace('_', ' ')}</span></div>
     </div>
   </div>
   <div class="sigs">
     <div class="sig">Seller Signature</div>
     <div class="sig">Buyer / Recorder</div>
   </div>
-  <div class="foot">CONFIDENTIAL — Private purchase record. Not part of official accounting.</div>
+  <div class="footer">
+    <div style="font-weight:600">Thank you!</div>
+    ${shop.shop_name ? `<div style="font-size:10px;color:#888;margin-top:2px">${shop.shop_name}</div>` : ''}
+    <div style="font-size:9px;color:#bbb;margin-top:4px">CONFIDENTIAL — Private purchase record</div>
+  </div>
   </body></html>`)
 }
 
 // ── SALE INVOICE PRINT ────────────────────────────────
 function printSaleInvoice(s) {
   const shop = shopSettings.value
-  const today = new Date().toLocaleDateString('en-LK')
-
+  const today = new Date().toLocaleDateString('en-LK', { day: '2-digit', month: 'short', year: 'numeric' })
+  const css = a5Css()
   openPrint(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Sale — ${s.reference_number}</title>
-  <style>
-    body{font-family:Arial,sans-serif;font-size:12px;margin:0;padding:24px;color:#111}
-    .hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #16a34a;padding-bottom:12px;margin-bottom:18px}
-    .shop{font-size:20px;font-weight:700}.meta{font-size:10px;color:#6b7280;margin-top:2px}
-    .title{font-size:17px;font-weight:700;color:#16a34a;text-align:right}
-    .ref{font-size:12px;font-family:monospace;text-align:right;margin-top:3px}
-    .dt{font-size:10px;color:#6b7280;text-align:right}
-    table.d{width:100%;border-collapse:collapse;margin-bottom:14px}
-    table.d td:first-child{width:40%;font-weight:600;color:#374151;padding:6px 0;border-bottom:1px solid #f3f4f6}
-    table.d td:last-child{padding:6px 0;border-bottom:1px solid #f3f4f6}
-    .amt{background:#f0fdf4;border:2px solid #16a34a;border-radius:8px;padding:10px 18px;text-align:right;margin:14px 0}
-    .amt-label{font-size:10px;color:#16a34a;text-transform:uppercase;letter-spacing:.05em}
-    .amt-val{font-size:24px;font-weight:700;color:#16a34a}
-    .sigs{display:flex;justify-content:space-between;margin-top:36px}
-    .sig{border-top:1px solid #374151;width:170px;text-align:center;padding-top:4px;font-size:10px;color:#6b7280}
-    .foot{margin-top:18px;font-size:9px;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:6px}
-    @media print{@page{size:A5;margin:10mm}}
-  </style></head><body>
+  <style>${css}</style></head><body>
   <div class="hdr">
-    <div><div class="shop">${shop.shop_name || ''}</div>
-      <div class="meta">${[shop.address, shop.phone].filter(Boolean).join(' · ')}</div></div>
-    <div><div class="title">SALE RECEIPT</div>
-      <div class="ref">${s.reference_number}</div>
-      <div class="dt">Date: ${s.sale_date}</div>
-      <div class="dt">Printed: ${today}</div></div>
+    <div style="display:flex;align-items:flex-start;gap:10px">
+      ${shop.logo_url ? `<img src="${shop.logo_url}" class="logo">` : ''}
+      <div>
+        <div class="shop-name">${shop.shop_name || ''}</div>
+        ${shop.address ? `<div class="shop-sub" style="white-space:pre-line">${shop.address}</div>` : ''}
+        ${shop.phone ? `<div class="shop-sub">Tel: ${shop.phone}</div>` : ''}
+        ${shop.br_number ? `<div class="shop-sub">BR No: ${shop.br_number}</div>` : ''}
+      </div>
+    </div>
+    <div class="meta-r">
+      <div class="inv-title" style="color:#16a34a">SALE RECEIPT</div>
+      <table class="meta-table">
+        <tr><td>Ref No</td><td><strong>${s.reference_number}</strong></td></tr>
+        <tr><td>Date</td><td>${s.sale_date}</td></tr>
+        <tr><td>Printed</td><td>${today}</td></tr>
+      </table>
+    </div>
   </div>
-  <table class="d">
-    ${s.buyer_name ? `<tr><td>Buyer Name</td><td><strong>${s.buyer_name}</strong></td></tr>` : ''}
-    <tr><td>Item Type</td><td>${(s.item_type || '').replace(/^\w/, c => c.toUpperCase())}</td></tr>
-    <tr><td>Description</td><td>${s.description || '—'}</td></tr>
-    <tr><td>Declared Karat</td><td><strong>${s.declared_karat}</strong></td></tr>
-    <tr><td>Gross Weight</td><td>${Number(s.gross_weight || 0).toFixed(3)} g</td></tr>
-    <tr><td>Net Weight</td><td><strong>${Number(s.net_weight || 0).toFixed(3)} g</strong></td></tr>
-    <tr><td>Rate per Gram</td><td>${fmtLkr(s.rate_per_gram)}</td></tr>
-    <tr><td>Payment Method</td><td style="text-transform:capitalize">${(s.payment_method || '').replace('_', ' ')}</td></tr>
-    ${s.notes ? `<tr><td>Notes</td><td>${s.notes}</td></tr>` : ''}
+  ${s.buyer_name ? `<div class="cust"><strong>Buyer:</strong> ${s.buyer_name}</div>` : ''}
+  <table class="items">
+    <thead><tr>
+      <th style="text-align:left">Description</th>
+      <th style="text-align:center;width:55px">Karat</th>
+      <th style="text-align:right;width:75px">Gross Wt</th>
+      <th style="text-align:right;width:75px">Net Wt</th>
+      <th style="text-align:right;width:100px">Rate / g</th>
+      <th style="text-align:right;width:110px">Amount</th>
+    </tr></thead>
+    <tbody>
+      <tr>
+        <td>
+          <div style="font-weight:600">${s.description || '—'}</div>
+          <div style="font-size:10px;color:#666;text-transform:capitalize">${(s.item_type || '').replace(/_/g, ' ')}</div>
+          ${s.notes ? `<div style="font-size:10px;color:#888;margin-top:2px">Note: ${s.notes}</div>` : ''}
+        </td>
+        <td style="text-align:center;font-weight:700">${s.declared_karat}</td>
+        <td style="text-align:right">${Number(s.gross_weight || 0).toFixed(3)} g</td>
+        <td style="text-align:right;font-weight:700">${Number(s.net_weight || 0).toFixed(3)} g</td>
+        <td style="text-align:right">${fmtLkr(s.rate_per_gram)}</td>
+        <td style="text-align:right;font-weight:700">${fmtLkr(s.total_amount)}</td>
+      </tr>
+    </tbody>
   </table>
-  <div class="amt">
-    <div class="amt-label">Total Amount Received</div>
-    <div class="amt-val">${fmtLkr(s.total_amount)}</div>
+  <div class="totals">
+    <div class="totals-box">
+      <div class="grand"><span>TOTAL RECEIVED</span><span style="color:#16a34a">${fmtLkr(s.total_amount)}</span></div>
+      <div class="tline"><span>Payment Method</span><span style="text-transform:capitalize">${(s.payment_method || '').replace('_', ' ')}</span></div>
+    </div>
   </div>
   <div class="sigs">
     <div class="sig">Seller / Recorder</div>
     <div class="sig">Buyer Signature</div>
   </div>
-  <div class="foot">CONFIDENTIAL — Private sale record. Not part of official accounting.</div>
+  <div class="footer">
+    <div style="font-weight:600">Thank you!</div>
+    ${shop.shop_name ? `<div style="font-size:10px;color:#888;margin-top:2px">${shop.shop_name}</div>` : ''}
+    <div style="font-size:9px;color:#bbb;margin-top:4px">CONFIDENTIAL — Private sale record</div>
+  </div>
   </body></html>`)
 }
 

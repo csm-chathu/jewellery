@@ -10,7 +10,9 @@ use App\Models\GoldLoan;
 use App\Models\GoldRate;
 use App\Models\Product;
 use App\Models\Purchase;
+use App\Models\PurchaseItem;
 use App\Models\Sale;
+use App\Models\SaleItem;
 use App\Models\SalaryPayment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -382,6 +384,100 @@ class ReportController extends Controller
         ]);
     }
 
+    /** Stock Ledger: per-product movement history (purchases in, sales out) */
+    public function stockLedger(Request $request)
+    {
+        $user = $request->user();
+        abort_unless(in_array($user->role, ['admin', 'manager', 'auditor']), 403, 'Access denied.');
+
+        $request->validate([
+            'product_id' => 'required|exists:products,id',
+            'date_from'  => 'nullable|date',
+            'date_to'    => 'nullable|date',
+        ]);
+
+        $product = Product::with(['category:id,name', 'supplier:id,name'])->findOrFail($request->product_id);
+
+        // Opening balance = all transactions BEFORE date_from
+        $openingBalance = 0;
+        if ($request->date_from) {
+            $purchasedBefore = PurchaseItem::where('product_id', $product->id)
+                ->whereHas('purchase', fn($q) => $q->whereDate('purchased_at', '<', $request->date_from)->whereNull('deleted_at'))
+                ->sum('quantity');
+            $soldBefore = SaleItem::where('product_id', $product->id)
+                ->whereHas('sale', fn($q) => $q->whereDate('sold_at', '<', $request->date_from)->whereNull('deleted_at'))
+                ->sum('quantity');
+            $openingBalance = (int) $purchasedBefore - (int) $soldBefore;
+        }
+
+        // Purchases in range
+        $purchases = PurchaseItem::with([
+                'purchase:id,purchase_number,purchased_at,supplier_id',
+                'purchase.supplier:id,name',
+            ])
+            ->where('product_id', $product->id)
+            ->whereHas('purchase', function ($q) use ($request) {
+                $q->whereNull('deleted_at');
+                if ($request->date_from) $q->whereDate('purchased_at', '>=', $request->date_from);
+                if ($request->date_to)   $q->whereDate('purchased_at', '<=', $request->date_to);
+            })
+            ->get()
+            ->map(fn($item) => [
+                'date'      => $item->purchase->purchased_at->toDateString(),
+                'ref'       => $item->purchase->purchase_number,
+                'type'      => 'purchase',
+                'party'     => $item->purchase->supplier?->name ?? '—',
+                'in'        => (int) $item->quantity,
+                'out'       => 0,
+                'unit_cost' => (float) $item->unit_cost,
+                'balance'   => 0,
+            ]);
+
+        // Sales in range
+        $sales = SaleItem::with([
+                'sale:id,invoice_number,sold_at,customer_id',
+                'sale.customer:id,name',
+            ])
+            ->where('product_id', $product->id)
+            ->whereHas('sale', function ($q) use ($request) {
+                $q->whereNull('deleted_at');
+                if ($request->date_from) $q->whereDate('sold_at', '>=', $request->date_from);
+                if ($request->date_to)   $q->whereDate('sold_at', '<=', $request->date_to);
+            })
+            ->get()
+            ->map(fn($item) => [
+                'date'       => $item->sale->sold_at->toDateString(),
+                'ref'        => $item->sale->invoice_number,
+                'type'       => 'sale',
+                'party'      => $item->sale->customer?->name ?? 'Walk-in',
+                'in'         => 0,
+                'out'        => (int) $item->quantity,
+                'unit_price' => (float) $item->unit_price,
+                'balance'    => 0,
+            ]);
+
+        // Merge, sort, compute running balance
+        $balance = $openingBalance;
+        $entries = $purchases->merge($sales)
+            ->sortBy(['date', 'ref'])
+            ->values()
+            ->map(function ($entry) use (&$balance) {
+                $balance += $entry['in'] - $entry['out'];
+                $entry['balance'] = $balance;
+                return $entry;
+            });
+
+        return response()->json([
+            'product'         => $product,
+            'opening_balance' => $openingBalance,
+            'closing_balance' => $balance,
+            'current_stock'   => $product->stock_quantity,
+            'total_in'        => $entries->sum('in'),
+            'total_out'       => $entries->sum('out'),
+            'entries'         => $entries->values(),
+        ]);
+    }
+
     /** Save a day-end physical count */
     public function storeDayEnd(Request $request)
     {
@@ -425,5 +521,86 @@ class ReportController extends Controller
         );
 
         return response()->json($report, 201);
+    }
+
+    /** Category Stock Value Report: total weight & gold value per category */
+    public function categoryStockValue(Request $request)
+    {
+        $user = $request->user();
+
+        $products = Product::with('category:id,name')
+            ->when(!$user->isAdmin(), fn($q) => $q->where('branch_id', $user->branch_id))
+            ->where('stock_quantity', '>', 0)
+            ->get(['id', 'name', 'sku', 'category_id', 'karat', 'weight', 'stock_quantity', 'purchase_price', 'selling_price']);
+
+        $goldRates = GoldRate::todayRatesByLabel();
+
+        $categories = $products->groupBy('category_id')->map(function ($items) use ($goldRates) {
+            $category = $items->first()->category;
+
+            $productRows = $items->map(function ($p) use ($goldRates) {
+                $weight       = (float) ($p->weight ?? 0);
+                $totalWeight  = round($weight * $p->stock_quantity, 3);
+                $karatKey     = strtolower($p->karat ?? '');
+                $karatRate    = $goldRates[$karatKey] ?? null;
+                $rate24k      = $goldRates['24k'] ?? null;
+                $ratePerGram  = $karatRate?->rate_per_gram
+                    ?? ($rate24k && $karatKey
+                        ? $rate24k->rate_per_gram * GoldRate::purityForLabel($karatKey)
+                        : null);
+                $goldValue = $ratePerGram ? round($ratePerGram * $totalWeight, 2) : null;
+
+                return [
+                    'id'           => $p->id,
+                    'name'         => $p->name,
+                    'sku'          => $p->sku,
+                    'karat'        => $p->karat,
+                    'weight_g'     => $weight,
+                    'qty'          => (int) $p->stock_quantity,
+                    'total_weight' => $totalWeight,
+                    'rate_per_gram'=> $ratePerGram,
+                    'gold_value'   => $goldValue,
+                    'cost_value'   => round($p->purchase_price * $p->stock_quantity, 2),
+                    'sell_value'   => round($p->selling_price  * $p->stock_quantity, 2),
+                ];
+            })->values();
+
+            $totalWeight  = round($productRows->sum('total_weight'), 3);
+            $goldValue    = $productRows->every(fn($r) => $r['gold_value'] !== null)
+                ? round($productRows->sum('gold_value'), 2)
+                : null;
+
+            return [
+                'category_id'   => $category?->id,
+                'category_name' => $category?->name ?? 'Uncategorised',
+                'item_count'    => $productRows->count(),
+                'piece_count'   => (int) $productRows->sum('qty'),
+                'total_weight'  => $totalWeight,
+                'gold_value'    => $goldValue,
+                'cost_value'    => round($productRows->sum('cost_value'), 2),
+                'sell_value'    => round($productRows->sum('sell_value'), 2),
+                'products'      => $productRows,
+            ];
+        })->sortBy('category_name')->values();
+
+        $totals = [
+            'item_count'   => $categories->sum('item_count'),
+            'piece_count'  => $categories->sum('piece_count'),
+            'total_weight' => round($categories->sum('total_weight'), 3),
+            'gold_value'   => $categories->every(fn($c) => $c['gold_value'] !== null)
+                ? round($categories->sum('gold_value'), 2) : null,
+            'cost_value'   => round($categories->sum('cost_value'), 2),
+            'sell_value'   => round($categories->sum('sell_value'), 2),
+        ];
+
+        return response()->json([
+            'categories' => $categories,
+            'totals'     => $totals,
+            'gold_rates' => collect($goldRates)->map(fn($r) => [
+                'label'        => $r->carat?->label,
+                'rate_per_gram'=> $r->rate_per_gram,
+            ])->values(),
+            'date' => today()->toDateString(),
+        ]);
     }
 }

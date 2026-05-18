@@ -223,6 +223,79 @@
             (r.unrealized_pnl >= 0 ? '+' : '') + lkr(r.unrealized_pnl)])" />
       </template>
 
+      <!-- ══════════ CATEGORY STOCK VALUE ══════════ -->
+      <template v-else-if="active === 'category-stock'">
+        <div v-if="data.gold_rates?.length" class="text-xs text-gold-700 bg-gold-50 border border-gold-200 rounded-lg px-3 py-2">
+          Today's gold rates —
+          <span v-for="r in data.gold_rates" :key="r.label" class="mr-3">
+            <strong>{{ r.label }}</strong>: LKR {{ lkr(r.rate_per_gram) }}/g
+          </span>
+        </div>
+        <div v-else class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          No gold rate set for today — gold values cannot be calculated.
+        </div>
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <StatTile label="Categories"    :value="data.categories.length" plain />
+          <StatTile label="Total Pieces"  :value="data.totals.piece_count" plain />
+          <StatTile label="Total Weight"  :value="data.totals.total_weight + 'g'" plain />
+          <StatTile label="Gold Value"    :value="data.totals.gold_value ? lkr(data.totals.gold_value) : '—'" color="gold" />
+        </div>
+        <div class="card p-0 overflow-hidden" id="report-table">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-800 text-white">
+              <tr>
+                <th class="table-th text-left">Category</th>
+                <th class="table-th text-right">Items</th>
+                <th class="table-th text-right">Pieces</th>
+                <th class="table-th text-right">Weight (g)</th>
+                <th class="table-th text-right">Gold Value (LKR)</th>
+                <th class="table-th text-right">Cost Value (LKR)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template v-for="cat in data.categories" :key="cat.category_id">
+                <tr class="border-b border-gray-100 hover:bg-gray-50 cursor-pointer font-medium"
+                  @click="toggleCat(cat.category_id)">
+                  <td class="table-td">
+                    <span class="mr-2 text-gray-400 text-xs">{{ expandedCats.has(cat.category_id) ? '▲' : '▼' }}</span>
+                    {{ cat.category_name }}
+                  </td>
+                  <td class="table-td text-right">{{ cat.item_count }}</td>
+                  <td class="table-td text-right">{{ cat.piece_count }}</td>
+                  <td class="table-td text-right font-semibold text-yellow-700">{{ cat.total_weight }}</td>
+                  <td class="table-td text-right font-semibold text-green-700">
+                    {{ cat.gold_value != null ? 'Rs. ' + lkr(cat.gold_value) : '—' }}
+                  </td>
+                  <td class="table-td text-right text-gray-600">Rs. {{ lkr(cat.cost_value) }}</td>
+                </tr>
+                <template v-if="expandedCats.has(cat.category_id)">
+                  <tr v-for="p in cat.products" :key="p.id" class="bg-blue-50/40 border-b border-blue-100 text-xs">
+                    <td class="table-td pl-10">
+                      <span class="font-medium">{{ p.name }}</span>
+                      <span v-if="p.sku" class="ml-2 text-gray-400">{{ p.sku }}</span>
+                      <span v-if="p.karat" class="ml-2 inline-block bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded text-[10px] font-semibold">{{ p.karat }}</span>
+                    </td>
+                    <td class="table-td text-right text-gray-500">1</td>
+                    <td class="table-td text-right">{{ p.qty }}</td>
+                    <td class="table-td text-right text-yellow-700">{{ p.total_weight }}</td>
+                    <td class="table-td text-right text-green-700">{{ p.gold_value != null ? 'Rs. ' + lkr(p.gold_value) : '—' }}</td>
+                    <td class="table-td text-right text-gray-500">Rs. {{ lkr(p.cost_value) }}</td>
+                  </tr>
+                </template>
+              </template>
+              <tr class="bg-gray-800 text-white font-bold">
+                <td class="table-td">TOTAL</td>
+                <td class="table-td text-right">{{ data.totals.item_count }}</td>
+                <td class="table-td text-right">{{ data.totals.piece_count }}</td>
+                <td class="table-td text-right">{{ data.totals.total_weight }} g</td>
+                <td class="table-td text-right">{{ data.totals.gold_value != null ? 'Rs. ' + lkr(data.totals.gold_value) : '—' }}</td>
+                <td class="table-td text-right">Rs. {{ lkr(data.totals.cost_value) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </template>
+
       <!-- ══════════ TAX SETTINGS ══════════ -->
       <template v-else-if="active === 'tax'">
         <div class="flex justify-end">
@@ -339,16 +412,18 @@ const reportList = [
   { key: 'salary',     label: 'Salary Payments',  icon: '👥', hasDateFilter: true,  endpoint: '/api/reports/salary' },
   { key: 'expenses',   label: 'Expenses',         icon: '💸', hasDateFilter: true,  endpoint: '/api/reports/expenses' },
   { key: 'loans',      label: 'Gold Loans',       icon: '🏦', hasDateFilter: false, endpoint: '/api/reports/gold-loans' },
-  { key: 'metal',      label: 'Metal Balance',    icon: '⚖️', hasDateFilter: false, endpoint: '/api/reports/metal-balance' },
-  { key: 'pnl',        label: 'Rate P&L',         icon: '📊', hasDateFilter: false, endpoint: '/api/reports/rate-pnl' },
-  { key: 'tax',        label: 'Tax Settings',     icon: '🧾', hasDateFilter: false, endpoint: null },
+  { key: 'metal',          label: 'Metal Balance',       icon: '⚖️', hasDateFilter: false, endpoint: '/api/reports/metal-balance' },
+  { key: 'pnl',            label: 'Rate P&L',            icon: '📊', hasDateFilter: false, endpoint: '/api/reports/rate-pnl' },
+  { key: 'category-stock', label: 'Category Stock Value', icon: '🏷️', hasDateFilter: false, endpoint: '/api/reports/category-stock' },
+  { key: 'tax',            label: 'Tax Settings',        icon: '🧾', hasDateFilter: false, endpoint: null },
 ]
 
 // ── State ───────────────────────────────────────────────────────────────────
 
-const active  = ref('sales')
-const data    = ref(null)
-const loading = ref(false)
+const active       = ref('sales')
+const data         = ref(null)
+const loading      = ref(false)
+const expandedCats = ref(new Set())
 
 const today     = new Date().toISOString().split('T')[0]
 const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]
@@ -385,6 +460,12 @@ async function generate() {
   } finally {
     loading.value = false
   }
+}
+
+function toggleCat(id) {
+  if (expandedCats.value.has(id)) expandedCats.value.delete(id)
+  else expandedCats.value.add(id)
+  expandedCats.value = new Set(expandedCats.value)
 }
 
 async function switchReport(key) {

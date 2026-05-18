@@ -133,7 +133,7 @@ import {
   ScaleIcon, BookOpenIcon, DocumentTextIcon, PresentationChartBarIcon,
   BanknotesIcon, BuildingLibraryIcon, HomeModernIcon,
   ReceiptPercentIcon, Cog6ToothIcon, DevicePhoneMobileIcon, LockClosedIcon,
-  WrenchScrewdriverIcon,
+  WrenchScrewdriverIcon, PaintBrushIcon,
   SquaresPlusIcon,
 } from '@heroicons/vue/24/outline'
 
@@ -164,6 +164,7 @@ const adminNavItems = [
   { to: '/rework-orders', label: 'Rework / Jobs', icon: WrenchScrewdriverIcon, roles: ['admin', 'manager', 'cashier', 'branch'] },
   { to: '/layaways', label: 'Layaways', icon: SquaresPlusIcon, roles: ['admin', 'manager', 'cashier', 'branch'] },
   { to: '/reports', label: 'Reports', icon: ChartBarIcon, roles: ['admin', 'manager', 'accountant', 'auditor'] },
+  { to: '/stock-ledger',   label: 'Stock Ledger',       icon: ClipboardDocumentListIcon, roles: ['admin', 'manager', 'auditor'] },
   { to: '/day-end', label: 'Day End', icon: ClipboardDocumentCheckIcon, roles: ['admin', 'manager', 'cashier', 'branch'] },
   { to: '/audit-log', label: 'Audit Log', icon: ClipboardDocumentListIcon, roles: ['admin'] },
   { to: '/users', label: 'Users', icon: UserGroupIcon, roles: ['admin'] },
@@ -171,6 +172,7 @@ const adminNavItems = [
   { to: '/expenses', label: 'Expenses', icon: ReceiptPercentIcon, roles: ['admin', 'manager', 'finance', 'auditor'] },
   { to: '/sms', label: 'SMS Centre', icon: DevicePhoneMobileIcon, roles: ['admin', 'manager'] },
   { to: '/informal-purchases', label: 'Private Gold Book', icon: LockClosedIcon, roles: ['gold_buyer'] },
+  { to: '/custom-made-orders', label: 'Custom Made Orders', icon: PaintBrushIcon, roles: ['gold_buyer', 'admin', 'manager'] },
 ]
 
 const hrNavItems = [
@@ -240,6 +242,8 @@ const pageTitles = {
   'rework-orders':        'Rework / Job Orders',
   'layaways':             'Layaway / Installments',
   'informal-purchases':   'Private Gold Book',
+  'custom-made-orders':  'Custom Made Orders',
+  'stock-ledger':        'Stock Ledger',
 }
 
 const pageTitle  = computed(() => pageTitles[route.name] ?? 'Jewellery MS')
