@@ -55,6 +55,8 @@ const routes = [
             { path: 'informal-purchases', name: 'informal-purchases', component: () => import('@/pages/InformalPurchases.vue') },
             // Custom Made Orders (private gold book)
             { path: 'custom-made-orders', name: 'custom-made-orders', component: () => import('@/pages/CustomMadeOrders.vue') },
+            // Getting Started / Onboarding
+            { path: 'getting-started', name: 'getting-started', component: () => import('@/pages/GettingStarted.vue') },
         ],
     },
     {

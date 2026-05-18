@@ -134,7 +134,7 @@ import {
   BanknotesIcon, BuildingLibraryIcon, HomeModernIcon,
   ReceiptPercentIcon, Cog6ToothIcon, DevicePhoneMobileIcon, LockClosedIcon,
   WrenchScrewdriverIcon, PaintBrushIcon,
-  SquaresPlusIcon,
+  SquaresPlusIcon, QuestionMarkCircleIcon,
 } from '@heroicons/vue/24/outline'
 
 const auth   = useAuthStore()
@@ -173,6 +173,7 @@ const adminNavItems = [
   { to: '/sms', label: 'SMS Centre', icon: DevicePhoneMobileIcon, roles: ['admin', 'manager'] },
   { to: '/informal-purchases', label: 'Private Gold Book', icon: LockClosedIcon, roles: ['gold_buyer'] },
   { to: '/custom-made-orders', label: 'Custom Made Orders', icon: PaintBrushIcon, roles: ['gold_buyer', 'admin', 'manager'] },
+  { to: '/getting-started', label: 'Getting Started', icon: QuestionMarkCircleIcon, roles: ['admin', 'manager'] },
 ]
 
 const hrNavItems = [
@@ -244,6 +245,7 @@ const pageTitles = {
   'informal-purchases':   'Private Gold Book',
   'custom-made-orders':  'Custom Made Orders',
   'stock-ledger':        'Stock Ledger',
+  'getting-started':     'Getting Started Guide',
 }
 
 const pageTitle  = computed(() => pageTitles[route.name] ?? 'Jewellery MS')
