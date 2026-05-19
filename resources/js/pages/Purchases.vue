@@ -212,9 +212,23 @@
               </div>
             </div>
 
+            <!-- Account selector -->
+            <div>
+              <label class="form-label">Settle From Account <span class="text-red-500">*</span></label>
+              <select v-model="settle.account_id" class="form-input">
+                <option value="">— select account —</option>
+                <option v-for="a in accounts" :key="a.id" :value="a.id">
+                  {{ a.code }} – {{ a.name }}
+                </option>
+              </select>
+            </div>
+
             <!-- GL info -->
             <div class="bg-gray-50 rounded-lg px-3 py-2 text-xs text-gray-500">
-              GL entry on settle: <span class="font-medium text-gray-700">Dr Cheques Payable (2050) → Cr Bank (1010)</span>
+              GL entry on settle:
+              <span class="font-medium text-gray-700">
+                Dr Cheques Payable (2050) → Cr {{ settleAccountLabel }}
+              </span>
             </div>
 
             <div>
@@ -321,6 +335,7 @@ import { fmtDate } from '../utils/date.js'
 
 const purchases      = ref({ data: [] })
 const suppliers      = ref([])
+const accounts       = ref([])
 const search         = ref(''); const page = ref(1)
 const supplierFilter = ref('')
 
@@ -353,22 +368,30 @@ const dueSoonCheques = computed(() =>
   (purchases.value.data ?? []).filter(p => isDueSoon(p))
 )
 
-const settle = reactive({ open: false, saving: false, error: '', purchase: null, date: '', notes: '' })
+const settle = reactive({ open: false, saving: false, error: '', purchase: null, date: '', notes: '', account_id: '' })
+
+const settleAccountLabel = computed(() => {
+  const a = accounts.value.find(x => x.id === settle.account_id)
+  return a ? `${a.name} (${a.code})` : 'Bank (1010)'
+})
 
 function openSettle(p) {
-  settle.purchase = p
-  settle.date     = p.cheque_date ?? new Date().toISOString().slice(0, 10)
-  settle.notes    = ''
-  settle.error    = ''
-  settle.open     = true
+  settle.purchase   = p
+  settle.date       = p.cheque_date ?? new Date().toISOString().slice(0, 10)
+  settle.notes      = ''
+  settle.error      = ''
+  settle.account_id = ''
+  settle.open       = true
 }
 
 async function submitSettle() {
+  if (!settle.account_id) { settle.error = 'Please select the account to settle from.'; return }
   settle.saving = true; settle.error = ''
   try {
     await axios.post(`/api/purchases/${settle.purchase.id}/settle-cheque`, {
       settled_date: settle.date,
       notes:        settle.notes,
+      account_id:   settle.account_id,
     })
     settle.open = false
     fetch()
@@ -454,8 +477,12 @@ async function del(p) {
 }
 
 onMounted(async () => {
-  const { data } = await axios.get('/api/suppliers/all')
-  suppliers.value = data
+  const [suppRes, accRes] = await Promise.all([
+    axios.get('/api/suppliers/all'),
+    axios.get('/api/accounts/all'),
+  ])
+  suppliers.value = suppRes.data
+  accounts.value  = accRes.data
   fetch()
 })
 </script>

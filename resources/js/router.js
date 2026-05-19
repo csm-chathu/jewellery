@@ -57,6 +57,8 @@ const routes = [
             { path: 'custom-made-orders', name: 'custom-made-orders', component: () => import('@/pages/CustomMadeOrders.vue') },
             // Getting Started / Onboarding
             { path: 'getting-started', name: 'getting-started', component: () => import('@/pages/GettingStarted.vue') },
+            // Account Transfers
+            { path: 'account-transfers', name: 'account-transfers', component: () => import('@/pages/AccountTransfer.vue') },
         ],
     },
     {

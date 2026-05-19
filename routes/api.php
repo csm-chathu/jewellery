@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AccountController;
+use App\Http\Controllers\Api\AccountTransferController;
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\CloudinaryUploadController;
@@ -160,6 +161,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/accounts',             [AccountController::class, 'store']);
     Route::put('/accounts/{account}',    [AccountController::class, 'update']);
     Route::delete('/accounts/{account}', [AccountController::class, 'destroy']);
+
+    // Account Transfers
+    Route::get('/account-transfers',                      [AccountTransferController::class, 'index']);
+    Route::post('/account-transfers',                     [AccountTransferController::class, 'store']);
+    Route::delete('/account-transfers/{journalEntry}',    [AccountTransferController::class, 'destroy']);
 
     // Journal Entries
     Route::get('/opening-balances',  [OpeningBalanceController::class, 'index']);

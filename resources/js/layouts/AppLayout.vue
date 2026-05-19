@@ -139,7 +139,7 @@ import {
   BanknotesIcon, BuildingLibraryIcon, HomeModernIcon,
   ReceiptPercentIcon, Cog6ToothIcon, DevicePhoneMobileIcon, LockClosedIcon,
   WrenchScrewdriverIcon, PaintBrushIcon,
-  SquaresPlusIcon, QuestionMarkCircleIcon,
+  SquaresPlusIcon, QuestionMarkCircleIcon, ArrowsRightLeftIcon,
 } from '@heroicons/vue/24/outline'
 
 const auth   = useAuthStore()
@@ -197,6 +197,7 @@ const accountingNavItems = [
   { to: '/opening-balances', label: 'Opening Balances', icon: ScaleIcon, roles: ['admin', 'manager', 'accountant', 'auditor'] },
   { to: '/accounts', label: 'Chart of Accounts', icon: BookOpenIcon, roles: ['admin', 'manager', 'accountant', 'auditor'] },
   { to: '/journal-entries', label: 'Journal Entries', icon: DocumentTextIcon, roles: ['admin', 'manager', 'accountant', 'auditor'] },
+  { to: '/account-transfers', label: 'Account Transfers', icon: ArrowsRightLeftIcon, roles: ['admin', 'manager', 'accountant'] },
   { to: '/general-ledger', label: 'General Ledger', icon: PresentationChartBarIcon, roles: ['admin', 'manager', 'accountant', 'auditor'] },
 ]
 
@@ -251,6 +252,7 @@ const pageTitles = {
   'custom-made-orders':  'Custom Made Orders',
   'stock-ledger':        'Stock Ledger',
   'getting-started':     'Getting Started Guide',
+  'account-transfers':   'Account Transfers',
 }
 
 const pageTitle  = computed(() => pageTitles[route.name] ?? 'Jewellery MS')

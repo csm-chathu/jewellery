@@ -281,15 +281,20 @@ class PurchaseController extends Controller
         $data = $request->validate([
             'settled_date' => 'nullable|date',
             'notes'        => 'nullable|string',
+            'account_id'   => 'nullable|exists:accounts,id',
         ]);
 
         DB::beginTransaction();
         try {
             $chequesPayable = Account::where('code', '2050')->first();
-            $bank           = Account::where('code', '1010')->first();
+
+            // Use the chosen account, or fall back to Bank Account (1010)
+            $bank = isset($data['account_id'])
+                ? Account::findOrFail($data['account_id'])
+                : Account::where('code', '1010')->first();
 
             if (!$chequesPayable || !$bank) {
-                throw new \Exception('Cheques Payable (2050) or Bank Account (1010) not found.');
+                throw new \Exception('Cheques Payable (2050) or settlement account not found.');
             }
 
             $settledAt = isset($data['settled_date']) ? $data['settled_date'] : now();
@@ -318,7 +323,7 @@ class PurchaseController extends Controller
                 'account_id'       => $bank->id,
                 'debit'            => 0,
                 'credit'           => $purchase->total,
-                'description'      => "Bank payment – cheque #{$purchase->cheque_number}",
+                'description'      => "{$bank->name} payment – cheque #{$purchase->cheque_number}",
             ]);
 
             $purchase->update([
