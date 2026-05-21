@@ -191,7 +191,7 @@ function printProductBarcode(product) {
     }
     .label {
       width: 30mm; height: 20mm;
-      padding: 0.8mm 1.5mm 0.5mm;
+      padding: 1.5mm 1.5mm 0.5mm;
       display: flex; flex-direction: column;
       align-items: center; justify-content: space-between;
       overflow: hidden;
