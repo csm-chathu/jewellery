@@ -119,7 +119,7 @@
 
         <!-- Footer -->
         <div class="px-6 py-4 text-center border-t border-gray-100">
-          <p class="text-sm font-semibold text-gray-700">Thank you for your purchase!</p>
+          <p class="text-sm font-semibold text-gray-700">*** Thank You! Come Again ***</p>
           <p v-if="shop.shop_name" class="text-xs text-gray-400 mt-1">{{ shop.shop_name }}</p>
           <p class="text-xs text-gray-300 mt-3">This is a digital receipt. Please keep for your records.</p>
         </div>

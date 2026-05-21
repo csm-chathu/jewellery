@@ -579,36 +579,55 @@ function fillProduct(item) {
   item.product_search = [p.name, p.sku ? `SKU: ${p.sku}` : null, p.barcode ? `Barcode: ${p.barcode}` : null]
     .filter(Boolean)
     .join(' · ')
-  item.unit_price  = p.selling_price
+
+  // Reset all breakdown fields to 0
+  item.gold_value         = 0
+  item.gold_value_auto    = 0
+  item.gemstone_value     = 0
+  item.making_charge      = 0
+  item.making_charge_auto = 0
+  item.wastage_amount     = 0
+  item.wastage_auto       = 0
 
   if (p.weight && p.karat) {
     const rate = rateForKarat(p.karat)
-    item.gold_value_auto = rate ? Math.round(rate * p.weight * 100) / 100 : 0
-    item.gold_value      = item.gold_value_auto
+if (rate) {
+      const goldVal = Math.round(parseFloat(rate) * parseFloat(p.weight) * 100) / 100
+      item.gold_value_auto = goldVal
+      item.gold_value      = goldVal
+    }
   }
 
-  item.gemstone_value = p.gemstone_value ?? 0
-
+  // Hint values for display only — NOT applied to breakdown fields
   if (p.making_charge > 0) {
-    const mc = p.making_charge_type === 'per_gram'   ? p.making_charge * (p.weight ?? 0)
+    const mc = p.making_charge_type === 'per_gram'   ? p.making_charge * parseFloat(p.weight ?? 0)
              : p.making_charge_type === 'per_piece'  ? p.making_charge
-             : p.making_charge_type === 'percentage' ? (p.selling_price * p.making_charge / 100)
+             : p.making_charge_type === 'percentage' ? (item.gold_value * p.making_charge / 100)
              : 0
     item.making_charge_auto = Math.round(mc * 100) / 100
-    item.making_charge      = item.making_charge_auto
   }
 
   if (p.wastage_percent > 0 && p.weight && p.karat) {
     const rate = rateForKarat(p.karat)
-    item.wastage_auto   = rate ? Math.round(rate * p.weight * (p.wastage_percent / 100) * 100) / 100 : 0
-    item.wastage_amount = item.wastage_auto
+    if (rate) {
+      item.wastage_auto = Math.round(parseFloat(rate) * parseFloat(p.weight) * (p.wastage_percent / 100) * 100) / 100
+    }
   }
 
-  recalcItem(item)
+  // unit_price = gold value only (all other breakdown fields are 0)
+  item.unit_price = item.gold_value
+  item._lineTotal = Math.round((item.unit_price * (item.quantity || 1)) * 100) / 100
+  recalc()
 }
 
 function recalcItem(item) {
-  item._lineTotal = (item.unit_price * item.quantity) - (item.discount || 0)
+  if (item.product_ref?.karat) {
+    // Always sum breakdown fields; when all are 0 this equals gold_value
+    item.unit_price = Math.round(
+      ((item.gold_value || 0) + (item.gemstone_value || 0) + (item.making_charge || 0) + (item.wastage_amount || 0)) * 100
+    ) / 100
+  }
+  item._lineTotal = Math.round(((item.unit_price || 0) * (item.quantity || 1) - (item.discount || 0)) * 100) / 100
   recalc()
 }
 

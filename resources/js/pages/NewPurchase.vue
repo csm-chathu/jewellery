@@ -31,7 +31,7 @@
             </div>
 
             <!-- Existing product -->
-            <div v-if="!item.is_new" class="grid grid-cols-[1fr_72px_120px_120px] gap-2">
+            <div v-if="!item.is_new" class="grid grid-cols-[1fr_72px_120px] gap-2">
               <div>
                 <label class="form-label">Product</label>
                 <div class="relative">
@@ -75,10 +75,6 @@
                 <label class="form-label">Buy Price (LKR)</label>
                 <input v-model.number="item.unit_cost" type="number" min="0" class="form-input" />
               </div>
-              <div>
-                <label class="form-label">Sell Price (LKR)</label>
-                <input v-model.number="item.selling_price" type="number" min="0" class="form-input" />
-              </div>
             </div>
 
             <!-- New product -->
@@ -117,8 +113,8 @@
                 </div>
               </div>
 
-              <!-- Qty / Buy / Sell -->
-              <div class="grid grid-cols-3 gap-3">
+              <!-- Qty / Buy -->
+              <div class="grid grid-cols-2 gap-3">
                 <div>
                   <label class="form-label">Qty *</label>
                   <input v-model.number="item.quantity" type="number" min="1" class="form-input" />
@@ -126,10 +122,6 @@
                 <div>
                   <label class="form-label">Buy Price (LKR) *</label>
                   <input v-model.number="item.unit_cost" type="number" min="0" class="form-input" />
-                </div>
-                <div>
-                  <label class="form-label">Sell Price (LKR)</label>
-                  <input v-model.number="item.selling_price" type="number" min="0" class="form-input" />
                 </div>
               </div>
 
@@ -240,7 +232,6 @@ function newItem() {
     new_product: { name: '', category_id: '', material: '', karat: '', weight: null, images: [] },
     quantity: 1,
     unit_cost: 0,
-    selling_price: 0,
   }
 }
 
@@ -272,13 +263,12 @@ function selectProduct(item, p) {
   item.product_id    = p.id
   item._search       = ''
   item._open         = false
-  item.unit_cost     = item.unit_cost     || p.purchase_price || 0
-  item.selling_price = item.selling_price || p.selling_price  || 0
+  item.unit_cost     = item.unit_cost || p.purchase_price || 0
 }
 
 function clearProduct(item) {
   item.product_id = ''; item._search = ''; item._open = false
-  item.unit_cost = 0; item.selling_price = 0
+  item.unit_cost = 0
 }
 
 function pickFirst(item) {
@@ -289,8 +279,7 @@ function pickFirst(item) {
 function prefillPrices(item) {
   const p = products.value.find(p => p.id === item.product_id)
   if (p) {
-    if (!item.unit_cost)     item.unit_cost     = p.purchase_price ?? 0
-    if (!item.selling_price) item.selling_price = p.selling_price  ?? 0
+    if (!item.unit_cost) item.unit_cost = p.purchase_price ?? 0
   }
 }
 
@@ -323,16 +312,14 @@ async function submit() {
               image_url:        img?.url        ?? null,
               image_public_id:  img?.public_id  ?? null,
             },
-            quantity:      i.quantity,
-            unit_cost:     i.unit_cost,
-            selling_price: i.selling_price,
+            quantity:  i.quantity,
+            unit_cost: i.unit_cost,
           }
         }
         return {
-          product_id:    i.product_id || null,
-          quantity:      i.quantity,
-          unit_cost:     i.unit_cost,
-          selling_price: i.selling_price,
+          product_id: i.product_id || null,
+          quantity:   i.quantity,
+          unit_cost:  i.unit_cost,
         }
       }),
     }

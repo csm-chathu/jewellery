@@ -131,7 +131,6 @@ class ReworkOrderController extends Controller
             'output_karat'    => 'required|string|max:10',
             'product_name'    => 'required|string|max:255',
             'category_id'     => 'nullable|exists:categories,id',
-            'selling_price'   => 'required|numeric|min:0',
             'making_charge'   => 'nullable|numeric|min:0',
             'making_charge_notes' => 'nullable|string|max:255',
         ]);
@@ -151,7 +150,6 @@ class ReworkOrderController extends Controller
             'karat'          => $data['output_karat'],
             'material'       => 'gold',
             'purchase_price' => $reworkOrder->total_cost,
-            'selling_price'  => $data['selling_price'],
             'stock_quantity' => 1,
             'min_stock_level'=> 1,
             'is_active'      => true,
@@ -175,7 +173,6 @@ class ReworkOrderController extends Controller
         AuditLog::record('rework_completed', "Rework {$reworkOrder->reference_number} completed → Product {$product->sku}", $reworkOrder, [], [
             'product_id'    => $product->id,
             'output_weight' => $data['output_weight'],
-            'selling_price' => $data['selling_price'],
         ]);
 
         return response()->json([

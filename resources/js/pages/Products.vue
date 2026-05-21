@@ -31,7 +31,6 @@
               <th class="table-th">Material / Karat</th>
               <th class="table-th">Stock</th>
               <th class="table-th">Buy Price</th>
-              <th class="table-th">Sell Price</th>
               <th class="table-th">Status</th>
               <th class="table-th">Actions</th>
             </tr>
@@ -65,7 +64,6 @@
                 </span>
               </td>
               <td class="table-td">LKR {{ Number(p.purchase_price).toLocaleString() }}</td>
-              <td class="table-td font-semibold text-gold-700">LKR {{ Number(p.selling_price).toLocaleString() }}</td>
               <td class="table-td">
                 <span :class="p.is_active ? 'badge bg-green-100 text-green-700' : 'badge bg-gray-100 text-gray-500'">
                   {{ p.is_active ? 'Active' : 'Inactive' }}
@@ -73,8 +71,10 @@
               </td>
               <td class="table-td">
                 <div class="flex items-center gap-2">
-                  <button @click="reprintBarcode(p)" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-100 text-emerald-700 hover:bg-emerald-200 whitespace-nowrap">
-                    <PrinterIcon class="w-3.5 h-3.5" /> Print Barcode
+                  <button @click="reprintBarcode(p)" :disabled="printingId === p.id" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-100 text-emerald-700 hover:bg-emerald-200 whitespace-nowrap disabled:opacity-60">
+                    <svg v-if="printingId === p.id" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
+                    <PrinterIcon v-else class="w-3.5 h-3.5" />
+                    {{ printingId === p.id ? 'Printing…' : 'Print Barcode' }}
                   </button>
                   <button @click="openEdit(p)" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200">
                     <PencilSquareIcon class="w-3.5 h-3.5" /> Edit
@@ -86,7 +86,7 @@
               </td>
             </tr>
             <tr v-if="!products.data?.length">
-              <td colspan="10" class="table-td text-center text-gray-400 py-8">No products found</td>
+              <td colspan="9" class="table-td text-center text-gray-400 py-8">No products found</td>
             </tr>
           </tbody>
         </table>
@@ -123,6 +123,7 @@ const lowStockOnly  = ref(false)
 const page          = ref(1)
 const showModal     = ref(false)
 const editing       = ref(null)
+const printingId    = ref(null)
 
 let debounceTimer = null
 function debouncedFetch() {
@@ -228,6 +229,11 @@ function printProductBarcode(product) {
 </body>
 </html>`
 
+  if (window.electronAPI?.printBarcode) {
+    window.electronAPI.printBarcode(html)
+    return
+  }
+
   const iframe = document.createElement('iframe')
   iframe.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;border:none;'
   document.body.appendChild(iframe)
@@ -241,7 +247,9 @@ function printProductBarcode(product) {
 }
 
 function reprintBarcode(product) {
+  printingId.value = product.id
   printProductBarcode(product)
+  setTimeout(() => { printingId.value = null }, 2500)
 }
 
 async function deleteProduct(p) {

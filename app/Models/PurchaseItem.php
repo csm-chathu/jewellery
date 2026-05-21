@@ -6,12 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class PurchaseItem extends Model
 {
-    protected $fillable = ['purchase_id', 'product_id', 'quantity', 'unit_cost', 'selling_price', 'total'];
+    protected $fillable = ['purchase_id', 'product_id', 'quantity', 'unit_cost', 'total'];
 
     protected $casts = [
-        'unit_cost'     => 'float',
-        'selling_price' => 'float',
-        'total'         => 'float',
+        'unit_cost' => 'float',
+        'total'     => 'float',
     ];
 
     public function purchase()

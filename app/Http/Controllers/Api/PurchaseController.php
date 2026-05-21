@@ -40,10 +40,9 @@ class PurchaseController extends Controller
             'items.*.new_product.weight'           => 'nullable|numeric|min:0',
             'items.*.new_product.image_url'        => 'nullable|url|max:1000',
             'items.*.new_product.image_public_id'  => 'nullable|string|max:255',
-            'items.*.quantity'      => 'required|integer|min:1',
-            'items.*.unit_cost'     => 'required|numeric|min:0',
-            'items.*.selling_price' => 'nullable|numeric|min:0',
-            'tax'         => 'nullable|numeric|min:0',
+            'items.*.quantity'  => 'required|integer|min:1',
+            'items.*.unit_cost' => 'required|numeric|min:0',
+            'tax'               => 'nullable|numeric|min:0',
             'status'      => 'required|in:pending,received,partial,cancelled',
             'payment_method'   => 'nullable|in:cash,bank_transfer,cheque,credit',
             'cheque_number'    => 'nullable|required_if:payment_method,cheque|string|max:50',
@@ -88,7 +87,6 @@ class PurchaseController extends Controller
                         'supplier_id'     => $data['supplier_id'],
                         'sku'             => str_pad($last + 1, 6, '0', STR_PAD_LEFT),
                         'purchase_price'  => $item['unit_cost'],
-                        'selling_price'   => $item['selling_price'] ?? 0,
                         'stock_quantity'  => 0,
                         'min_stock_level' => 1,
                         'is_active'       => true,
@@ -103,20 +101,15 @@ class PurchaseController extends Controller
                 }
 
                 PurchaseItem::create([
-                    'purchase_id'   => $purchase->id,
-                    'product_id'    => $product->id,
-                    'quantity'      => $item['quantity'],
-                    'unit_cost'     => $item['unit_cost'],
-                    'selling_price' => $item['selling_price'] ?? 0,
-                    'total'         => $item['unit_cost'] * $item['quantity'],
+                    'purchase_id' => $purchase->id,
+                    'product_id'  => $product->id,
+                    'quantity'    => $item['quantity'],
+                    'unit_cost'   => $item['unit_cost'],
+                    'total'       => $item['unit_cost'] * $item['quantity'],
                 ]);
                 if ($data['status'] === 'received') {
                     $product->increment('stock_quantity', $item['quantity']);
-                    $updates = ['purchase_price' => $item['unit_cost']];
-                    if (!empty($item['selling_price'])) {
-                        $updates['selling_price'] = $item['selling_price'];
-                    }
-                    $product->update($updates);
+                    $product->update(['purchase_price' => $item['unit_cost']]);
                 }
             }
 
@@ -151,11 +144,10 @@ class PurchaseController extends Controller
 
         $data = $request->validate([
             'items'                 => 'required|array|min:1',
-            'items.*.id'            => 'required|exists:purchase_items,id',
-            'items.*.quantity'      => 'required|integer|min:0',
-            'items.*.unit_cost'     => 'required|numeric|min:0',
-            'items.*.selling_price' => 'nullable|numeric|min:0',
-            'notes'                 => 'nullable|string',
+            'items.*.id'        => 'required|exists:purchase_items,id',
+            'items.*.quantity'  => 'required|integer|min:0',
+            'items.*.unit_cost' => 'required|numeric|min:0',
+            'notes'             => 'nullable|string',
         ]);
 
         DB::beginTransaction();
@@ -166,21 +158,16 @@ class PurchaseController extends Controller
                 $product = Product::findOrFail($item->product_id);
 
                 $item->update([
-                    'quantity'      => $row['quantity'],
-                    'unit_cost'     => $row['unit_cost'],
-                    'selling_price' => $row['selling_price'] ?? $item->selling_price,
-                    'total'         => $row['unit_cost'] * $row['quantity'],
+                    'quantity'  => $row['quantity'],
+                    'unit_cost' => $row['unit_cost'],
+                    'total'     => $row['unit_cost'] * $row['quantity'],
                 ]);
 
                 $subtotal += $item->total;
 
                 if ($row['quantity'] > 0) {
                     $product->increment('stock_quantity', $row['quantity']);
-                    $updates = ['purchase_price' => $row['unit_cost']];
-                    if (!empty($row['selling_price'])) {
-                        $updates['selling_price'] = $row['selling_price'];
-                    }
-                    $product->update($updates);
+                    $product->update(['purchase_price' => $row['unit_cost']]);
                 }
             }
 

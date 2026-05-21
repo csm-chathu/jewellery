@@ -85,6 +85,56 @@
       </div>
     </div>
 
+    <!-- Electron Printer Assignment -->
+    <div v-if="isElectron" class="card space-y-4">
+      <h3 class="font-semibold text-gray-700 border-b border-gray-100 pb-2 flex items-center gap-2">
+        <PrinterIcon class="w-5 h-5 text-amber-500" /> Printer Assignment
+        <span class="ml-auto text-xs font-normal text-gray-400">Desktop App Only</span>
+      </h3>
+
+      <p v-if="printersLoading" class="text-sm text-gray-400 flex items-center gap-2">
+        <ArrowPathIcon class="w-4 h-4 animate-spin" /> Loading printers…
+      </p>
+
+      <template v-else>
+        <div>
+          <label class="form-label">Barcode Label Printer <span class="text-xs font-normal text-gray-400">(30×20mm labels)</span></label>
+          <select v-model="printerConfig.barcode" class="form-input">
+            <option value="">— Use system default —</option>
+            <option v-for="p in availablePrinters" :key="p.name" :value="p.name">{{ p.displayName }}</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="form-label">POS / Thermal Printer <span class="text-xs font-normal text-gray-400">(80mm receipt roll)</span></label>
+          <select v-model="printerConfig.pos" class="form-input">
+            <option value="">— Use system default —</option>
+            <option v-for="p in availablePrinters" :key="p.name" :value="p.name">{{ p.displayName }}</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="form-label">A5 Invoice Printer <span class="text-xs font-normal text-gray-400">(148×210mm paper)</span></label>
+          <select v-model="printerConfig.a5" class="form-input">
+            <option value="">— Use system default —</option>
+            <option v-for="p in availablePrinters" :key="p.name" :value="p.name">{{ p.displayName }}</option>
+          </select>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <button @click="savePrinterConfig" :disabled="printerSaving"
+            class="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded-lg font-medium text-sm transition-colors">
+            <ArrowPathIcon v-if="printerSaving" class="w-4 h-4 animate-spin" />
+            <CheckCircleIcon v-else class="w-4 h-4" />
+            {{ printerSaving ? 'Saving…' : 'Save Printer Settings' }}
+          </button>
+          <span v-if="printerSaved" class="text-sm text-green-600 flex items-center gap-1">
+            <CheckCircleIcon class="w-4 h-4" /> Saved!
+          </span>
+        </div>
+      </template>
+    </div>
+
     <!-- Save -->
     <div class="flex items-center gap-3">
       <button @click="save" :disabled="saving"
@@ -127,6 +177,13 @@ const logoInput    = ref(null)
 const logoUploading = ref(false)
 const logoError    = ref('')
 
+const isElectron       = !!window.electronAPI
+const availablePrinters = ref([])
+const printersLoading  = ref(false)
+const printerConfig    = ref({ barcode: '', pos: '', a5: '' })
+const printerSaving    = ref(false)
+const printerSaved     = ref(false)
+
 onMounted(async () => {
   try {
     const { data } = await axios.get('/api/shop-settings')
@@ -136,7 +193,33 @@ onMounted(async () => {
   } catch {
     // settings table may be empty on first load
   }
+
+  if (isElectron) {
+    printersLoading.value = true
+    try {
+      const [printers, config] = await Promise.all([
+        window.electronAPI.getPrinters(),
+        window.electronAPI.getPrinterConfig(),
+      ])
+      availablePrinters.value = printers
+      printerConfig.value = { barcode: '', pos: '', a5: '', ...config }
+    } finally {
+      printersLoading.value = false
+    }
+  }
 })
+
+async function savePrinterConfig() {
+  printerSaving.value = true
+  printerSaved.value  = false
+  try {
+    await window.electronAPI.savePrinterConfig(printerConfig.value)
+    printerSaved.value = true
+    setTimeout(() => { printerSaved.value = false }, 3000)
+  } finally {
+    printerSaving.value = false
+  }
+}
 
 async function onLogoChange(e) {
   const file = e.target.files[0]

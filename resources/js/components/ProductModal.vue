@@ -97,10 +97,6 @@
             <input v-model="form.purchase_price" type="number" step="0.01" min="0" required class="form-input" />
           </div>
           <div>
-            <label class="form-label">Selling Price (LKR) *</label>
-            <input v-model="form.selling_price" type="number" step="0.01" min="0" required class="form-input" />
-          </div>
-          <div>
             <label class="form-label">Stock Quantity *</label>
             <input v-model="form.stock_quantity" type="number" min="0" required class="form-input" />
           </div>
@@ -187,7 +183,7 @@ const form = reactive({
   name: '', description: '', category_id: '', supplier_id: '',
   material: '', weight: '', karat: '', making_charge_type: 'per_gram', making_charge: 0, wastage_percent: 0,
   size: '', color: '', gemstone: '', gemstone_weight: '', gemstone_value: 0, gemstone_quality: '',
-  purchase_price: '', selling_price: '', stock_quantity: 0, min_stock_level: 5,
+  purchase_price: '', stock_quantity: 0, min_stock_level: 5,
   is_active: true, barcode: '',
 })
 
@@ -240,7 +236,6 @@ function tryAutoCalculate() {
 function applyCalculatedPrices() {
   if (!goldCalc.value) return
   form.purchase_price = Math.round(goldCalc.value.price * 100) / 100
-  form.selling_price  = Math.round(goldCalc.value.price * (1 + markup.value / 100) * 100) / 100
 }
 
 // Watch material change to re-evaluate

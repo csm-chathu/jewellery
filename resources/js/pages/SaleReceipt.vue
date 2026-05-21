@@ -201,16 +201,6 @@
             Note: {{ sale.notes }}
           </div>
 
-          <hr class="receipt-divider" />
-
-          <!-- BARCODE -->
-          <div style="text-align:center; margin:6px 0 2px;">
-            <canvas ref="barcodeCanvas" style="max-width:100%; height:40px;"></canvas>
-            <div style="font-size:9px; letter-spacing:2px; margin-top:2px;">{{ sale.invoice_number }}</div>
-          </div>
-
-          <hr class="receipt-divider" />
-
           <!-- FOOTER -->
           <div style="text-align:center; font-size:10px; line-height:1.6;">
             <div style="font-weight:bold;">*** Thank You! Come Again ***</div>
@@ -242,17 +232,19 @@
                 <span style="background:#7c3aed; color:#fff; font-size:10px; font-weight:700; padding:2px 8px; border-radius:4px; letter-spacing:1px; text-transform:uppercase;">Booking Advance</span>
               </div>
               <table class="inv-meta-table">
-                <tr><td>Invoice No</td><td><strong>{{ sale.invoice_number }}</strong></td></tr>
-                <tr><td>Date &amp; Time</td><td>{{ fmtDate(sale.sold_at) }}, {{ formatTime(sale.sold_at) }}</td></tr>
-                <tr><td>Cashier</td><td>{{ sale.user?.name ?? '&mdash;' }}</td></tr>
-                <tr v-if="sale.sale_type === 'booking' && sale.booking_expires_at">
-                  <td style="color:#b91c1c;">Expires</td>
-                  <td style="color:#b91c1c; font-weight:700;">{{ fmtDate(sale.booking_expires_at) }}</td>
-                </tr>
-                <tr v-if="sale.delivery_status === 'delivered' && sale.delivered_at">
-                  <td style="color:#166534;">Delivered</td>
-                  <td style="color:#166534; font-weight:700;">{{ fmtDate(sale.delivered_at) }}</td>
-                </tr>
+                <tbody>
+                  <tr><td>Invoice No</td><td><strong>{{ sale.invoice_number }}</strong></td></tr>
+                  <tr><td>Date &amp; Time</td><td>{{ fmtDate(sale.sold_at) }}, {{ formatTime(sale.sold_at) }}</td></tr>
+                  <tr><td>Cashier</td><td>{{ sale.user?.name ?? '&mdash;' }}</td></tr>
+                  <tr v-if="sale.sale_type === 'booking' && sale.booking_expires_at">
+                    <td style="color:#b91c1c;">Expires</td>
+                    <td style="color:#b91c1c; font-weight:700;">{{ fmtDate(sale.booking_expires_at) }}</td>
+                  </tr>
+                  <tr v-if="sale.delivery_status === 'delivered' && sale.delivered_at">
+                    <td style="color:#166534;">Delivered</td>
+                    <td style="color:#166534; font-weight:700;">{{ fmtDate(sale.delivered_at) }}</td>
+                  </tr>
+                </tbody>
               </table>
             </div>
           </div>
@@ -336,7 +328,7 @@
 
           <!-- FOOTER -->
           <div class="inv-footer">
-            <div style="font-weight:600;">Thank you for your purchase!</div>
+            <div style="font-weight:600;">*** Thank You! Come Again ***</div>
             <div v-if="shop.shop_name" style="font-size:10px; color:#888; margin-top:2px;">{{ shop.shop_name }}</div>
           </div>
 
@@ -527,7 +519,6 @@ async function submitSettle() {
     sale.value = data
     settleModal.value = false
     await nextTick()
-    drawAllBarcodes()
   } catch (e) {
     settleError.value = e.response?.data?.message
       ?? Object.values(e.response?.data?.errors ?? {}).flat().join(', ')
@@ -547,45 +538,7 @@ function formatTime(d) {
   return new Date(d).toLocaleTimeString('en-LK', { hour: '2-digit', minute: '2-digit' })
 }
 
-function drawBarcode(canvas, text) {
-  if (!canvas || !text) return
-  const W = 255, H = 40
-  canvas.width = W; canvas.height = H
-  const ctx = canvas.getContext('2d')
-  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H)
-  const narrow = 2, wide = 5, gap = 2
-  let x = 4; ctx.fillStyle = '#000'
-  const C39 = {
-    '0':'000110100','1':'100100001','2':'001100001','3':'101100000',
-    '4':'000110001','5':'100110000','6':'001110000','7':'000100101',
-    '8':'100100100','9':'001100100','A':'100001001','B':'001001001',
-    'C':'101001000','D':'000011001','E':'100011000','F':'001011000',
-    'G':'000001101','H':'100001100','I':'001001100','J':'000011100',
-    'K':'100000011','L':'001000011','M':'101000010','N':'000010011',
-    'O':'100010010','P':'001010010','Q':'000000111','R':'100000110',
-    'S':'001000110','T':'000010110','U':'110000001','V':'011000001',
-    'W':'111000000','X':'010010001','Y':'110010000','Z':'011010000',
-    '-':'010000101','.':'110000100',' ':'011000100','*':'010010100',
-    '$':'010101000','/':'010100010','+':'010001010','%':'101010000',
-  }
-  for (const ch of ('*' + text + '*').toUpperCase().split('')) {
-    const pattern = C39[ch]; if (!pattern) continue
-    for (let i = 0; i < 9; i++) {
-      const w = pattern[i] === '1' ? wide : narrow
-      if (i % 2 === 0) { ctx.fillStyle = '#000'; ctx.fillRect(x, 0, w, H) }
-      x += w
-    }
-    x += gap
-  }
-}
-
-function drawAllBarcodes() {
-  if (sale.value) {
-    drawBarcode(barcodeCanvas.value, sale.value.invoice_number)
-  }
-}
-
-function printReceipt() {
+async function printReceipt() {
   document.querySelector('#dyn-page-style')?.remove()
   const s = document.createElement('style')
   s.id = 'dyn-page-style'
@@ -593,22 +546,36 @@ function printReceipt() {
     ? `@media print { @page { size: A5; margin: 12mm 15mm; } }`
     : `@media print { @page { size: 80mm auto; margin: 0; } }`
   document.head.appendChild(s)
+
+  if (window.electronAPI?.getPrinterConfig) {
+    const config = await window.electronAPI.getPrinterConfig()
+    const printerName = printMode.value === 'a5' ? (config.a5 || '') : (config.pos || '')
+    const printOptions = printMode.value === 'a5'
+      ? { pageSize: 'A5' }
+      : { pageSize: { width: 80000, height: 0 } }
+    await window.electronAPI.printReceipt(printerName, printOptions)
+    return
+  }
+
   window.print()
 }
 
 function buildDirectPrintHtml() {
   const receipt = document.getElementById('receipt')
   if (!receipt) return ''
+  const clonedReceipt = receipt.cloneNode(true)
+  clonedReceipt.querySelector('.receipt-barcode')?.remove()
   return `<!doctype html><html><head><meta charset="utf-8">
 <style>
   html,body{margin:0;padding:0;background:#fff;}
   .receipt-paper{width:80mm;max-width:80mm;margin:0;padding:3mm 4mm;box-sizing:border-box;
-    font-family:'Courier New',Courier,monospace;font-size:11pt;line-height:1.45;color:#000;background:#fff;}
+    font-family:'Courier New',Courier,monospace;font-size:12pt;line-height:1.45;font-weight:500;zoom:1.12;color:#000;background:#fff;}
   .receipt-divider{border:none;border-top:1px dashed #aaa;margin:6px 0;}
   .receipt-divider-solid{border:none;border-top:1px solid #555;margin:6px 0;}
   .receipt-divider-double{border:none;border-top:3px double #333;margin:6px 0;}
+  .receipt-barcode{display:none !important;}
   canvas{max-width:100%;}
-</style></head><body>${receipt.outerHTML}</body></html>`
+</style></head><body>${clonedReceipt.outerHTML}</body></html>`
 }
 
 function qzScriptLoaded() { return typeof window !== 'undefined' && !!window.qz }
@@ -685,7 +652,6 @@ onMounted(async () => {
     Object.keys(shop.value).forEach(k => { if (s[k] != null) shop.value[k] = s[k] })
     if (shop.value.print_mode) printMode.value = shop.value.print_mode
     await nextTick()
-    drawAllBarcodes()
   } catch {
     sale.value = null
   } finally {
@@ -704,8 +670,9 @@ onMounted(async () => {
   box-shadow: 0 0 0 1px #e5e7eb, 0 4px 24px rgba(0,0,0,0.08);
   border-radius: 4px;
   font-family: 'Courier New', Courier, monospace;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.45;
+  font-weight: 500;
   color: #111;
 }
 .receipt-divider        { border: none; border-top: 1px dashed #aaa; margin: 6px 0; }
@@ -760,7 +727,7 @@ onMounted(async () => {
   /* POS mode */
   [data-print-mode="pos"] #invoice-wrapper { display: none !important; }
   [data-print-mode="pos"] #receipt-wrapper { display:block !important; position:static !important; width:80mm !important; padding:0 !important; margin:0 !important; overflow:visible !important; }
-  [data-print-mode="pos"] .receipt-paper { width:80mm !important; max-width:80mm !important; margin:0 !important; padding:3mm 4mm !important; box-shadow:none !important; border-radius:0 !important; font-size:11pt !important; font-family:'Courier New',Courier,monospace !important; color:#000 !important; background:#fff !important; }
+  [data-print-mode="pos"] .receipt-paper { width:80mm !important; max-width:80mm !important; margin:0 !important; padding:3mm 4mm !important; box-shadow:none !important; border-radius:0 !important; font-size:12pt !important; font-family:'Courier New',Courier,monospace !important; font-weight:500 !important; zoom:1.12 !important; color:#000 !important; background:#fff !important; }
   [data-print-mode="pos"] #receipt-wrapper, [data-print-mode="pos"] #receipt-wrapper * { color:#000 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; background:transparent !important; }
 
   /* A5 mode */

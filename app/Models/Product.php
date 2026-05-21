@@ -14,7 +14,7 @@ class Product extends Model
         'branch_id', 'sku', 'barcode', 'name', 'description', 'category_id', 'material',
         'weight', 'karat', 'making_charge_type', 'making_charge', 'wastage_percent',
         'size', 'color', 'gemstone', 'gemstone_weight', 'gemstone_value', 'gemstone_quality',
-        'purchase_price', 'selling_price', 'stock_quantity',
+        'purchase_price', 'stock_quantity',
         'min_stock_level', 'image', 'image_public_id', 'is_active', 'supplier_id',
     ];
 
@@ -22,7 +22,6 @@ class Product extends Model
         'is_active'      => 'boolean',
         'weight'         => 'float',
         'purchase_price' => 'float',
-        'selling_price'  => 'float',
     ];
 
     public function category()

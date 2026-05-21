@@ -28,7 +28,7 @@ class ReportController extends Controller
             ->when(!$user->isAdmin(), fn($q) => $q->where('branch_id', $user->branch_id))
             ->whereNotNull('karat')
             ->where('stock_quantity', '>', 0)
-            ->get(['karat', 'weight', 'stock_quantity', 'purchase_price', 'selling_price', 'material', 'branch_id', 'name']);
+            ->get(['karat', 'weight', 'stock_quantity', 'purchase_price', 'material', 'branch_id', 'name']);
 
         $goldRates = GoldRate::todayRatesByLabel();
         $goldRate  = $goldRates['24k'] ?? GoldRate::today();
@@ -50,7 +50,6 @@ class ReportController extends Controller
                 'total_weight_g'=> round($totalWeight, 3),
                 'gold_value_lkr'=> $goldValueLkr ? round($goldValueLkr, 2) : null,
                 'cost_value_lkr'=> round($items->sum(fn($p) => $p->purchase_price * $p->stock_quantity), 2),
-                'sell_value_lkr'=> round($items->sum(fn($p) => $p->selling_price * $p->stock_quantity), 2),
             ];
         })->values();
 
@@ -58,7 +57,6 @@ class ReportController extends Controller
             'total_weight_g'=> round($byKarat->sum('total_weight_g'), 3),
             'gold_value_lkr'=> $goldRate ? round($byKarat->sum('gold_value_lkr'), 2) : null,
             'cost_value_lkr'=> round($byKarat->sum('cost_value_lkr'), 2),
-            'sell_value_lkr'=> round($byKarat->sum('sell_value_lkr'), 2),
         ];
 
         return response()->json([
@@ -359,7 +357,7 @@ class ReportController extends Controller
             ->when(!$user->isAdmin(), fn($q) => $q->where('branch_id', $user->branch_id))
             ->where('is_active', true)
             ->with('category:id,name')
-            ->get(['id','name','sku','karat','weight','stock_quantity','purchase_price','selling_price','category_id','branch_id']);
+            ->get(['id','name','sku','karat','weight','stock_quantity','purchase_price','category_id','branch_id']);
 
         $goldRate = GoldRate::today();
 
@@ -531,7 +529,7 @@ class ReportController extends Controller
         $products = Product::with('category:id,name')
             ->when(!$user->isAdmin(), fn($q) => $q->where('branch_id', $user->branch_id))
             ->where('stock_quantity', '>', 0)
-            ->get(['id', 'name', 'sku', 'category_id', 'karat', 'weight', 'stock_quantity', 'purchase_price', 'selling_price']);
+            ->get(['id', 'name', 'sku', 'category_id', 'karat', 'weight', 'stock_quantity', 'purchase_price']);
 
         $goldRates = GoldRate::todayRatesByLabel();
 
@@ -561,7 +559,6 @@ class ReportController extends Controller
                     'rate_per_gram'=> $ratePerGram,
                     'gold_value'   => $goldValue,
                     'cost_value'   => round($p->purchase_price * $p->stock_quantity, 2),
-                    'sell_value'   => round($p->selling_price  * $p->stock_quantity, 2),
                 ];
             })->values();
 
