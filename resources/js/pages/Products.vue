@@ -170,6 +170,7 @@ function printProductBarcode(product) {
   const barcodeSvg  = createBarcodeSvg(barcodeValue)
   const safeName    = (product.name ?? '').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   const safeBarcode = barcodeValue.replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const weightLine  = product.weight != null ? `<div class="weight">${parseFloat(product.weight).toFixed(2)}g</div>` : ''
 
   const html = `<!doctype html>
 <html>
@@ -200,7 +201,12 @@ function printProductBarcode(product) {
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       width: 100%; text-align: center; line-height: 1; flex-shrink: 0;
     }
-    svg { width: 100%; height: 9.5mm; display: block; flex-shrink: 0; }
+    .weight {
+      font-size: 6pt; font-weight: 600;
+      text-align: center; line-height: 1; flex-shrink: 0;
+      color: #333;
+    }
+    svg { width: 100%; height: 8.5mm; display: block; flex-shrink: 0; }
     .sku {
       font-size: 8pt; font-weight: 700; letter-spacing: 1px;
       text-align: center; margin-top: 0.4mm; line-height: 1;
@@ -210,6 +216,7 @@ function printProductBarcode(product) {
 <body>
   <div class="label">
     <div class="name">${safeName}</div>
+    ${weightLine}
     ${barcodeSvg}
     <div class="sku">${safeBarcode}</div>
   </div>

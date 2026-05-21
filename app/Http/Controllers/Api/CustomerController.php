@@ -27,7 +27,7 @@ class CustomerController extends Controller
     {
         $data = $request->validate([
             'name'          => 'required|string|max:150',
-            'email'         => 'nullable|email|unique:customers',
+            'nic'           => 'nullable|string|max:20',
             'phone'         => 'nullable|string|max:30',
             'address'       => 'nullable|string',
             'city'          => 'nullable|string|max:100',
@@ -36,6 +36,11 @@ class CustomerController extends Controller
             'gender'        => 'nullable|in:male,female,other',
             'notes'         => 'nullable|string',
         ]);
+        if (!empty($data['nic'])) {
+            $data['id_type']   = 'NIC';
+            $data['id_number'] = $data['nic'];
+        }
+        unset($data['nic']);
         $data['branch_id'] = $request->user()->branch_id;
         return response()->json(Customer::create($data), 201);
     }

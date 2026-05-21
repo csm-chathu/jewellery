@@ -232,8 +232,8 @@
                 class="form-input text-sm" @keyup.enter="saveNewCustomer" />
             </div>
             <div>
-              <label class="text-xs text-gray-500 block mb-1">Email</label>
-              <input v-model="newCustomer.email" type="email" placeholder="Email (optional)"
+              <label class="text-xs text-gray-500 block mb-1">NIC</label>
+              <input v-model="newCustomer.nic" type="text" placeholder="NIC (optional)"
                 class="form-input text-sm" />
             </div>
             <p v-if="newCustomerError" class="text-xs text-red-600">{{ newCustomerError }}</p>
@@ -433,7 +433,7 @@ const selectedTaxId    = ref('')
 const showNewCustomer  = ref(false)
 const savingCustomer   = ref(false)
 const newCustomerError = ref('')
-const newCustomer      = reactive({ name: '', phone: '', email: '' })
+const newCustomer      = reactive({ name: '', phone: '', nic: '' })
 
 // Barcode scanner
 const barcodeInput = ref('')
@@ -540,12 +540,12 @@ async function saveNewCustomer() {
     const { data } = await axios.post('/api/customers', {
       name:  newCustomer.name.trim(),
       phone: newCustomer.phone.trim() || null,
-      email: newCustomer.email.trim() || null,
+      nic: newCustomer.nic.trim() || null,
     })
     customers.value.unshift(data)
     form.customer_id = data.id
     showNewCustomer.value = false
-    newCustomer.name = ''; newCustomer.phone = ''; newCustomer.email = ''
+    newCustomer.name = ''; newCustomer.phone = ''; newCustomer.nic = ''
   } catch (e) {
     newCustomerError.value = e.response?.data?.message
       ?? Object.values(e.response?.data?.errors ?? {}).flat().join(', ')
