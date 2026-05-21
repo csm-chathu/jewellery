@@ -23,6 +23,9 @@ class ShopSettingSeeder extends Seeder
             'sms_enabled'       => '0',
             'sms_api_key'       => '',
             'sms_sender_id'     => '',
+            'logo_url'          => '',
+            'logo_public_id'    => '',
+            'print_mode'        => 'pos',
         ];
 
         foreach ($defaults as $key => $value) {

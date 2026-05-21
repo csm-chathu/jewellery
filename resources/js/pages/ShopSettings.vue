@@ -105,18 +105,20 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
+import { uploadToCloudinary } from '@/utils/cloudinary'
 import {
   Cog6ToothIcon, PrinterIcon, DocumentTextIcon,
   ArrowPathIcon, CheckCircleIcon, PhotoIcon, ArrowUpTrayIcon,
 } from '@heroicons/vue/24/outline'
 
 const form = ref({
-  shop_name:  '',
-  address:    '',
-  phone:      '',
-  br_number:  '',
-  logo_url:   '',
-  print_mode: 'pos',
+  shop_name:       '',
+  address:         '',
+  phone:           '',
+  br_number:       '',
+  logo_url:        '',
+  logo_public_id:  '',
+  print_mode:      'pos',
 })
 const saving       = ref(false)
 const saved        = ref(false)
@@ -139,17 +141,14 @@ onMounted(async () => {
 async function onLogoChange(e) {
   const file = e.target.files[0]
   if (!file) return
-  logoError.value    = ''
+  logoError.value     = ''
   logoUploading.value = true
   try {
-    const fd = new FormData()
-    fd.append('logo', file)
-    const { data } = await axios.post('/api/shop-settings/logo', fd, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
-    form.value.logo_url = data.logo_url
-  } catch (e) {
-    logoError.value = e.response?.data?.message ?? 'Upload failed.'
+    const result = await uploadToCloudinary(file, { folder: 'shop_logo', tags: ['shop_logo'] })
+    form.value.logo_url       = result.url
+    form.value.logo_public_id = result.public_id
+  } catch (err) {
+    logoError.value = err.response?.data?.message ?? err.message ?? 'Upload failed.'
   } finally {
     logoUploading.value = false
     e.target.value = ''

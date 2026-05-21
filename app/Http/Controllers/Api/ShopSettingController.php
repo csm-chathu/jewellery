@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Storage;
 class ShopSettingController extends Controller
 {
     private const ALLOWED_KEYS = [
-        'shop_name', 'address', 'phone', 'br_number', 'logo_url', 'print_mode',
+        'shop_name', 'address', 'phone', 'br_number', 'logo_url', 'logo_public_id', 'print_mode',
     ];
 
     public function branding()
@@ -31,12 +31,13 @@ class ShopSettingController extends Controller
     public function update(Request $request)
     {
         $data = $request->validate([
-            'shop_name'  => 'nullable|string|max:200',
-            'address'    => 'nullable|string|max:500',
-            'phone'      => 'nullable|string|max:50',
-            'br_number'  => 'nullable|string|max:100',
-            'logo_url'   => 'nullable|string|max:1000',
-            'print_mode' => 'nullable|in:pos,a5',
+            'shop_name'      => 'nullable|string|max:200',
+            'address'        => 'nullable|string|max:500',
+            'phone'          => 'nullable|string|max:50',
+            'br_number'      => 'nullable|string|max:100',
+            'logo_url'       => 'nullable|string|max:1000',
+            'logo_public_id' => 'nullable|string|max:255',
+            'print_mode'     => 'nullable|in:pos,a5',
         ]);
 
         foreach (self::ALLOWED_KEYS as $key) {
