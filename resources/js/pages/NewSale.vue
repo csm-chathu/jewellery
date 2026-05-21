@@ -221,20 +221,22 @@
             <p class="text-xs font-semibold text-blue-700 mb-1 flex items-center gap-1.5">
               <UserPlusIcon class="w-3.5 h-3.5" /> Quick Add Customer
             </p>
-            <div>
-              <label class="text-xs text-gray-500 block mb-1">Name <span class="text-red-400">*</span></label>
-              <input v-model="newCustomer.name" type="text" placeholder="Full name"
-                class="form-input text-sm" @keyup.enter="saveNewCustomer" />
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="text-xs text-gray-500 block mb-1">Name <span class="text-red-400">*</span></label>
+                <input v-model="newCustomer.name" type="text" placeholder="Full name"
+                  class="form-input text-sm" @keyup.enter="saveNewCustomer" />
+              </div>
+              <div>
+                <label class="text-xs text-gray-500 block mb-1">NIC</label>
+                <input v-model="newCustomer.nic" type="text" placeholder="NIC (optional)"
+                  class="form-input text-sm" />
+              </div>
             </div>
             <div>
               <label class="text-xs text-gray-500 block mb-1">Phone</label>
               <input v-model="newCustomer.phone" type="tel" placeholder="Phone number"
                 class="form-input text-sm" @keyup.enter="saveNewCustomer" />
-            </div>
-            <div>
-              <label class="text-xs text-gray-500 block mb-1">NIC</label>
-              <input v-model="newCustomer.nic" type="text" placeholder="NIC (optional)"
-                class="form-input text-sm" />
             </div>
             <p v-if="newCustomerError" class="text-xs text-red-600">{{ newCustomerError }}</p>
             <button @click="saveNewCustomer" :disabled="savingCustomer || !newCustomer.name.trim()" type="button"
