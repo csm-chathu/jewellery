@@ -16,9 +16,9 @@ class CloudinaryUploadController extends Controller
             'tags' => 'nullable|string|max:500',
         ]);
 
-        $cloudName = env('CLOUDINARY_CLOUD_NAME');
-        $apiKey = env('CLOUDINARY_API_KEY');
-        $apiSecret = env('CLOUDINARY_API_SECRET');
+        $cloudName = config('cloudinary.cloud_name');
+        $apiKey = config('cloudinary.api_key');
+        $apiSecret = config('cloudinary.api_secret');
 
         if (!$cloudName || !$apiKey || !$apiSecret) {
             return response()->json([
@@ -45,7 +45,7 @@ class CloudinaryUploadController extends Controller
 
         $client = new Client([
             'timeout' => 60,
-            'verify' => filter_var(env('CLOUDINARY_VERIFY', true), FILTER_VALIDATE_BOOLEAN),
+            'verify' => filter_var(config('cloudinary.verify', true), FILTER_VALIDATE_BOOLEAN),
         ]);
 
         $multipart = [
