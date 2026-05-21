@@ -92,7 +92,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // Shop Settings
     Route::get('/shop-settings', [ShopSettingController::class, 'index']);
     Route::post('/shop-settings', [ShopSettingController::class, 'update']);
-    Route::post('/shop-settings/logo', [ShopSettingController::class, 'uploadLogo']);
 
     // Expenses
     Route::get('/expenses', [ExpenseController::class, 'index']);
