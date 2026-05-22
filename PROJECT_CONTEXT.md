@@ -293,6 +293,73 @@ Body: `{ refund_type, cancellation_fee?, cancellation_reason?, refund_method, ca
 
 ---
 
+## Business Setup — Opening Data (2025/09/22)
+
+### Setup Order (must follow this sequence)
+1. `/categories` — add jewelry categories first
+2. `/suppliers` — add suppliers
+3. `/products` — add all jewelry items (needs categories)
+4. `/accounts` — set up Chart of Accounts
+5. `/opening-balances` — enter all starting balances (DR must = CR)
+6. `/loans` — register each loan with lender, amount, interest, repayment
+7. `/general-ledger` → Trial Balance — verify DR = CR
+
+### Fixed Assets from Manual Ledger (မුලික වියදම් / ස්ථාවර වත්කම්)
+Date: 2025/09/22
+
+| Item | Amount (LKR) |
+|---|---|
+| Key Money (shop deposit) | 800,000 |
+| CCTV + Partition + Alarm System | 2,300,000 |
+| Furniture | 200,000 |
+| Photo Copy Machine | 150,000 |
+| Laminating Machine | 25,000 |
+| Scale | 138,500 |
+| Densy Machine | 150,000 |
+| Computer System | 36,500 |
+| AC Machine | 151,948 |
+| **Total Fixed Assets** | **3,951,948** |
+
+### Accounts to Create (Chart of Accounts)
+
+| Code | Name | Type | Notes |
+|---|---|---|---|
+| 1000 | Cash | asset | already seeded |
+| 1010 | Bank | asset | already seeded |
+| 1200 | Inventory / Gold Stock | asset | needs creating |
+| 1500 | Fixed Assets | asset | needs creating |
+| 1510 | Key Money / Lease Deposit | asset | needs creating |
+| 2000 | Accounts Payable | liability | needs creating |
+| 2100 | Bank Loan | liability | needs creating |
+| 2110 | Finance Company Loan | liability | needs creating |
+| 2120 | Personal / Family Loan | liability | needs creating |
+| 3000 | Owner's Capital | equity | needs creating |
+
+### Opening Balance Table (INCOMPLETE — fill in before entering)
+
+| Account | DR | CR |
+|---|---|---|
+| Fixed Assets (1500) | 3,151,948 | — |
+| Key Money (1510) | 800,000 | — |
+| Cash (1000) | **?** | — |
+| Bank (1010) | **?** | — |
+| Inventory / Gold Stock (1200) | **?** | — |
+| Accounts Payable (2000) | — | **?** |
+| Bank Loan (2100) | — | **?** |
+| Finance Loan (2110) | — | **?** |
+| Owner's Capital (3000) | — | **[sum of all DR minus other CR]** |
+
+> Still needed from user: Cash balance, Bank balance, Gold/Jewelry stock value, Supplier payables, Loan amounts and lenders.
+
+### Loan Management
+- User has loans taken to buy products and fixed assets
+- Each loan goes into `/loans` (Business Loans page): lender name, total amount, interest rate, repayment schedule
+- Loan outstanding balance on opening day goes as CR in opening balances (liability)
+- Assets bought with loan go as DR (inventory or fixed assets)
+- Loan repayments are tracked via `/loans/{id}/repay` which auto-posts GL entries
+
+---
+
 ## Key Conventions
 
 - **No build unless asked** — user runs `npm run build` themselves
