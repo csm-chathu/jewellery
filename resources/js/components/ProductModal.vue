@@ -43,7 +43,7 @@
             <label class="form-label">Karat</label>
             <select v-model="form.karat" class="form-input" @change="tryAutoCalculate">
               <option value="">— Select —</option>
-              <option v-for="k in karats" :key="k" :value="k">{{ k }}</option>
+              <option v-for="c in karats" :key="c.id" :value="c.label">{{ c.label }}</option>
             </select>
           </div>
           <div>
@@ -177,7 +177,7 @@ const props = defineProps({ product: Object, categories: Array, suppliers: Array
 const emit  = defineEmits(['close', 'saved'])
 
 const materials = ['Gold', 'Silver', 'Platinum', 'White Gold', 'Rose Gold', 'Titanium']
-const karats    = ['9k', '14k', '18k', '22k', '24k']
+const karats    = ref([])  // loaded from carat master
 
 const form = reactive({
   name: '', description: '', category_id: '', supplier_id: '',
@@ -212,9 +212,15 @@ function lkr(val) {
 
 async function loadGoldRate() {
   try {
-    const { data } = await axios.get('/api/gold-rates/today')
-    const rates = Array.isArray(data) ? data : []
+    const [ratesRes, caratsRes] = await Promise.all([
+      axios.get('/api/gold-rates/today'),
+      axios.get('/api/carats'),
+    ])
+    const rates = Array.isArray(ratesRes.data) ? ratesRes.data : []
     goldRateMap.value = Object.fromEntries(rates.map(r => [r.carat?.label?.toLowerCase(), r]).filter(([k]) => k))
+    karats.value = (Array.isArray(caratsRes.data) ? caratsRes.data : [])
+      .filter(c => c.is_active)
+      .sort((a, b) => b.purity - a.purity)
     tryAutoCalculate()
   } catch {}
 }
