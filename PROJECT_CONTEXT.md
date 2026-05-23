@@ -1,7 +1,7 @@
 # Jewellery Management System — Project Context
 
 > Paste this file at the start of a new Claude chat to get instant full context.
-> Last updated: 2026-05-18
+> Last updated: 2026-05-23 (session 3)
 
 ---
 
@@ -128,6 +128,8 @@ Special flag: `can_override_gold_rate` (boolean on user) — allows non-admin to
 - `GET/POST/PUT/DELETE /api/employees`, `GET /api/employees/all`
 - `GET/POST/DELETE /api/salary-payments`, `GET /api/salary-payments/summary`
 - `GET/POST /api/epf-etf-settings`, `GET /api/epf-etf-settings/current`
+- `GET/POST /api/salary-advances`, `DELETE /api/salary-advances/{salaryAdvance}`
+- `GET /api/salary-advances/pending/{employeeId}` ← pending advances for salary payment modal
 
 ### Finance
 - `GET/POST /api/loans`, `GET /api/loans/{id}`, `POST /api/loans/{id}/repay`
@@ -140,6 +142,7 @@ Special flag: `can_override_gold_rate` (boolean on user) — allows non-admin to
 - `GET/POST/PUT/DELETE /api/private-sales`, `GET /api/private-cashbook`
 - `GET/POST/PUT/DELETE /api/private-expenses`
 - `GET/POST/PUT/DELETE /api/private-cash-adjustments`
+- `GET/POST/PUT/DELETE /api/private-buyers` — saved buyer list for Private Gold Book
 
 ### Other
 - `GET /api/dashboard`
@@ -169,7 +172,7 @@ Special flag: `can_override_gold_rate` (boolean on user) — allows non-admin to
 | Product | products | belongsTo Category |
 | Customer | customers | — |
 | Sale | sales | hasMany SaleItem, belongsTo Customer, belongsTo Branch |
-| SaleItem | sale_items | belongsTo Sale, belongsTo Product |
+| SaleItem | sale_items | belongsTo Sale, belongsTo Product — `unit_price`=official karat-rate, `display_price`=actual charged (invoice) |
 | Purchase | purchases | hasMany PurchaseItem, belongsTo Supplier |
 | PurchaseItem | purchase_items | belongsTo Purchase, belongsTo Product |
 | GoldRate | gold_rates | belongsTo Carat, belongsTo User (created_by) |
@@ -180,7 +183,8 @@ Special flag: `can_override_gold_rate` (boolean on user) — allows non-admin to
 | JournalEntry | journal_entries | hasMany JournalEntryLine |
 | JournalEntryLine | journal_entry_lines | belongsTo JournalEntry, belongsTo Account |
 | Employee | employees | — |
-| SalaryPayment | salary_payments | belongsTo Employee |
+| SalaryPayment | salary_payments | belongsTo Employee, belongsTo Account (paid_from), belongsTo JournalEntry, hasMany SalaryAdvance (recoveredAdvances) |
+| SalaryAdvance | salary_advances | belongsTo Employee, belongsTo User (givenBy), belongsTo JournalEntry, belongsTo SalaryPayment |
 | EpfEtfSetting | epf_etf_settings | — |
 | BusinessLoan | business_loans | hasMany LoanRepayment |
 | RentPayment | rent_payments | — |
@@ -195,6 +199,7 @@ Special flag: `can_override_gold_rate` (boolean on user) — allows non-admin to
 | PrivateSale | private_sales | — |
 | PrivateExpense | private_expenses | — |
 | PrivateCashAdjustment | private_cash_adjustments | — |
+| PrivateBuyer | private_buyers | — (name, phone, notes) |
 | ReworkOrder | rework_orders | — |
 | Layaway | layaways | belongsTo Customer, belongsTo Product, belongsTo User (created_by), belongsTo Branch, belongsTo Sale, hasMany LayawayPayment |
 | LayawayPayment | layaway_payments | belongsTo Layaway |
@@ -207,10 +212,18 @@ Special flag: `can_override_gold_rate` (boolean on user) — allows non-admin to
 |------|------|------|
 | 1000 | Cash | asset |
 | 1010 | Bank | asset |
+| 1300 | Salary Advance | asset (current_asset, is_system=true) |
 | 2200 | Customer Deposit (Layaway liability) | liability |
 | 4050 | Cancellation Fee Income | income |
+| 5210 | Salaries & Wages Expense | expense |
 
 GL entries are `journal_entries` + `journal_entry_lines` (debit/credit per account).
+
+### Salary Advance GL Flow
+- **Give advance**: DR Salary Advance (1300), CR Cash/Bank
+- **Recover advance (salary payment)**: DR Salary Expense (5210) = full net_salary, CR Salary Advance (1300) = advance amount, CR Cash/Bank = net_salary − advance_deduction
+- Advances status: `pending` → `deducted` (when recovered in salary payment) | `cancelled` (soft-deleted)
+- Advance number format: `ADV-YYYYMM-0001`
 
 ### Layaway GL Flow
 - **Payment received**: CR Customer Deposit (2200), DR Cash/Bank
@@ -218,6 +231,128 @@ GL entries are `journal_entries` + `journal_entry_lines` (debit/credit per accou
 - **Cancellation — partial** (with fee): DR Customer Deposit (2200), CR Cash/Bank (refund), CR Cancellation Fee Income (4050)
 - **Cancellation — forfeit**: DR Customer Deposit (2200), CR Cancellation Fee Income (4050)
 - **Convert to sale**: links layaway to a Sale record, status → `collected`
+
+---
+
+## Salary Advance Feature (implemented 2026-05-23)
+
+**Migration**: `2026_05_23_000046_create_salary_advances_table.php`
+- Creates `salary_advances` table: id, advance_number (unique), employee_id (FK), branch_id, user_id, amount (decimal 12,2), given_date, reason, status (enum: pending/deducted/cancelled), salary_payment_id (nullable FK), journal_entry_id (nullable FK), notes, timestamps, softDeletes
+- Adds `advance_deduction` decimal(12,2) default 0 to `salary_payments` (with `hasColumn()` guard)
+- Seeds account 1300 "Salary Advance" (asset, current_asset, is_system=true)
+
+**Model**: `app/Models/SalaryAdvance.php` — SoftDeletes, relations: employee, givenBy (user), journalEntry, salaryPayment
+
+**Controller**: `app/Http/Controllers/Api/SalaryAdvanceController.php`
+- `index`: paginated list with employee + givenBy, filterable by employee_id and status
+- `pending($employeeId)`: returns pending advances for use in Pay Salary modal
+- `store`: creates advance + posts GL (DR 1300 Salary Advance, CR Cash/Bank)
+- `destroy`: cancels (only pending) — soft deletes, sets status=cancelled
+
+**Salary Payment integration** (`SalaryPaymentController.php`):
+- Accepts `advance_ids[]` in POST body; resolves pending advances for that employee
+- Posts 3-line GL: DR Salary Expense (5210), CR Salary Advance (1300), CR Cash/Bank (remainder)
+- Marks recovered advances as status=deducted with salary_payment_id set
+
+**Frontend**: `SalaryPayments.vue`
+- Added "Advances" tab with full list table and Cancel button for pending advances
+- Added Give Advance modal with employee, amount, date, pay-from-account, reason
+- Updated Pay Salary modal: shows pending advances as checkboxes; net pay preview shows advance recovery and "Cash Actually Paid Out" rows
+- Updated payslip print to include advance recovery section when applicable
+
+---
+
+## Private Gold Book Enhancements (implemented 2026-05-23 session 2)
+
+### Sidebar sub-navigation (`AppLayout.vue`)
+- Added "Private Gold Book" section in sidebar, visible only to `gold_buyer` role
+- 4 sub-items link to `/informal-purchases?tab=<tab>`: Cashbook, Sales (Cash In), Purchases (Buy), Expenses
+- Uses `isPrivateTabActive(tab)` helper — active when `route.path === '/informal-purchases'` and `route.query.tab` matches (defaulting to `cashbook`)
+- Icons: `BookmarkIcon`, `ArrowDownOnSquareIcon`, `ArrowUpOnSquareIcon`, `AdjustmentsHorizontalIcon`
+
+### Tab URL sync (`InformalPurchases.vue`)
+- `activeTab` initialised from `route.query.tab` (validated against `VALID_TABS`)
+- Two watchers keep tab and URL in sync bidirectionally via `router.replace`
+
+### Private Buyer combobox (Sale modal)
+- `buyer_name` plain input replaced with a searchable combobox
+- Refs: `buyersList`, `buyerSearch`, `buyerDropdownOpen`, `buyerAddFormOpen`, `buyerCreating`, `newBuyerName`, `newBuyerPhone`, `_buyerMouseInDropdown` (plain variable for blur guard)
+- Dropdown always shows existing buyers; dedicated **"+ Add New Buyer"** button at bottom opens inline create form
+- Blur/click race solved: `@mousedown="_buyerMouseInDropdown = true"` on dropdown container; `closeBuyerDropdown` skips close if flag is set
+- `createAndSelectBuyer()` POSTs to `/api/private-buyers`, unshifts result into list, selects it, closes form
+
+### Today's gold rate auto-fill
+- `loadTodayRates()` fetches `/api/gold-rates/today` on mount → builds `todayRateMap` (`{ '22K': rate, '24K': rate, … }`)
+- `openSaleModal(null)` and `openPurchaseModal(null)` pre-fill `rate_per_gram` from `todayRateMap` for the default karat
+- Watchers on `sForm.declared_karat` / `pForm.declared_karat` update `rate_per_gram` automatically when karat changes (new records only — edit records keep stored rate)
+
+### Gold rate warning overlay (`InformalPurchases.vue`)
+- `showRateWarning` ref — set to `true` inside `loadTodayRates()` when API returns no rates and warning not already dismissed
+- Full-screen fixed overlay (no Teleport; inline `style="position:fixed"` to escape `overflow-auto` stacking context on `<main>`)
+- **"Use Same as Previous Day"**: GETs `/api/gold-rates` history, takes most-recent date's rates, POSTs them for today, reloads rate map, hides overlay. Shows inline error if user lacks `can_override_gold_rate`
+- **"Add Today's Rate Now"**: `router.push('/gold-rates')`
+- **"Continue without setting rate"**: sets `rateWarningDismissed = true`, hides overlay; rate fields default to 0
+
+---
+
+## Dual-Price Sale System & Private Cashbook Auto-Posting (implemented 2026-05-23 session 3)
+
+### Overview
+When a sale item's charged price exceeds what today's karat rate would calculate, the excess is silently posted to the private cashbook. The GL only sees the official (karat-rate) amount. The invoice always prints the actual charged price.
+
+### Dual-price model (`sale_items`)
+| Column | Meaning |
+|--------|---------|
+| `unit_price` | Official karat-rate price per piece — used in GL |
+| `display_price` | Actual price charged to customer — printed on invoice |
+
+**Migration**: `2026_05_23_000048_add_display_price_to_sale_items.php` — adds `display_price decimal(12,2) nullable` after `unit_price`. Run `php artisan migrate`.
+
+**Model**: `SaleItem` — `display_price` added to `$fillable` and `$casts` (float).
+
+### SaleController@store logic
+- `$displayPrice` = `item['unit_price']` sent from frontend (what user typed / what customer pays)
+- `$officialUnitPrice` = karat rate × product weight. If `displayPrice > autoRatePerPiece` for a gold product, `officialUnitPrice` is capped at the karat-rate value; otherwise equals `displayPrice`
+- `$lineTotal` (for `sale.total`, invoice) = `displayPrice × qty − itemDisc`
+- `$officialLineTotal` (for GL) = `officialUnitPrice × qty − itemDisc`
+- `$officialTotal` = sum of `officialLineTotal` across items − order discount + tax
+- `gold_value` stored in `sale_items` is always auto-calculated from karat rate (never user-inflated)
+
+### GL posting — only official total
+`postInstantSaleJournal(Sale $sale, float $officialTotal)`:
+```
+DR Cash/Bank        officialTotal   (capped at officialTotal even if customer paid more)
+CR Revenue (4000)   officialTotal
+```
+Excess above karat rate never enters the GL.
+
+`postBookingSettlementJournal` also uses `calculateOfficialTotal($sale)` (sums `unit_price × quantity` from stored sale_items) for revenue recognition and deposit clearing.
+
+### Private cashbook auto-posting
+After items are saved, if `sum((displayPrice − officialUnitPrice) × qty) > 0.001`:
+```php
+PrivateSale::create([
+    'description'    => "Excess sale income — {$sale->invoice_number}",
+    'item_type'      => 'jewelry',
+    'total_amount'   => $totalExcess,
+    'payment_method' => cash|bank_transfer (card/cheque/other → mapped to cash),
+    ...
+]);
+```
+`PrivateSale` is created directly (bypasses `PrivateSaleController` which restricts to `gold_buyer` role).
+
+### Invoice display
+`SaleReceipt.vue` (POS + A5 templates): unit price column shows `item.display_price ?? item.unit_price`.
+
+### Where to see private cashbook entries
+**Private Gold Book** (`/informal-purchases`, `gold_buyer` role only) → **Cashbook** or **Sales (Cash In)** tab. Entries appear with description `"Excess sale income — INV-XXXXXXXX"`.
+
+---
+
+## Products Page Improvements (implemented 2026-05-23)
+
+- **Products table** (`Products.vue`): Added Weight column (displays as `Xg`, between Karat and Stock)
+- **Add/Edit Product modal** (`ProductModal.vue`): Category field replaced with searchable combobox — custom implementation (no library), filters by typed text, click-outside closes dropdown
 
 ---
 
@@ -289,6 +424,9 @@ Body: `{ refund_type, cancellation_fee?, cancellation_reason?, refund_method, ca
 2026_05_16_000041 — private_cash_adjustments
 2026_05_16_000041 — cheque settlement to purchases
 2026_05_16_000042 — cancellation fields to layaways + seed account 4050
+2026_05_23_000046 — salary_advances table + advance_deduction to salary_payments + seed account 1300
+2026_05_23_000047 — private_buyers table (name, phone, notes)
+2026_05_23_000048 — display_price (decimal 12,2 nullable) to sale_items
 ```
 
 ---

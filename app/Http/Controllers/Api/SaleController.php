@@ -9,6 +9,7 @@ use App\Models\Customer;
 use App\Models\GoldRate;
 use App\Models\JournalEntry;
 use App\Models\JournalEntryLine;
+use App\Models\PrivateSale;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SaleItem;
@@ -64,7 +65,8 @@ class SaleController extends Controller
         DB::beginTransaction();
         try {
             $goldRates = GoldRate::todayRatesByLabel(); // ['24k' => GoldRate, ...]
-            $subtotal  = 0;
+            $subtotal         = 0;
+            $officialSubtotal = 0;
             $goldTotal = 0; $gemTotal = 0; $mcTotal = 0; $wasteTotal = 0;
 
             // Pre-validate items
@@ -79,8 +81,25 @@ class SaleController extends Controller
                 }
 
                 $qty         = $item['quantity'];
-                $unitPrice   = $item['unit_price'];
+                $displayPrice = (float) $item['unit_price']; // what user charged — printed on invoice
                 $itemDisc    = $item['discount'] ?? 0;
+
+                // Resolve today's rate for this product's karat
+                $karatKey  = strtolower($product->karat ?? '24k');
+                $karatRate = $goldRates[$karatKey] ?? null;
+                $rate24k   = $goldRates['24k'] ?? null;
+                $ratePerGram = $karatRate?->rate_per_gram
+                    ?? ($rate24k ? $rate24k->rate_per_gram * GoldRate::purityForLabel($karatKey) : null);
+
+                // official unit_price = karat-rate amount per piece (what goes on the official record)
+                // only cap down when displayPrice exceeds the auto-rate for a gold product
+                $officialUnitPrice = $displayPrice;
+                if ($ratePerGram && $product->weight && $product->karat) {
+                    $autoRatePerPiece = round((float) $ratePerGram * (float) $product->weight, 2);
+                    if ($displayPrice > $autoRatePerPiece) {
+                        $officialUnitPrice = $autoRatePerPiece;
+                    }
+                }
 
                 // Making charge
                 $mc = $item['making_charge'] ?? 0;
@@ -88,53 +107,53 @@ class SaleController extends Controller
                     $mc = match($product->making_charge_type) {
                         'per_gram'   => $product->making_charge * ($product->weight ?? 0) * $qty,
                         'per_piece'  => $product->making_charge * $qty,
-                        'percentage' => ($unitPrice * $qty) * ($product->making_charge / 100),
+                        'percentage' => ($displayPrice * $qty) * ($product->making_charge / 100),
                         default      => 0,
                     };
                 }
 
-                // Resolve today's rate for this product's karat
-                $karatKey  = strtolower($product->karat ?? '24k');
-                $karatRate = $goldRates[$karatKey] ?? null;
-                $rate24k   = $goldRates['24k'] ?? null;
-
                 // Wastage
                 $wastage = $item['wastage_amount'] ?? 0;
                 if ($wastage == 0 && $product->wastage_percent > 0 && $product->weight) {
-                    $ratePerGram = $karatRate?->rate_per_gram
-                        ?? ($rate24k ? $rate24k->rate_per_gram * GoldRate::purityForLabel($karatKey) : null);
                     $wastage = $ratePerGram
                         ? round($ratePerGram * ($product->weight * $product->wastage_percent / 100) * $qty, 2)
                         : 0;
                 }
 
-                // Gold value from rate
-                $goldV = $item['gold_value'] ?? 0;
-                if ($goldV == 0 && $product->weight && $product->karat) {
-                    $ratePerGram = $karatRate?->rate_per_gram
-                        ?? ($rate24k ? $rate24k->rate_per_gram * GoldRate::purityForLabel($karatKey) : null);
-                    if ($ratePerGram) {
-                        $goldV = round($ratePerGram * $product->weight, 2) * $qty;
-                    }
+                // Gold value — always auto-calculated from karat rate (not user-entered)
+                $goldV = 0;
+                if ($ratePerGram && $product->weight && $product->karat) {
+                    $goldV = round((float) $ratePerGram * (float) $product->weight, 2) * $qty;
+                }
+                if ($goldV == 0) {
+                    $goldV = $item['gold_value'] ?? 0; // fallback when no rate exists
                 }
 
                 // Gemstone value
-                $gemV = $item['gemstone_value'] ?? ($product->gemstone_value * $qty);
+                $gemV = $item['gemstone_value'] ?? 0;
 
-                $lineTotal = ($unitPrice * $qty) - $itemDisc;
+                // Line total based on display price (what customer pays / prints on invoice)
+                $lineTotal = ($displayPrice * $qty) - $itemDisc;
+                // Official line total based on karat rate only (what goes into GL)
+                $officialLineTotal = ($officialUnitPrice * $qty) - $itemDisc;
 
-                $subtotal   += $lineTotal;
-                $goldTotal  += $goldV;
-                $gemTotal   += $gemV;
-                $mcTotal    += $mc;
-                $wasteTotal += $wastage;
+                $subtotal         += $lineTotal;
+                $officialSubtotal += $officialLineTotal;
+                $goldTotal        += $goldV;
+                $gemTotal         += $gemV;
+                $mcTotal          += $mc;
+                $wasteTotal       += $wastage;
 
-                $itemData[] = compact('product', 'qty', 'unitPrice', 'itemDisc', 'lineTotal', 'goldV', 'gemV', 'mc', 'wastage');
+                $itemData[] = compact(
+                    'product', 'qty', 'displayPrice', 'officialUnitPrice',
+                    'itemDisc', 'lineTotal', 'goldV', 'gemV', 'mc', 'wastage'
+                );
             }
 
-            $discount = $data['discount'] ?? 0;
-            $tax      = $data['tax'] ?? 0;
-            $total    = $subtotal - $discount + $tax;
+            $discount      = $data['discount'] ?? 0;
+            $tax           = $data['tax'] ?? 0;
+            $total         = $subtotal - $discount + $tax;
+            $officialTotal = round($officialSubtotal - $discount + $tax, 2);
             $amountPaid = (float) ($data['amount_paid'] ?? 0);
 
             $saleType = $data['sale_type'] ?? 'instant';
@@ -192,12 +211,14 @@ class SaleController extends Controller
                 'sold_at'               => $soldAt,
             ]);
 
+            $totalExcess = 0;
             foreach ($itemData as $i) {
                 SaleItem::create([
                     'sale_id'        => $sale->id,
                     'product_id'     => $i['product']->id,
                     'quantity'       => $i['qty'],
-                    'unit_price'     => $i['unitPrice'],
+                    'unit_price'     => $i['officialUnitPrice'], // karat-rate amount (official)
+                    'display_price'  => $i['displayPrice'],      // actual charged (for invoice)
                     'discount'       => $i['itemDisc'],
                     'total'          => $i['lineTotal'],
                     'gold_value'     => $i['goldV'],
@@ -206,10 +227,34 @@ class SaleController extends Controller
                     'wastage_amount' => $i['wastage'],
                 ]);
                 $i['product']->decrement('stock_quantity', $i['qty']);
+
+                // Accumulate excess above karat rate → private cashbook
+                if ($i['displayPrice'] > $i['officialUnitPrice']) {
+                    $totalExcess += ($i['displayPrice'] - $i['officialUnitPrice']) * $i['qty'];
+                }
+            }
+
+            if ($totalExcess > 0.001) {
+                $pMethod = in_array($data['payment_method'], ['cash', 'bank_transfer'])
+                    ? $data['payment_method'] : 'cash';
+                PrivateSale::create([
+                    'sale_date'      => $soldAt->toDateString(),
+                    'buyer_name'     => $sale->customer?->name,
+                    'description'    => "Excess sale income — {$sale->invoice_number}",
+                    'item_type'      => 'jewelry',
+                    'gross_weight'   => 0,
+                    'net_weight'     => 0,
+                    'declared_karat' => 'mixed',
+                    'rate_per_gram'  => 0,
+                    'total_amount'   => round($totalExcess, 2),
+                    'payment_method' => $pMethod,
+                    'recorded_by'    => $request->user()->id,
+                    'branch_id'      => $request->user()->branch_id,
+                ]);
             }
 
             if ($saleType === 'instant') {
-                $entry = $this->postInstantSaleJournal($sale);
+                $entry = $this->postInstantSaleJournal($sale, $officialTotal);
                 $sale->update(['journal_entry_id' => $entry->id]);
             } elseif ($amountPaid > 0) {
                 $entry = $this->postBookingAdvanceJournal($sale);
@@ -393,18 +438,19 @@ class SaleController extends Controller
         return 'JE-' . date('Ymd') . '-' . str_pad($seq, 4, '0', STR_PAD_LEFT);
     }
 
-    private function postInstantSaleJournal(Sale $sale): JournalEntry
+    private function postInstantSaleJournal(Sale $sale, float $officialTotal): JournalEntry
     {
-        $revenue = Account::where('code', '4000')->first();
-        $receivable = Account::where('code', '1100')->first();
+        $revenue     = Account::where('code', '4000')->first();
+        $receivable  = Account::where('code', '1100')->first();
         $paidAccount = $this->paymentAccountByMethod($sale->payment_method);
 
         if (!$revenue) {
             throw new \Exception('Revenue account (4000) is missing.');
         }
 
-        $paid = round(min($sale->amount_paid, $sale->total), 2);
-        $due = round(max(0, $sale->total - $paid), 2);
+        // GL uses officialTotal (karat-rate price) — excess above karat rate is off-books (private cashbook)
+        $paid = round(min($sale->amount_paid, $officialTotal), 2);
+        $due  = round(max(0, $officialTotal - $paid), 2);
 
         if ($paid > 0 && !$paidAccount) {
             throw new \Exception('Payment account could not be resolved for this method.');
@@ -448,7 +494,7 @@ class SaleController extends Controller
             'journal_entry_id' => $entry->id,
             'account_id'       => $revenue->id,
             'debit'            => 0,
-            'credit'           => $sale->total,
+            'credit'           => $officialTotal,
             'description'      => 'Sales revenue',
         ]);
 
@@ -496,13 +542,18 @@ class SaleController extends Controller
 
     private function postBookingSettlementJournal(Sale $sale, float $paymentAmount, string $paymentMethod): JournalEntry
     {
-        $deposit = Account::where('code', '2200')->first();
-        $revenue = Account::where('code', '4000')->first();
+        $deposit     = Account::where('code', '2200')->first();
+        $revenue     = Account::where('code', '4000')->first();
         $paidAccount = $this->paymentAccountByMethod($paymentMethod);
 
         if (!$deposit || !$revenue || !$paidAccount) {
             throw new \Exception('Required accounts for booking settlement are missing.');
         }
+
+        // GL uses official total (karat-rate based); excess stays off-books in private cashbook
+        $officialTotal     = $this->calculateOfficialTotal($sale);
+        $officialAdvance   = round(min($sale->amount_paid, $officialTotal), 2);
+        $officialFinalPaid = round(max(0, $officialTotal - $officialAdvance), 2);
 
         $entry = JournalEntry::create([
             'entry_number'   => $this->nextEntryNumber(),
@@ -515,21 +566,21 @@ class SaleController extends Controller
             'status'         => 'posted',
         ]);
 
-        if ($paymentAmount > 0) {
+        if ($officialFinalPaid > 0) {
             JournalEntryLine::create([
                 'journal_entry_id' => $entry->id,
                 'account_id'       => $paidAccount->id,
-                'debit'            => $paymentAmount,
+                'debit'            => $officialFinalPaid,
                 'credit'           => 0,
                 'description'      => 'Final payment received for booking',
             ]);
         }
 
-        if ($sale->amount_paid > 0) {
+        if ($officialAdvance > 0) {
             JournalEntryLine::create([
                 'journal_entry_id' => $entry->id,
                 'account_id'       => $deposit->id,
-                'debit'            => $sale->amount_paid,
+                'debit'            => $officialAdvance,
                 'credit'           => 0,
                 'description'      => 'Customer deposit cleared',
             ]);
@@ -539,10 +590,19 @@ class SaleController extends Controller
             'journal_entry_id' => $entry->id,
             'account_id'       => $revenue->id,
             'debit'            => 0,
-            'credit'           => $sale->total,
+            'credit'           => $officialTotal,
             'description'      => 'Sales revenue recognized on delivery',
         ]);
 
         return $entry;
+    }
+
+    private function calculateOfficialTotal(Sale $sale): float
+    {
+        $sale->loadMissing('items');
+        $officialSubtotal = $sale->items->sum(
+            fn($item) => ($item->unit_price * $item->quantity) - $item->discount
+        );
+        return round($officialSubtotal - $sale->discount + $sale->tax, 2);
     }
 }

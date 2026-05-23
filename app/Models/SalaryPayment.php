@@ -13,7 +13,7 @@ class SalaryPayment extends Model
     protected $fillable = [
         'payment_number', 'employee_id', 'branch_id', 'user_id', 'journal_entry_id',
         'period_from', 'period_to', 'payment_date',
-        'basic_salary', 'gross_salary', 'allowances', 'deductions',
+        'basic_salary', 'gross_salary', 'allowances', 'deductions', 'advance_deduction',
         'epf_employee', 'epf_employer', 'etf_employer',
         'net_salary', 'epf_etf_setting_id',
         'payment_method', 'paid_from_account_id', 'status', 'notes',
@@ -30,7 +30,8 @@ class SalaryPayment extends Model
         'epf_employee'  => 'float',
         'epf_employer'  => 'float',
         'etf_employer'  => 'float',
-        'net_salary'    => 'float',
+        'net_salary'        => 'float',
+        'advance_deduction' => 'float',
     ];
 
     public function employee()
@@ -56,5 +57,10 @@ class SalaryPayment extends Model
     public function branch()
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    public function recoveredAdvances()
+    {
+        return $this->hasMany(\App\Models\SalaryAdvance::class);
     }
 }

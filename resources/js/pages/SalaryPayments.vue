@@ -22,6 +22,7 @@
       <input v-model="dateTo" type="date" class="form-input w-36" @change="fetchPayments" title="To" />
       <div class="flex gap-2 ml-auto">
         <button @click="activeTab = 'payments'" :class="tabCls('payments')">Payments</button>
+        <button @click="activeTab = 'advances'; fetchAdvances()" :class="tabCls('advances')">Advances</button>
         <button @click="activeTab = 'summary'; fetchSummary()" :class="tabCls('summary')">Payroll Summary</button>
         <button @click="activeTab = 'settings'; loadSettings()" :class="tabCls('settings')">EPF/ETF Rates</button>
       </div>
@@ -145,6 +146,70 @@
           <div class="flex gap-2">
             <button @click="page--; fetchPayments()" :disabled="page <= 1" class="btn-secondary py-1 px-3 text-xs disabled:opacity-40">Prev</button>
             <button @click="page++; fetchPayments()" :disabled="page >= payments.last_page" class="btn-secondary py-1 px-3 text-xs disabled:opacity-40">Next</button>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- ── Advances tab ── -->
+    <template v-else-if="activeTab === 'advances'">
+      <div class="flex items-center justify-between mb-2">
+        <p class="text-sm text-gray-500">Salary advances given to employees — pending advances are recovered on the next salary payment.</p>
+        <button @click="openAdvanceModal" class="btn-primary flex items-center gap-2">
+          <BanknotesIcon class="w-4 h-4" /> Give Advance
+        </button>
+      </div>
+      <div class="card p-0 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-[800px]">
+            <thead class="bg-gray-50 border-b">
+              <tr>
+                <th class="table-th">Advance #</th>
+                <th class="table-th">Employee</th>
+                <th class="table-th">Date</th>
+                <th class="table-th text-right">Amount</th>
+                <th class="table-th">Reason</th>
+                <th class="table-th text-center">Status</th>
+                <th class="table-th">Recovered In</th>
+                <th class="table-th">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+              <tr v-for="a in advancesData.data" :key="a.id" class="hover:bg-gray-50">
+                <td class="table-td font-mono text-xs font-semibold text-gray-700 bg-gray-50">{{ a.advance_number }}</td>
+                <td class="table-td">
+                  <p class="font-medium text-sm">{{ a.employee?.name }}</p>
+                  <p class="text-xs text-gray-400">{{ a.employee?.employee_number }}</p>
+                </td>
+                <td class="table-td text-xs text-gray-600">{{ fmtDate(a.given_date) }}</td>
+                <td class="table-td text-right font-bold text-gray-800">LKR {{ lkr(a.amount) }}</td>
+                <td class="table-td text-xs text-gray-500">{{ a.reason || '—' }}</td>
+                <td class="table-td text-center">
+                  <span :class="{
+                    'bg-yellow-100 text-yellow-700': a.status === 'pending',
+                    'bg-green-100 text-green-700': a.status === 'deducted',
+                    'bg-gray-100 text-gray-400': a.status === 'cancelled',
+                  }" class="badge text-xs capitalize">{{ a.status }}</span>
+                </td>
+                <td class="table-td text-xs text-gray-500 font-mono">{{ a.salary_payment?.payment_number || '—' }}</td>
+                <td class="table-td">
+                  <button v-if="a.status === 'pending'" @click="cancelAdvance(a)"
+                    class="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-red-100 text-red-700 hover:bg-red-200">
+                    <TrashIcon class="w-3.5 h-3.5" /> Cancel
+                  </button>
+                </td>
+              </tr>
+              <tr v-if="!advancesData.data?.length">
+                <td colspan="8" class="table-td text-center text-gray-400 py-10">No advances found</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="px-4 py-3 border-t flex justify-between text-sm text-gray-600">
+          <span>{{ advancesData.total ?? 0 }} records</span>
+          <div class="flex gap-2">
+            <button @click="advancePage--; fetchAdvances()" :disabled="advancePage <= 1" class="btn-secondary py-1 px-3 text-xs disabled:opacity-40">Prev</button>
+            <button @click="advancePage++; fetchAdvances()" :disabled="advancePage >= advancesData.last_page" class="btn-secondary py-1 px-3 text-xs disabled:opacity-40">Next</button>
           </div>
         </div>
       </div>
@@ -321,6 +386,56 @@
       </div>
     </template>
 
+    <!-- ── Give Advance Modal ── -->
+    <div v-if="advanceModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col">
+        <div class="px-6 py-4 border-b flex items-center justify-between shrink-0">
+          <h3 class="font-semibold text-gray-800">Give Salary Advance</h3>
+          <button @click="advanceModal = false" class="text-gray-400 hover:text-gray-600"><XMarkIcon class="w-5 h-5" /></button>
+        </div>
+        <form @submit.prevent="submitAdvance" class="p-6 space-y-4">
+          <div>
+            <label class="form-label">Employee *</label>
+            <select v-model="advanceForm.employee_id" class="form-input" required>
+              <option value="">— Select Employee —</option>
+              <option v-for="e in allEmployees" :key="e.id" :value="e.id">{{ e.employee_number }} – {{ e.name }}</option>
+            </select>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="form-label">Amount (LKR) *</label>
+              <input v-model.number="advanceForm.amount" type="number" min="1" step="0.01" class="form-input" required />
+            </div>
+            <div>
+              <label class="form-label">Date *</label>
+              <input v-model="advanceForm.given_date" type="date" class="form-input" required />
+            </div>
+          </div>
+          <div>
+            <label class="form-label">Pay From Account *</label>
+            <select v-model="advanceForm.paid_from_account_id" class="form-input" required>
+              <option value="">— Select —</option>
+              <option v-for="a in cashAccounts" :key="a.id" :value="a.id">{{ a.code }} – {{ a.name }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Reason</label>
+            <input v-model="advanceForm.reason" class="form-input" placeholder="e.g. Medical emergency" />
+          </div>
+          <div class="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-xs text-amber-800">
+            GL: DR Salary Advance (1300) · CR Cash/Bank
+          </div>
+          <p v-if="advanceError" class="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{{ advanceError }}</p>
+        </form>
+        <div class="px-6 py-4 border-t flex justify-end gap-3 shrink-0">
+          <button type="button" @click="advanceModal = false" class="btn-secondary">Cancel</button>
+          <button type="button" @click="submitAdvance" :disabled="advanceSaving" class="btn-primary">
+            {{ advanceSaving ? 'Saving…' : 'Record Advance' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- ── Pay Salary Modal ── -->
     <div v-if="payModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[92vh] flex flex-col">
@@ -396,6 +511,20 @@
             </div>
           </div>
 
+          <!-- Pending advances to recover -->
+          <div v-if="employeePendingAdvances.length" class="border border-blue-200 rounded-xl p-4 space-y-2 bg-blue-50/40">
+            <p class="text-sm font-medium text-blue-800">Pending Advances — select to recover in this payment</p>
+            <label v-for="adv in employeePendingAdvances" :key="adv.id"
+              class="flex items-center gap-3 cursor-pointer bg-white rounded-lg px-3 py-2 border border-blue-100">
+              <input type="checkbox" :value="adv.id" v-model="selectedAdvanceIds" class="rounded text-blue-600" />
+              <span class="flex-1 text-sm">{{ adv.advance_number }} — {{ fmtDate(adv.given_date) }}</span>
+              <span class="font-mono text-sm font-bold text-blue-700">LKR {{ lkr(adv.amount) }}</span>
+            </label>
+            <p v-if="totalAdvanceDeduction > 0" class="text-xs text-blue-700 font-medium text-right">
+              Total to recover: LKR {{ lkr(totalAdvanceDeduction) }}
+            </p>
+          </div>
+
           <!-- Net salary preview -->
           <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 space-y-1">
             <div class="flex items-center justify-between">
@@ -413,6 +542,14 @@
             <div class="flex items-center justify-between border-t pt-2 mt-1">
               <span class="text-sm font-semibold text-amber-700">Net Pay to Employee</span>
               <span class="text-xl font-bold text-amber-800">LKR {{ lkr(netSalary) }}</span>
+            </div>
+            <div v-if="totalAdvanceDeduction > 0" class="flex items-center justify-between text-blue-700">
+              <span class="text-sm">Advance recovery</span>
+              <span class="font-mono text-sm">- LKR {{ lkr(totalAdvanceDeduction) }}</span>
+            </div>
+            <div v-if="totalAdvanceDeduction > 0" class="flex items-center justify-between border-t pt-2 mt-1 text-blue-800">
+              <span class="text-sm font-semibold">Cash Actually Paid Out</span>
+              <span class="text-xl font-bold">LKR {{ lkr(netCashOut) }}</span>
             </div>
           </div>
 
@@ -482,6 +619,21 @@ const payError       = ref('')
 const rateSaving     = ref(false)
 const rateError      = ref('')
 
+// Advances
+const advancesData             = ref({ data: [] })
+const advancePage              = ref(1)
+const advanceModal             = ref(false)
+const advanceSaving            = ref(false)
+const advanceError             = ref('')
+const employeePendingAdvances  = ref([])
+const selectedAdvanceIds       = ref([])
+
+const defaultAdvanceForm = () => ({
+  employee_id: '', amount: 0, given_date: today(),
+  paid_from_account_id: '', reason: '',
+})
+const advanceForm = ref(defaultAdvanceForm())
+
 const rateForm = ref({
   epf_employee_rate: 8.00,
   epf_employer_rate: 12.00,
@@ -506,7 +658,12 @@ const calcEpfEmployer = computed(() => payForm.value.apply_epf_etf && currentRat
   ? Math.round(grossSalary.value * currentRates.value.epf_employer_rate / 100 * 100) / 100 : 0)
 const calcEtfEmployer = computed(() => payForm.value.apply_epf_etf && currentRates.value
   ? Math.round(grossSalary.value * currentRates.value.etf_employer_rate / 100 * 100) / 100 : 0)
-const netSalary      = computed(() => Math.max(0, grossSalary.value - calcEpfEmployee.value - (payForm.value.deductions || 0)))
+const netSalary            = computed(() => Math.max(0, grossSalary.value - calcEpfEmployee.value - (payForm.value.deductions || 0)))
+const totalAdvanceDeduction = computed(() => selectedAdvanceIds.value.reduce((sum, id) => {
+  const adv = employeePendingAdvances.value.find(a => a.id === id)
+  return sum + (adv ? Number(adv.amount) : 0)
+}, 0))
+const netCashOut = computed(() => Math.max(0, netSalary.value - totalAdvanceDeduction.value))
 
 // Summary totals
 const totalPaid          = computed(() => payments.value.data?.reduce((s, p) => s + Number(p.net_salary), 0) ?? 0)
@@ -519,6 +676,46 @@ function tabCls(t) {
 }
 
 function recalc() {} // reactivity handles it via computed
+
+async function fetchAdvances() {
+  const { data } = await axios.get('/api/salary-advances', {
+    params: { page: advancePage.value, employee_id: empFilter.value },
+  })
+  advancesData.value = data
+}
+
+function openAdvanceModal() {
+  advanceForm.value  = defaultAdvanceForm()
+  advanceError.value = ''
+  advanceModal.value = true
+}
+
+async function submitAdvance() {
+  advanceSaving.value = true; advanceError.value = ''
+  try {
+    await axios.post('/api/salary-advances', advanceForm.value)
+    advanceModal.value = false
+    fetchAdvances()
+  } catch (e) {
+    advanceError.value = e.response?.data?.message ?? Object.values(e.response?.data?.errors ?? {})[0]?.[0] ?? 'Failed.'
+  } finally { advanceSaving.value = false }
+}
+
+async function cancelAdvance(a) {
+  if (!confirm(`Cancel advance ${a.advance_number} (LKR ${lkr(a.amount)})?`)) return
+  try {
+    await axios.delete(`/api/salary-advances/${a.id}`)
+    fetchAdvances()
+  } catch (e) { alert(e.response?.data?.message ?? 'Cannot cancel.') }
+}
+
+async function loadPendingAdvances(employeeId) {
+  employeePendingAdvances.value = []
+  selectedAdvanceIds.value = []
+  if (!employeeId) return
+  const { data } = await axios.get(`/api/salary-advances/pending/${employeeId}`)
+  employeePendingAdvances.value = data
+}
 
 async function fetchPayments() {
   loading.value = true
@@ -564,20 +761,26 @@ async function saveRates() {
 }
 
 function openPay() {
-  payForm.value  = defaultPayForm()
-  payError.value = ''
-  payModal.value = true
+  payForm.value              = defaultPayForm()
+  payError.value             = ''
+  employeePendingAdvances.value = []
+  selectedAdvanceIds.value   = []
+  payModal.value             = true
 }
 
 function prefillSalary() {
   const emp = allEmployees.value.find(e => e.id == payForm.value.employee_id)
   if (emp) payForm.value.basic_salary = emp.basic_salary
+  loadPendingAdvances(payForm.value.employee_id)
 }
 
 async function submitPayment() {
   paying.value = true; payError.value = ''
   try {
-    await axios.post('/api/salary-payments', payForm.value)
+    await axios.post('/api/salary-payments', {
+      ...payForm.value,
+      advance_ids: selectedAdvanceIds.value,
+    })
     payModal.value = false
     fetchPayments()
   } catch (e) {
@@ -596,13 +799,15 @@ async function deletePayment(p) {
 function goToGL(p) { router.push('/general-ledger') }
 
 function printPayslip(p) {
-  const emp     = p.employee ?? {}
-  const gross   = Number(p.gross_salary || p.basic_salary || 0)
-  const epfEmp  = Number(p.epf_employee || 0)
-  const epfEmr  = Number(p.epf_employer || 0)
-  const etf     = Number(p.etf_employer || 0)
-  const otherDed = Number(p.deductions || 0)
-  const net     = Number(p.net_salary || 0)
+  const emp       = p.employee ?? {}
+  const gross     = Number(p.gross_salary || p.basic_salary || 0)
+  const epfEmp    = Number(p.epf_employee || 0)
+  const epfEmr    = Number(p.epf_employer || 0)
+  const etf       = Number(p.etf_employer || 0)
+  const otherDed  = Number(p.deductions || 0)
+  const advDed    = Number(p.advance_deduction || 0)
+  const net       = Number(p.net_salary || 0)
+  const cashOut   = net - advDed
 
   const popup = window.open('', '_blank', 'width=680,height=820')
   if (!popup) { alert('Popup blocked. Please allow popups to print payslips.'); return }
@@ -671,9 +876,15 @@ function printPayslip(p) {
     <tr><td colspan="2" class="section-title" style="padding-top:3mm;">Deductions (Employee)</td></tr>
     ${epfEmp > 0 ? `<tr><td>EPF Employee Contribution (${currentRates.value?.epf_employee_rate ?? ''}%)</td><td class="r" style="color:#dc2626;">- LKR ${lkr(epfEmp)}</td></tr>` : ''}
     ${otherDed > 0 ? `<tr><td>Other Deductions</td><td class="r" style="color:#ea580c;">- LKR ${lkr(otherDed)}</td></tr>` : ''}
-    ${epfEmp === 0 && otherDed === 0 ? '<tr><td colspan="2" style="color:#aaa;font-size:8pt;">No deductions</td></tr>' : ''}
+    ${epfEmp === 0 && otherDed === 0 && advDed === 0 ? '<tr><td colspan="2" style="color:#aaa;font-size:8pt;">No deductions</td></tr>' : ''}
 
     <tr class="net-row"><td>Net Pay to Employee</td><td class="r">LKR ${lkr(net)}</td></tr>
+
+    ${advDed > 0 ? `
+    <tr><td colspan="2" class="section-title" style="padding-top:3mm;">Advance Recovery</td></tr>
+    <tr style="color:#1d4ed8;"><td>Salary Advance Deduction</td><td class="r" style="color:#1d4ed8;">- LKR ${lkr(advDed)}</td></tr>
+    <tr style="font-weight:bold;background:#eff6ff;"><td>Cash Paid Out</td><td class="r" style="color:#1e40af;">LKR ${lkr(cashOut)}</td></tr>
+    ` : ''}
 
     ${(epfEmr > 0 || etf > 0) ? `
     <tr><td colspan="2" class="section-title" style="padding-top:3mm;">Employer Contributions (not deducted from employee)</td></tr>

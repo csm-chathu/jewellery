@@ -81,6 +81,21 @@
             {{ item.label }}
           </router-link>
         </template>
+
+        <!-- Private Gold Book sub-nav (gold_buyer role) -->
+        <template v-if="currentRole === 'gold_buyer'">
+          <div class="px-4 mt-4 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Private Gold Book</div>
+          <router-link
+            v-for="item in privateBookNavItems" :key="item.tab"
+            :to="{ path: '/informal-purchases', query: { tab: item.tab } }"
+            class="flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors"
+            :class="isPrivateTabActive(item.tab)
+              ? 'bg-gold-600 text-white hover:bg-gold-700'
+              : 'text-gray-300 hover:bg-gray-800 hover:text-white'">
+            <component :is="item.icon" class="w-5 h-5 shrink-0" />
+            {{ item.label }}
+          </router-link>
+        </template>
       </nav>
 
       <!-- User info -->
@@ -140,6 +155,7 @@ import {
   ReceiptPercentIcon, Cog6ToothIcon, DevicePhoneMobileIcon, LockClosedIcon,
   WrenchScrewdriverIcon, PaintBrushIcon,
   SquaresPlusIcon, QuestionMarkCircleIcon, ArrowsRightLeftIcon,
+  BookmarkIcon, ArrowDownOnSquareIcon, ArrowUpOnSquareIcon, AdjustmentsHorizontalIcon,
 } from '@heroicons/vue/24/outline'
 
 const auth   = useAuthStore()
@@ -203,6 +219,17 @@ const accountingNavItems = [
 
 const currentRole = computed(() => auth.user?.role ?? 'branch')
 const canOverrideGoldRate = computed(() => !!auth.user?.can_override_gold_rate)
+
+const privateBookNavItems = [
+  { tab: 'cashbook',  label: 'Cashbook',          icon: BookmarkIcon },
+  { tab: 'sales',     label: 'Sales (Cash In)',    icon: ArrowDownOnSquareIcon },
+  { tab: 'purchases', label: 'Purchases (Buy)',    icon: ArrowUpOnSquareIcon },
+  { tab: 'expenses',  label: 'Expenses',           icon: AdjustmentsHorizontalIcon },
+]
+
+function isPrivateTabActive(tab) {
+  return route.path === '/informal-purchases' && (route.query.tab === tab || (!route.query.tab && tab === 'cashbook'))
+}
 
 function isAllowed(item) {
   if (item.to === '/gold-rates') {

@@ -29,6 +29,7 @@
               <th class="table-th">Name</th>
               <th class="table-th">Category</th>
               <th class="table-th">Material / Karat</th>
+              <th class="table-th">Weight</th>
               <th class="table-th">Stock</th>
               <th class="table-th">Buy Price</th>
               <th class="table-th">Status</th>
@@ -58,6 +59,7 @@
               </td>
               <td class="table-td text-gray-500">{{ p.category?.name }}</td>
               <td class="table-td">{{ p.material }} {{ p.karat ? `(${p.karat})` : '' }}</td>
+              <td class="table-td text-gray-500">{{ p.weight ? Number(p.weight).toFixed(2) + 'g' : '—' }}</td>
               <td class="table-td">
                 <span :class="p.stock_quantity <= p.min_stock_level ? 'badge bg-red-100 text-red-700' : 'badge bg-green-100 text-green-700'">
                   {{ p.stock_quantity }}
@@ -86,7 +88,7 @@
               </td>
             </tr>
             <tr v-if="!products.data?.length">
-              <td colspan="9" class="table-td text-center text-gray-400 py-8">No products found</td>
+              <td colspan="10" class="table-td text-center text-gray-400 py-8">No products found</td>
             </tr>
           </tbody>
         </table>

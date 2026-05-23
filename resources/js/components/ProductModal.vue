@@ -19,11 +19,33 @@
             </label>
             <input v-model="form.barcode" class="form-input font-mono" placeholder="e.g. 8901234567890" />
           </div>
-          <div>
+          <div class="relative" ref="categoryDropdownRef">
             <label class="form-label">Category *</label>
-            <select v-model="form.category_id" required class="form-input">
-              <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
-            </select>
+            <input
+              v-model="categorySearch"
+              type="text"
+              class="form-input"
+              :placeholder="selectedCategoryName || 'Search category…'"
+              @focus="categoryOpen = true"
+              @input="categoryOpen = true"
+              autocomplete="off"
+            />
+            <div
+              v-if="categoryOpen && filteredCategories.length"
+              class="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"
+            >
+              <button
+                v-for="c in filteredCategories"
+                :key="c.id"
+                type="button"
+                class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
+                :class="form.category_id === c.id ? 'bg-gold-50 font-medium text-gold-700' : ''"
+                @mousedown.prevent="selectCategory(c)"
+              >
+                {{ c.name }}
+              </button>
+            </div>
+            <input type="hidden" :value="form.category_id" required />
           </div>
           <div>
             <label class="form-label">Supplier</label>
@@ -169,7 +191,7 @@
 </template>
 
 <script setup>
-import { reactive, ref, watch, onMounted } from 'vue'
+import { reactive, ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import axios from 'axios'
 import SmartImageUploader from '@/components/SmartImageUploader.vue'
 
@@ -191,6 +213,35 @@ const saving = ref(false)
 const error  = ref('')
 const productImages = ref([])
 const productImageUploader = ref(null)
+
+// Searchable category
+const categorySearch = ref('')
+const categoryOpen   = ref(false)
+const categoryDropdownRef = ref(null)
+
+const filteredCategories = computed(() => {
+  const q = categorySearch.value.trim().toLowerCase()
+  if (!q) return props.categories ?? []
+  return (props.categories ?? []).filter(c => c.name.toLowerCase().includes(q))
+})
+
+const selectedCategoryName = computed(() =>
+  (props.categories ?? []).find(c => c.id === form.category_id)?.name ?? ''
+)
+
+function selectCategory(c) {
+  form.category_id = c.id
+  categorySearch.value = ''
+  categoryOpen.value = false
+}
+
+function onClickOutside(e) {
+  if (categoryDropdownRef.value && !categoryDropdownRef.value.contains(e.target)) {
+    categoryOpen.value = false
+  }
+}
+
+onBeforeUnmount(() => document.removeEventListener('mousedown', onClickOutside))
 
 // --- Gold rate auto-calculation ---
 const goldRateMap = ref({})   // { '24k': {rate_per_gram, carat, date}, ... }
@@ -259,6 +310,7 @@ onMounted(() => {
     productImages.value = []
   }
   loadGoldRate()
+  document.addEventListener('mousedown', onClickOutside)
 })
 
 async function submit() {

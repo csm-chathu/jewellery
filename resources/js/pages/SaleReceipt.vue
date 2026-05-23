@@ -38,14 +38,6 @@
           </button>
         </div>
 
-        <!-- Direct Print (QZ Tray, POS only) -->
-        <button v-if="printMode === 'pos'" @click="directPrint"
-          :disabled="directPrinting || loading || !sale"
-          class="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded-lg font-medium text-sm shadow-sm transition-colors">
-          <ArrowPathIcon v-if="directPrinting" class="w-4 h-4 animate-spin" />
-          <PrinterIcon v-else class="w-4 h-4" />
-          {{ directPrinting ? 'Printing...' : 'Direct Print' }}
-        </button>
 
         <!-- Send SMS -->
         <button v-if="sale" @click="openSmsModal"
@@ -139,7 +131,7 @@
               <div style="display:flex; align-items:baseline;">
                 <span style="flex:1; font-weight:bold; word-break:break-word; padding-right:4px;">{{ item.product?.name ?? 'Unknown' }}</span>
                 <span style="width:28px; text-align:center;">{{ item.quantity }}</span>
-                <span style="width:54px; text-align:right;">{{ lkr(item.unit_price) }}</span>
+                <span style="width:54px; text-align:right;">{{ lkr(item.display_price ?? item.unit_price) }}</span>
                 <span style="width:58px; text-align:right; font-weight:bold;">{{ lkr(item.total) }}</span>
               </div>
               <div style="color:#555; font-size:9px; padding-left:2px; line-height:1.3;">
@@ -204,7 +196,11 @@
           <!-- FOOTER -->
           <div style="text-align:center; font-size:10px; line-height:1.6;">
             <div style="font-weight:bold;">*** Thank You! Come Again ***</div>
-            <div style="font-size:9px; color:#555;">{{ fmtDate(sale.sold_at) }}</div>
+            <div v-if="whatsappQr" style="margin-top:4px;">
+              <img :src="whatsappQr" alt="WhatsApp QR" style="width:80px; height:80px; display:inline-block;" />
+              <div style="font-size:9px; color:#333; font-weight:bold; margin-top:2px;">Scan to WhatsApp us: 0764643050</div>
+            </div>
+            <div style="margin-top:6px; font-size:9px; color:#333; font-weight:bold; letter-spacing:0.5px;">www.lumac.lk</div>
           </div>
 
         </div>
@@ -250,12 +246,10 @@
           </div>
 
           <!-- CUSTOMER -->
-          <div class="inv-customer">
-            <strong>Bill To:</strong>
-            {{ sale.customer?.name ?? 'Walk-in Customer' }}
-            <span v-if="sale.customer?.phone"> &nbsp;|&nbsp; Tel: {{ sale.customer.phone }}</span>
-            <span style="text-transform:capitalize;"> &nbsp;|&nbsp; Payment: {{ sale.payment_method?.replace('_', ' ') }}</span>
-            <span> &nbsp;|&nbsp; Status: <strong style="text-transform:uppercase;">{{ sale.payment_status }}</strong></span>
+          <div class="inv-customer" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:4px;">
+            <span><strong>Bill To:</strong> {{ sale.customer?.name ?? 'Walk-in Customer' }}<span v-if="sale.customer?.phone"> &nbsp;|&nbsp; Tel: {{ sale.customer.phone }}</span></span>
+            <span style="text-transform:capitalize;"><strong>Payment:</strong> {{ sale.payment_method?.replace('_', ' ') }}</span>
+            <span><strong>Status:</strong> <span style="text-transform:uppercase;">{{ sale.payment_status }}</span></span>
           </div>
 
           <!-- ITEMS TABLE -->
@@ -265,7 +259,7 @@
                 <th style="text-align:left;">Item / Description</th>
                 <th style="text-align:center; width:40px;">Qty</th>
                 <th style="text-align:right; width:90px;">Unit Price</th>
-                <th style="text-align:right; width:70px;">Disc.</th>
+
                 <th style="text-align:right; width:100px;">Total</th>
               </tr>
             </thead>
@@ -287,8 +281,8 @@
                   </div>
                 </td>
                 <td style="text-align:center;">{{ item.quantity }}</td>
-                <td style="text-align:right;">LKR {{ lkr(item.unit_price) }}</td>
-                <td style="text-align:right;">{{ Number(item.discount) > 0 ? 'LKR ' + lkr(item.discount) : 'â€"' }}</td>
+                <td style="text-align:right;">{{ lkr(item.display_price ?? item.unit_price) }}</td>
+
                 <td style="text-align:right; font-weight:700;">LKR {{ lkr(item.total) }}</td>
               </tr>
             </tbody>
@@ -305,9 +299,7 @@
               <div v-if="Number(sale.subtotal) !== Number(sale.total)" class="inv-total-line">
                 <span>Subtotal</span><span>LKR {{ lkr(sale.subtotal) }}</span>
               </div>
-              <div v-if="Number(sale.discount) > 0" class="inv-total-line">
-                <span>Discount</span><span>- LKR {{ lkr(sale.discount) }}</span>
-              </div>
+
               <div v-if="Number(sale.tax) > 0" class="inv-total-line">
                 <span>Tax ({{ sale.tax_rate }}%)</span><span>+ LKR {{ lkr(sale.tax) }}</span>
               </div>
@@ -330,6 +322,7 @@
           <div class="inv-footer">
             <div style="font-weight:600;">*** Thank You! Come Again ***</div>
             <div v-if="shop.shop_name" style="font-size:10px; color:#888; margin-top:2px;">{{ shop.shop_name }}</div>
+            <div style="margin-top:6px; font-size:10px; font-weight:700; letter-spacing:0.5px;">www.lumac.lk &nbsp;|&nbsp; 076 464 3050</div>
           </div>
 
         </div>
@@ -442,6 +435,7 @@ import { useRoute } from 'vue-router'
 import axios from 'axios'
 import { ArrowLeftIcon, PrinterIcon, ArrowPathIcon, DocumentTextIcon, CheckCircleIcon } from '@heroicons/vue/24/outline'
 import { fmtDate } from '../utils/date.js'
+import QRCode from 'qrcode'
 
 const route           = useRoute()
 const sale            = ref(null)
@@ -451,6 +445,7 @@ const appName         = import.meta.env.VITE_APP_NAME ?? 'Jewellery Store'
 const preferredPrinter = import.meta.env.VITE_THERMAL_PRINTER ?? ''
 const directPrinting  = ref(false)
 const directPrintError = ref('')
+const whatsappQr      = ref('')
 
 // Settle booking
 const settleModal  = ref(false)
@@ -547,13 +542,8 @@ async function printReceipt() {
     : `@media print { @page { size: 80mm auto; margin: 0; } }`
   document.head.appendChild(s)
 
-  if (window.electronAPI?.getPrinterConfig) {
-    const config = await window.electronAPI.getPrinterConfig()
-    const printerName = printMode.value === 'a5' ? (config.a5 || '') : (config.pos || '')
-    const printOptions = printMode.value === 'a5'
-      ? { pageSize: 'A5' }
-      : { pageSize: { width: 80000, height: 0 } }
-    await window.electronAPI.printReceipt(printerName, printOptions)
+  if (window.electronAPI?.printReceipt) {
+    await window.electronAPI.printReceipt(printMode.value) // 'pos' or 'a5'
     return
   }
 
@@ -569,7 +559,7 @@ function buildDirectPrintHtml() {
 <style>
   html,body{margin:0;padding:0;background:#fff;}
   .receipt-paper{width:80mm;max-width:80mm;margin:0;padding:3mm 4mm;box-sizing:border-box;
-    font-family:'Courier New',Courier,monospace;font-size:12pt;line-height:1.45;font-weight:500;zoom:1.12;color:#000;background:#fff;}
+    font-family:'Courier New',Courier,monospace;font-size:14pt;line-height:1.5;font-weight:700;zoom:1.12;color:#000;background:#fff;}
   .receipt-divider{border:none;border-top:1px dashed #aaa;margin:6px 0;}
   .receipt-divider-solid{border:none;border-top:1px solid #555;margin:6px 0;}
   .receipt-divider-double{border:none;border-top:3px double #333;margin:6px 0;}
@@ -642,6 +632,10 @@ async function directPrint() {
 watch(barcodeCanvas, () => drawAllBarcodes())
 
 onMounted(async () => {
+  QRCode.toDataURL('https://wa.me/94764643050', { width: 120, margin: 1 })
+    .then(url => { whatsappQr.value = url })
+    .catch(() => {})
+
   try {
     const [saleRes, settingsRes] = await Promise.all([
       axios.get(`/api/sales/${route.params.id}`),
@@ -715,7 +709,7 @@ onMounted(async () => {
 .inv-notes        { flex:1; font-size:10px; color:#555; padding-top:4px; }
 .inv-totals       { min-width:220px; }
 .inv-total-line   { display:flex; justify-content:space-between; font-size:11px; padding:3px 0; border-bottom:1px dashed #e5e7eb; }
-.inv-grand-total  { font-size:14px; font-weight:800; border-top:2px solid #1a1a1a; border-bottom:2px solid #1a1a1a; padding:4px 0; margin:2px 0; }
+.inv-grand-total  { font-size:11px; font-weight:800; border-top:2px solid #1a1a1a; border-bottom:2px solid #1a1a1a; padding:4px 0; margin:2px 0; }
 .inv-footer       { text-align:center; margin-top:16px; padding-top:10px; border-top:1px dashed #ccc; font-size:11px; }
 
 /* â"€â"€ @media print â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */
@@ -727,7 +721,7 @@ onMounted(async () => {
   /* POS mode */
   [data-print-mode="pos"] #invoice-wrapper { display: none !important; }
   [data-print-mode="pos"] #receipt-wrapper { display:block !important; position:static !important; width:80mm !important; padding:0 !important; margin:0 !important; overflow:visible !important; }
-  [data-print-mode="pos"] .receipt-paper { width:80mm !important; max-width:80mm !important; margin:0 !important; padding:3mm 4mm !important; box-shadow:none !important; border-radius:0 !important; font-size:12pt !important; font-family:'Courier New',Courier,monospace !important; font-weight:500 !important; zoom:1.12 !important; color:#000 !important; background:#fff !important; }
+  [data-print-mode="pos"] .receipt-paper { width:80mm !important; max-width:80mm !important; margin:0 !important; padding:3mm 4mm !important; box-shadow:none !important; border-radius:0 !important; font-size:14pt !important; font-family:'Courier New',Courier,monospace !important; font-weight:700 !important; line-height:1.5 !important; zoom:1.12 !important; color:#000 !important; background:#fff !important; }
   [data-print-mode="pos"] #receipt-wrapper, [data-print-mode="pos"] #receipt-wrapper * { color:#000 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; background:transparent !important; }
 
   /* A5 mode */

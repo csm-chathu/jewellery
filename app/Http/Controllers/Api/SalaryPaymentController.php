@@ -8,6 +8,7 @@ use App\Models\AuditLog;
 use App\Models\EpfEtfSetting;
 use App\Models\JournalEntry;
 use App\Models\JournalEntryLine;
+use App\Models\SalaryAdvance;
 use App\Models\SalaryPayment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -41,6 +42,8 @@ class SalaryPaymentController extends Controller
             'paid_from_account_id' => 'required|exists:accounts,id',
             'status'               => 'nullable|in:draft,paid',
             'notes'                => 'nullable|string|max:500',
+            'advance_ids'          => 'nullable|array',
+            'advance_ids.*'        => 'exists:salary_advances,id',
         ]);
 
         $data['allowances'] = $data['allowances'] ?? 0;
@@ -71,6 +74,16 @@ class SalaryPaymentController extends Controller
             return response()->json(['message' => 'Net salary must be greater than zero.'], 422);
         }
 
+        // Resolve advances to deduct
+        $advancesToDeduct = collect();
+        if (!empty($data['advance_ids'])) {
+            $advancesToDeduct = SalaryAdvance::whereIn('id', $data['advance_ids'])
+                ->where('employee_id', $data['employee_id'])
+                ->where('status', 'pending')
+                ->get();
+        }
+        $data['advance_deduction'] = $advancesToDeduct->sum('amount');
+
         DB::beginTransaction();
         try {
             $seq    = SalaryPayment::withTrashed()->count() + 1;
@@ -85,7 +98,13 @@ class SalaryPaymentController extends Controller
 
             // ── Auto-post GL Journal Entry if status = paid ──────────────
             if ($payment->status === 'paid') {
-                $this->postJournalEntry($payment);
+                $this->postJournalEntry($payment, $advancesToDeduct);
+            }
+
+            // Mark advances as deducted
+            if ($advancesToDeduct->isNotEmpty()) {
+                SalaryAdvance::whereIn('id', $advancesToDeduct->pluck('id'))
+                    ->update(['status' => 'deducted', 'salary_payment_id' => $payment->id]);
             }
 
             AuditLog::record('salary_paid', "Salary {$payNum} paid – LKR {$payment->net_salary}", $payment);
@@ -146,9 +165,8 @@ class SalaryPaymentController extends Controller
 
     // ── Private ─────────────────────────────────────────────────────────────
 
-    private function postJournalEntry(SalaryPayment $payment): void
+    private function postJournalEntry(SalaryPayment $payment, $advancesToDeduct = null): void
     {
-        // Find accounts by code (seeded in migration 000021)
         $salaryExpenseAccount = Account::where('code', '5210')->first();
         $cashOrBankAccount    = Account::find($payment->paid_from_account_id);
 
@@ -173,7 +191,10 @@ class SalaryPaymentController extends Controller
             'status'         => 'posted',
         ]);
 
-        // DR Salaries & Wages (expense)
+        $advanceDeduction = (float) ($payment->advance_deduction ?? 0);
+        $cashOut          = $payment->net_salary - $advanceDeduction;
+
+        // DR Salaries & Wages Expense (full net salary)
         JournalEntryLine::create([
             'journal_entry_id' => $entry->id,
             'account_id'       => $salaryExpenseAccount->id,
@@ -182,12 +203,27 @@ class SalaryPaymentController extends Controller
             'description'      => $desc,
         ]);
 
-        // CR Cash / Bank (asset)
+        // CR Salary Advance account — recover advance (only if advance deducted)
+        if ($advanceDeduction > 0) {
+            $advanceAccount = Account::where('code', '1300')->first();
+            if (!$advanceAccount) {
+                throw new \RuntimeException('Account 1300 (Salary Advance) not found. Run migrations.');
+            }
+            JournalEntryLine::create([
+                'journal_entry_id' => $entry->id,
+                'account_id'       => $advanceAccount->id,
+                'debit'            => 0,
+                'credit'           => $advanceDeduction,
+                'description'      => $desc . ' (advance recovery)',
+            ]);
+        }
+
+        // CR Cash / Bank — actual cash paid out
         JournalEntryLine::create([
             'journal_entry_id' => $entry->id,
             'account_id'       => $cashOrBankAccount->id,
             'debit'            => 0,
-            'credit'           => $payment->net_salary,
+            'credit'           => $cashOut,
             'description'      => $desc,
         ]);
 

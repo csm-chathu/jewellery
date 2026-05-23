@@ -1,6 +1,36 @@
 <template>
   <div class="space-y-5">
 
+    <!-- Gold Rate Warning Overlay -->
+    <div v-if="showRateWarning"
+      class="absolute inset-0 z-[200] flex items-center justify-center bg-black/60"
+      style="position:fixed;top:0;left:0;right:0;bottom:0;">
+      <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 text-center">
+        <div class="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <ExclamationTriangleIcon class="w-9 h-9 text-amber-500" />
+        </div>
+        <h2 class="text-xl font-bold text-gray-800 mb-2">Today's Gold Rate Not Set</h2>
+        <p class="text-gray-500 text-sm mb-6">
+          No gold rate has been entered for today. Set the rate before recording transactions to ensure correct totals.
+        </p>
+        <p v-if="copyRateError" class="text-red-600 text-xs mb-4">{{ copyRateError }}</p>
+        <div class="flex flex-col gap-3">
+          <button @click="copyPreviousRates" :disabled="copyingRates"
+            class="w-full px-4 py-3 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-semibold rounded-xl transition-colors">
+            {{ copyingRates ? 'Copying…' : 'Use Same as Previous Day' }}
+          </button>
+          <button @click="router.push('/gold-rates')"
+            class="w-full px-4 py-3 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-xl transition-colors">
+            Add Today's Rate Now
+          </button>
+          <button @click="showRateWarning = false; rateWarningDismissed = true"
+            class="w-full px-4 py-2 text-gray-400 hover:text-gray-600 text-sm transition-colors">
+            Continue without setting rate
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div>
@@ -288,6 +318,8 @@
                 <div class="flex justify-end gap-1">
                   <button @click="printSaleInvoice(s)" title="Print Invoice"
                     class="px-2 py-1 text-xs rounded bg-gray-100 text-gray-700 hover:bg-gray-200">🖨</button>
+                  <button @click="openPrivateSmsModal(s)" title="Send SMS"
+                    class="px-2 py-1 text-xs rounded bg-blue-100 text-blue-700 hover:bg-blue-200">SMS</button>
                   <button @click="openSaleModal(s)"
                     class="px-2 py-1 text-xs rounded bg-blue-100 text-blue-700 hover:bg-blue-200">Edit</button>
                   <button @click="deleteSale(s)"
@@ -625,9 +657,59 @@
                 </select>
               </div>
             </div>
+
+            <!-- Buyer combobox -->
             <div>
-              <label class="form-label">Buyer Name</label>
-              <input v-model="sForm.buyer_name" type="text" placeholder="Who bought this gold?" class="form-input" />
+              <label class="form-label">Buyer</label>
+              <div class="relative">
+                <input
+                  v-model="buyerSearch"
+                  type="text"
+                  placeholder="Search or type buyer name…"
+                  class="form-input w-full"
+                  autocomplete="off"
+                  @input="onBuyerInput"
+                  @focus="openBuyerDropdown"
+                  @blur="closeBuyerDropdown"
+                />
+                <!-- Dropdown -->
+                <div v-if="buyerDropdownOpen"
+                  class="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-64 overflow-y-auto"
+                  @mousedown="_buyerMouseInDropdown = true">
+                  <!-- Existing buyers list -->
+                  <button
+                    v-for="b in filteredBuyers" :key="b.id"
+                    type="button"
+                    class="w-full text-left px-3 py-2 hover:bg-amber-50 flex items-center justify-between gap-2"
+                    @mousedown.prevent="selectBuyer(b)">
+                    <span class="font-medium text-sm text-gray-800">{{ b.name }}</span>
+                    <span v-if="b.phone" class="text-xs text-gray-400">{{ b.phone }}</span>
+                  </button>
+                  <div v-if="!filteredBuyers.length" class="px-3 py-2 text-xs text-gray-400">
+                    No buyers found.
+                  </div>
+                  <!-- Add new buyer -->
+                  <div class="border-t border-gray-100">
+                    <button v-if="!buyerAddFormOpen" type="button"
+                      class="w-full text-left px-3 py-2 text-xs text-green-600 font-medium hover:bg-green-50 flex items-center gap-1"
+                      @mousedown.prevent="buyerAddFormOpen = true; newBuyerName = buyerSearch">
+                      + Add New Buyer
+                    </button>
+                    <div v-else class="p-2 space-y-2">
+                      <p class="text-xs text-gray-500 font-medium px-1">New Buyer:</p>
+                      <div class="flex gap-2">
+                        <input v-model="newBuyerName" type="text" placeholder="Name" class="form-input flex-1 text-sm py-1" @mousedown.stop />
+                        <input v-model="newBuyerPhone" type="text" placeholder="Phone (opt.)" class="form-input w-28 text-sm py-1" @mousedown.stop />
+                        <button type="button" :disabled="!newBuyerName.trim() || buyerCreating"
+                          class="px-3 py-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-xs rounded-lg font-medium"
+                          @mousedown.prevent="createAndSelectBuyer">
+                          {{ buyerCreating ? '…' : 'Save' }}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
             <div>
               <label class="form-label">Description</label>
@@ -754,6 +836,40 @@
     </teleport>
 
     <!-- ══════════════════════════════════════
+         PRIVATE SALE SMS MODAL
+    ══════════════════════════════════════ -->
+    <teleport to="body">
+      <div v-if="privateSmsModal" class="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-md">
+          <div class="flex items-center justify-between px-6 py-4 border-b">
+            <h3 class="font-semibold text-gray-800">Send Invoice SMS</h3>
+            <button @click="privateSmsModal = false" class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+          </div>
+          <div class="px-6 py-4 space-y-3">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+              <input v-model="privateSmsPhone" type="tel" placeholder="e.g. 0771234567" class="form-input w-full" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Message</label>
+              <textarea v-model="privateSmsMessage" rows="4" class="form-input w-full resize-none text-sm"></textarea>
+              <p class="text-xs text-gray-400 mt-1">{{ privateSmsMessage.length }} characters</p>
+            </div>
+            <p v-if="privateSmsError" class="text-sm text-red-600 bg-red-50 px-3 py-2 rounded">{{ privateSmsError }}</p>
+            <p v-if="privateSmsSent" class="text-sm text-green-700 bg-green-50 px-3 py-2 rounded">SMS sent successfully!</p>
+          </div>
+          <div class="flex justify-end gap-3 px-6 py-4 border-t">
+            <button @click="privateSmsModal = false; privateSmsSent = false" class="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">Close</button>
+            <button @click="submitPrivateSms" :disabled="privateSmsLoading || privateSmsSent || !privateSmsPhone.trim()"
+              class="px-4 py-2 text-sm bg-blue-500 hover:bg-blue-600 disabled:opacity-60 text-white rounded-lg font-medium">
+              {{ privateSmsLoading ? 'Sending…' : privateSmsSent ? 'Sent' : 'Send SMS' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </teleport>
+
+    <!-- ══════════════════════════════════════
          ADJUSTMENT MODAL
     ══════════════════════════════════════ -->
     <teleport to="body">
@@ -820,10 +936,14 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, watch, nextTick } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
-import { LockClosedIcon, PlusIcon, MinusIcon, ArrowDownTrayIcon, PrinterIcon } from '@heroicons/vue/24/outline'
+import { LockClosedIcon, PlusIcon, MinusIcon, ArrowDownTrayIcon, PrinterIcon, ExclamationTriangleIcon } from '@heroicons/vue/24/outline'
 import { fmtDate } from '../utils/date.js'
+
+const route  = useRoute()
+const router = useRouter()
 
 // ── tabs ───────────────────────────────────────────────
 const tabs = [
@@ -832,7 +952,20 @@ const tabs = [
   { id: 'sales',     label: '🟢 Sales (Sell)' },
   { id: 'expenses',  label: '🟠 Expenses' },
 ]
-const activeTab = ref('cashbook')
+
+const VALID_TABS = tabs.map(t => t.id)
+const activeTab = ref(VALID_TABS.includes(route.query.tab) ? route.query.tab : 'cashbook')
+
+watch(activeTab, (tab) => {
+  router.replace({ query: { ...route.query, tab } })
+})
+
+watch(() => route.query.tab, (tab) => {
+  if (tab && VALID_TABS.includes(tab) && tab !== activeTab.value) {
+    activeTab.value = tab
+  }
+})
+
 
 function lkr(val) {
   return Number(val || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -1013,7 +1146,7 @@ function openPurchaseModal(p) {
     gross_weight:     p?.gross_weight ?? 0,
     deduction_weight: p?.deduction_weight ?? 0,
     net_weight:       p?.net_weight ?? 0,
-    rate_per_gram:    p?.rate_per_gram ?? 0,
+    rate_per_gram:    p?.rate_per_gram ?? todayRateMap.value[p?.declared_karat ?? '22K'] ?? 0,
     final_price:      p?.final_price ?? 0,
     payment_method:   p?.payment_method ?? 'cash',
     notes:            p?.notes ?? '',
@@ -1050,6 +1183,110 @@ async function deletePurchase(p) {
   await Promise.all([loadPurchases(), loadCashbook()])
 }
 
+// ── TODAY'S GOLD RATES ─────────────────────────────────
+const todayRateMap         = ref({})
+const showRateWarning      = ref(false)
+const rateWarningDismissed = ref(false)
+const copyingRates         = ref(false)
+const copyRateError        = ref('')
+
+async function loadTodayRates() {
+  try {
+    const { data } = await axios.get('/api/gold-rates/today')
+    const map = {}
+    ;(Array.isArray(data) ? data : Object.values(data)).forEach(r => {
+      if (r.carat?.label) map[r.carat.label] = r.rate_per_gram
+    })
+    todayRateMap.value = map
+  } catch {}
+  if (!rateWarningDismissed.value) {
+    showRateWarning.value = Object.keys(todayRateMap.value).length === 0
+  }
+}
+
+async function copyPreviousRates() {
+  copyingRates.value = true; copyRateError.value = ''
+  try {
+    const { data } = await axios.get('/api/gold-rates')
+    const dates = Object.keys(data.history).sort().reverse()
+    if (!dates.length) { copyRateError.value = 'No previous rates found.'; return }
+    const previousRates = data.history[dates[0]]
+    const rates = previousRates.map(r => ({ carat_id: r.carat_id, rate_per_gram: r.rate_per_gram }))
+    await axios.post('/api/gold-rates', { date: new Date().toISOString().split('T')[0], rates })
+    await loadTodayRates()
+    showRateWarning.value = false
+  } catch (e) {
+    copyRateError.value = e.response?.data?.message ?? 'Failed to copy rates. You may not have permission.'
+  } finally {
+    copyingRates.value = false
+  }
+}
+
+// ── PRIVATE BUYERS ─────────────────────────────────────
+const buyersList        = ref([])
+const buyerSearch       = ref('')
+const buyerDropdownOpen = ref(false)
+const buyerAddFormOpen  = ref(false)
+const buyerCreating     = ref(false)
+const newBuyerName      = ref('')
+const newBuyerPhone     = ref('')
+let _buyerMouseInDropdown = false
+
+async function loadBuyers(search = '') {
+  const { data } = await axios.get('/api/private-buyers', { params: search ? { search } : {} })
+  buyersList.value = data
+}
+
+const filteredBuyers = computed(() => {
+  const q = buyerSearch.value.toLowerCase()
+  return q ? buyersList.value.filter(b => b.name.toLowerCase().includes(q) || (b.phone || '').includes(q)) : buyersList.value
+})
+
+function selectBuyer(buyer) {
+  sForm.buyer_name  = buyer.name
+  sForm.buyer_phone = buyer.phone || ''
+  buyerSearch.value       = buyer.name
+  buyerDropdownOpen.value = false
+  buyerAddFormOpen.value  = false
+}
+
+function openBuyerDropdown() {
+  buyerDropdownOpen.value = true
+  newBuyerName.value = buyerSearch.value
+}
+
+function onBuyerInput() {
+  sForm.buyer_name = buyerSearch.value
+  newBuyerName.value = buyerSearch.value
+  buyerDropdownOpen.value = true
+  buyerAddFormOpen.value  = false
+}
+
+function closeBuyerDropdown() {
+  setTimeout(() => {
+    if (_buyerMouseInDropdown) { _buyerMouseInDropdown = false; return }
+    buyerDropdownOpen.value = false
+    buyerAddFormOpen.value  = false
+  }, 180)
+}
+
+async function createAndSelectBuyer() {
+  if (!newBuyerName.value.trim()) return
+  buyerCreating.value = true
+  try {
+    const { data } = await axios.post('/api/private-buyers', {
+      name:  newBuyerName.value.trim(),
+      phone: newBuyerPhone.value.trim() || null,
+    })
+    buyersList.value.unshift(data)
+    selectBuyer(data)
+    newBuyerName.value  = ''
+    newBuyerPhone.value = ''
+    buyerCreating.value = false
+    buyerAddFormOpen.value = false
+  } catch { buyerCreating.value = false }
+}
+
 // ── SALES ──────────────────────────────────────────────
 const salesList  = ref([])
 const loadingS   = ref(false)
@@ -1060,7 +1297,7 @@ const sSaving = ref(false)
 const sError  = ref('')
 
 const sForm = reactive({
-  sale_date: '', item_type: 'jewelry', buyer_name: '', description: '',
+  sale_date: '', item_type: 'jewelry', buyer_name: '', buyer_phone: '', description: '',
   declared_karat: '22K', gross_weight: 0, net_weight: 0,
   rate_per_gram: 0, total_amount: 0, payment_method: 'cash', notes: '',
 })
@@ -1069,6 +1306,14 @@ function sCalc() {
   sForm.net_weight  = sForm.gross_weight || 0
   sForm.total_amount = Math.round((sForm.net_weight || 0) * (sForm.rate_per_gram || 0) * 100) / 100
 }
+
+// Auto-update rate when karat changes on new records
+watch(() => sForm.declared_karat, (karat) => {
+  if (!editingSale.value) { sForm.rate_per_gram = todayRateMap.value[karat] ?? 0; sCalc() }
+})
+watch(() => pForm.declared_karat, (karat) => {
+  if (!editingPurchase.value) { pForm.rate_per_gram = todayRateMap.value[karat] ?? 0; pCalc() }
+})
 
 async function loadSales() {
   loadingS.value = true
@@ -1081,19 +1326,25 @@ async function loadSales() {
 function openSaleModal(s) {
   editingSale.value = s
   sError.value = ''
+  buyerDropdownOpen.value = false
+  buyerAddFormOpen.value  = false
+  newBuyerName.value  = ''
+  newBuyerPhone.value = ''
   Object.assign(sForm, {
     sale_date:      s?.sale_date ?? new Date().toISOString().slice(0, 10),
     item_type:      s?.item_type ?? 'jewelry',
     buyer_name:     s?.buyer_name ?? '',
+    buyer_phone:    s?.buyer_phone ?? '',
     description:    s?.description ?? '',
     declared_karat: s?.declared_karat ?? '22K',
     gross_weight:   s?.gross_weight ?? 0,
     net_weight:     s?.net_weight ?? 0,
-    rate_per_gram:  s?.rate_per_gram ?? 0,
+    rate_per_gram:  s?.rate_per_gram ?? todayRateMap.value[s?.declared_karat ?? '22K'] ?? 0,
     total_amount:   s?.total_amount ?? 0,
     payment_method: s?.payment_method ?? 'cash',
     notes:          s?.notes ?? '',
   })
+  buyerSearch.value = sForm.buyer_name
   saleModal.value = true
 }
 
@@ -1214,7 +1465,7 @@ function a5Css() {
     .totals { display:flex; justify-content:flex-end; margin-top:8px; }
     .totals-box { min-width:220px; }
     .tline { display:flex; justify-content:space-between; font-size:11px; padding:3px 0; border-bottom:1px dashed #e5e7eb; }
-    .grand { display:flex; justify-content:space-between; font-size:14px; font-weight:800; border-top:2px solid #1a1a1a; border-bottom:2px solid #1a1a1a; padding:4px 0; margin:2px 0; }
+    .grand { display:flex; justify-content:space-between; font-size:11px; font-weight:800; border-top:2px solid #1a1a1a; border-bottom:2px solid #1a1a1a; padding:4px 0; margin:2px 0; }
     .footer { text-align:center; margin-top:16px; padding-top:10px; border-top:1px dashed #ccc; font-size:11px; }
     .sigs { display:flex; justify-content:space-between; margin-top:32px; }
     .sig { border-top:1px solid #374151; width:160px; text-align:center; padding-top:4px; font-size:10px; color:#6b7280; }
@@ -1309,9 +1560,15 @@ function printCashbook() {
 }
 
 // ── PURCHASE INVOICE PRINT ────────────────────────────
-function printPurchaseInvoice(p) {
-  const shop = shopSettings.value
+async function printPurchaseInvoice(p) {
+  let shop = shopSettings.value
+  if (!shop.shop_name) {
+    try { const { data } = await axios.get('/api/shop-branding'); shop = data; shopSettings.value = data } catch { /* non-critical */ }
+  }
   const today = new Date().toLocaleDateString('en-LK', { day: '2-digit', month: 'short', year: 'numeric' })
+  const purchaseDate = p.purchase_date
+    ? new Date(p.purchase_date).toLocaleDateString('en-LK', { day: '2-digit', month: 'short', year: 'numeric' })
+    : '—'
   const css = a5Css()
   openPrint(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Purchase — ${p.reference_number}</title>
   <style>${css}</style></head><body>
@@ -1329,7 +1586,7 @@ function printPurchaseInvoice(p) {
       <div class="inv-title" style="color:#dc2626">PURCHASE</div>
       <table class="meta-table">
         <tr><td>Ref No</td><td><strong>${p.reference_number}</strong></td></tr>
-        <tr><td>Date</td><td>${p.purchase_date}</td></tr>
+        <tr><td>Date</td><td>${purchaseDate}</td></tr>
         <tr><td>Printed</td><td>${today}</td></tr>
       </table>
     </div>
@@ -1372,7 +1629,7 @@ function printPurchaseInvoice(p) {
   <div class="footer">
     <div style="font-weight:600">Thank you!</div>
     ${shop.shop_name ? `<div style="font-size:10px;color:#888;margin-top:2px">${shop.shop_name}</div>` : ''}
-    <div style="font-size:9px;color:#bbb;margin-top:4px">CONFIDENTIAL — Private purchase record</div>
+    <div style="font-size:10px;font-weight:700;margin-top:6px;letter-spacing:0.5px">www.lumac.lk &nbsp;|&nbsp; 076 464 3050</div>
   </div>
   </body></html>`)
 }
@@ -1441,9 +1698,45 @@ function printSaleInvoice(s) {
   <div class="footer">
     <div style="font-weight:600">Thank you!</div>
     ${shop.shop_name ? `<div style="font-size:10px;color:#888;margin-top:2px">${shop.shop_name}</div>` : ''}
+    <div style="font-size:10px;font-weight:700;margin-top:6px;letter-spacing:0.5px">www.lumac.lk &nbsp;|&nbsp; 0764643050</div>
     <div style="font-size:9px;color:#bbb;margin-top:4px">CONFIDENTIAL — Private sale record</div>
   </div>
   </body></html>`)
+}
+
+// ── PRIVATE SALE SMS ───────────────────────────────────
+const privateSmsModal   = ref(false)
+const privateSmsPhone   = ref('')
+const privateSmsMessage = ref('')
+const privateSmsError   = ref('')
+const privateSmsLoading = ref(false)
+const privateSmsSent    = ref(false)
+
+function openPrivateSmsModal(s) {
+  privateSmsError.value = ''
+  privateSmsSent.value = false
+  privateSmsLoading.value = false
+  privateSmsPhone.value = s.buyer_phone || ''
+  const shop = shopSettings.value
+  const name = s.buyer_name || 'Valued Customer'
+  const amount = Number(s.total_amount).toLocaleString('en-LK', { minimumFractionDigits: 2 })
+  privateSmsMessage.value = `Dear ${name}, your sale receipt ${s.reference_number} of LKR ${amount} has been recorded. Thank you! — ${shop.shop_name || 'Lumac'} | www.lumac.lk | 0764643050`
+  privateSmsModal.value = true
+}
+
+async function submitPrivateSms() {
+  privateSmsLoading.value = true; privateSmsError.value = ''
+  try {
+    await axios.post('/api/sms/send-custom', {
+      contacts: [privateSmsPhone.value.trim()],
+      message:  privateSmsMessage.value,
+    })
+    privateSmsSent.value = true
+  } catch (e) {
+    privateSmsError.value = e.response?.data?.message ?? 'Failed to send SMS'
+  } finally {
+    privateSmsLoading.value = false
+  }
 }
 
 // ── ADJUSTMENTS ────────────────────────────────────────
@@ -1481,5 +1774,5 @@ async function saveAdj() {
 }
 
 // ── init ───────────────────────────────────────────────
-onMounted(() => Promise.all([loadShopSettings(), loadCashbook(), loadPurchases(), loadSales(), loadExpenses()]))
+onMounted(() => Promise.all([loadShopSettings(), loadCashbook(), loadPurchases(), loadSales(), loadExpenses(), loadBuyers(), loadTodayRates()]))
 </script>

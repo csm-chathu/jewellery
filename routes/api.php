@@ -33,7 +33,9 @@ use App\Http\Controllers\Api\InformalPurchaseController;
 use App\Http\Controllers\Api\PrivateCashAdjustmentController;
 use App\Http\Controllers\Api\PrivateExpenseController;
 use App\Http\Controllers\Api\PrivateSaleController;
+use App\Http\Controllers\Api\PrivateBuyerController;
 use App\Http\Controllers\Api\EpfEtfSettingController;
+use App\Http\Controllers\Api\SalaryAdvanceController;
 use App\Http\Controllers\Api\LayawayController;
 use App\Http\Controllers\Api\ReworkOrderController;
 use App\Http\Controllers\Api\CustomMadeOrderController;
@@ -194,6 +196,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/salary-payments/{salaryPayment}',  [SalaryPaymentController::class, 'destroy']);
     Route::get('/salary-payments/summary',             [SalaryPaymentController::class, 'summary']);
 
+    // Salary Advances
+    Route::get('/salary-advances',                              [SalaryAdvanceController::class, 'index']);
+    Route::post('/salary-advances',                             [SalaryAdvanceController::class, 'store']);
+    Route::delete('/salary-advances/{salaryAdvance}',           [SalaryAdvanceController::class, 'destroy']);
+    Route::get('/salary-advances/pending/{employeeId}',         [SalaryAdvanceController::class, 'pending']);
+
     // EPF / ETF rate settings
     Route::get('/epf-etf-settings',         [EpfEtfSettingController::class, 'index']);
     Route::get('/epf-etf-settings/current', [EpfEtfSettingController::class, 'current']);
@@ -231,6 +239,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/private-cash-adjustments',                        [PrivateCashAdjustmentController::class, 'store']);
     Route::put('/private-cash-adjustments/{privateCashAdjustment}', [PrivateCashAdjustmentController::class, 'update']);
     Route::delete('/private-cash-adjustments/{privateCashAdjustment}', [PrivateCashAdjustmentController::class, 'destroy']);
+
+    Route::get('/private-buyers',                        [PrivateBuyerController::class, 'index']);
+    Route::post('/private-buyers',                       [PrivateBuyerController::class, 'store']);
+    Route::put('/private-buyers/{privateBuyer}',         [PrivateBuyerController::class, 'update']);
+    Route::delete('/private-buyers/{privateBuyer}',      [PrivateBuyerController::class, 'destroy']);
 
     // Layaway / Installment Bookings
     Route::get('/layaways',                          [LayawayController::class, 'index']);
