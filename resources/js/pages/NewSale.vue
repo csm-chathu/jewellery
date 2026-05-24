@@ -711,7 +711,7 @@ async function submit() {
 
 onMounted(async () => {
   const [p, c, t, gr] = await Promise.all([
-    axios.get('/api/products', { params: { per_page: 200 } }),
+    axios.get('/api/products', { params: { per_page: 2000 } }),
     axios.get('/api/customers/all'),
     axios.get('/api/tax-settings'),
     axios.get('/api/gold-rates/today').catch(() => ({ data: null })),
