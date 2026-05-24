@@ -458,43 +458,79 @@ Date: 2025/09/22
 | AC Machine | 151,948 |
 | **Total Fixed Assets** | **3,951,948** |
 
-### Accounts to Create (Chart of Accounts)
+### Chart of Accounts — Verified Status
 
-| Code | Name | Type | Notes |
-|---|---|---|---|
-| 1000 | Cash | asset | already seeded |
-| 1010 | Bank | asset | already seeded |
-| 1200 | Inventory / Gold Stock | asset | needs creating |
-| 1500 | Fixed Assets | asset | needs creating |
-| 1510 | Key Money / Lease Deposit | asset | needs creating |
-| 2000 | Accounts Payable | liability | needs creating |
-| 2100 | Bank Loan | liability | needs creating |
-| 2110 | Finance Company Loan | liability | needs creating |
-| 2120 | Personal / Family Loan | liability | needs creating |
-| 3000 | Owner's Capital | equity | needs creating |
+#### Already seeded by migration — DO NOT recreate
+| Code | Name | Type |
+|------|------|------|
+| 1000 | Cash on Hand | asset |
+| 1010 | Bank Account | asset |
+| 1020 | Sampath Bank – Savings | asset |
+| 1210 | Inventory – Gold Stock | asset |
+| 1500 | Equipment & Fixtures | asset |
+| 1510 | Accumulated Depreciation | asset |
+| 2000 | Accounts Payable | liability |
+| 2100 | VAT / Tax Payable | liability |
+| 2500 | Long-term Loans | liability |
+| 3000 | Owner's Capital | equity |
+
+#### Must create manually (Accounts page)
+| Code | Name | Type |
+|------|------|------|
+| 1520 | Key Money / Lease Deposit | asset |
+| 2510 | Car Loan | liability |
+| 2511 | Samurdhi Loan | liability |
+| 2512 | Cop City Loan | liability |
+| 2513 | Bike Loan | liability |
+| 2520 | Personal Loan — Naudawa | liability |
+| 2521 | Personal Loan — Udaya Boss | liability |
+| 2522 | Personal Loan — Naudang | liability |
+
+### Loans from Manual Ledger (as at 2025-09-22)
+
+| Account | Code | Original (LKR) | Started | Term | Monthly | Purpose |
+|---------|------|---------------|---------|------|---------|---------|
+| Car Loan | 2510 | 2,170,000 | 2024-10-16 | 4 yrs | 67,196 | Fitting & Interiors |
+| Samurdhi Loan | 2511 | 2,000,000 | 2025-07-31 | 5 yrs | 50,000 | — |
+| Cop City Loan | 2512 | 500,000 | 2024-12-12 | 5 yrs | ? | Scale & Densy machine |
+| Bike Loan | 2513 | 446,450 | 2025-01-27 | 2 yrs | ? | Office bike |
+| Personal — Naudawa | 2520 | 595,100 | — | — | — | — |
+| Personal — Udaya Boss | 2521 | 464,000 | — | — | — | — |
+| Personal — Naudang | 2522 | 637,200 | — | — | — | — |
+
+> Opening balance entry uses **remaining balance** as of 2025-09-22, not original amount.
+> Car Loan approx remaining: ~1,430,844 (11 months × 67,196 paid)
+> Samurdhi approx remaining: ~1,900,000 (2 months × 50,000 paid)
+> Cop City & Bike Loan: check statement for exact remaining.
 
 ### Opening Balance Table (INCOMPLETE — fill in before entering)
 
-| Account | DR | CR |
-|---|---|---|
-| Fixed Assets (1500) | 3,151,948 | — |
-| Key Money (1510) | 800,000 | — |
-| Cash (1000) | **?** | — |
-| Bank (1010) | **?** | — |
-| Inventory / Gold Stock (1200) | **?** | — |
-| Accounts Payable (2000) | — | **?** |
-| Bank Loan (2100) | — | **?** |
-| Finance Loan (2110) | — | **?** |
-| Owner's Capital (3000) | — | **[sum of all DR minus other CR]** |
+| Account | Code | DR (LKR) | CR (LKR) |
+|---------|------|----------|----------|
+| Equipment & Fixtures | 1500 | 3,151,948 | — |
+| Key Money / Lease Deposit | 1520 | 800,000 | — |
+| Inventory – Gold Stock | 1210 | **?** | — |
+| Cash on Hand | 1000 | **?** | — |
+| Bank Account | 1010 | **?** | — |
+| Sampath Bank – Savings | 1020 | **?** | — |
+| Car Loan | 2510 | — | **? remaining** |
+| Samurdhi Loan | 2511 | — | **? remaining** |
+| Cop City Loan | 2512 | — | **? remaining** |
+| Bike Loan | 2513 | — | **? remaining** |
+| Personal — Naudawa | 2520 | — | 595,100 |
+| Personal — Udaya Boss | 2521 | — | 464,000 |
+| Personal — Naudang | 2522 | — | 637,200 |
+| Accounts Payable | 2000 | — | **?** |
+| Owner's Capital | 3000 | — | **= Total DR − Total CR** |
 
-> Still needed from user: Cash balance, Bank balance, Gold/Jewelry stock value, Supplier payables, Loan amounts and lenders.
+> Still missing: Cash, Bank, Sampath balance; Gold stock value at cost; Cop City & Bike Loan remaining; any supplier payables.
 
 ### Loan Management
-- User has loans taken to buy products and fixed assets
 - Each loan goes into `/loans` (Business Loans page): lender name, total amount, interest rate, repayment schedule
 - Loan outstanding balance on opening day goes as CR in opening balances (liability)
-- Assets bought with loan go as DR (inventory or fixed assets)
-- Loan repayments are tracked via `/loans/{id}/repay` which auto-posts GL entries
+- Assets bought with loan go as DR (fixed assets or inventory)
+- Loan repayments tracked via `/loans/{id}/repay` which auto-posts GL entries
+- See `OPENING_SETUP_GUIDE.md` in project root for full step-by-step entry guide
 
 ---
 

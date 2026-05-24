@@ -13,9 +13,19 @@
           Low stock only
         </label>
       </div>
-      <button @click="openCreate" class="btn-primary flex items-center gap-2">
-        <PlusIcon class="w-4 h-4" /> Add Product
-      </button>
+      <div class="flex items-center gap-2">
+        <button
+          v-if="selected.size > 0"
+          @click="printSelected"
+          class="btn-primary flex items-center gap-2"
+        >
+          <PrinterIcon class="w-4 h-4" />
+          Print {{ selected.size }} Barcode{{ selected.size === 1 ? '' : 's' }}
+        </button>
+        <button @click="openCreate" class="btn-primary flex items-center gap-2">
+          <PlusIcon class="w-4 h-4" /> Add Product
+        </button>
+      </div>
     </div>
 
     <!-- Table -->
@@ -24,6 +34,9 @@
         <table class="w-full">
           <thead class="bg-gray-50 border-b border-gray-200">
             <tr>
+              <th class="table-th w-8">
+                <input type="checkbox" :checked="allPageSelected" @change="toggleAll" class="rounded text-gold-600" />
+              </th>
               <th class="table-th">SKU</th>
               <th class="table-th">Barcode</th>
               <th class="table-th">Name</th>
@@ -37,7 +50,10 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-100">
-            <tr v-for="p in products.data" :key="p.id" class="hover:bg-gray-50">
+            <tr v-for="p in products.data" :key="p.id" class="hover:bg-gray-50" :class="selected.has(p.id) ? 'bg-emerald-50' : ''">
+              <td class="table-td">
+                <input type="checkbox" :checked="selected.has(p.id)" @change="toggleOne(p)" class="rounded text-gold-600" />
+              </td>
               <td class="table-td font-mono text-xs">{{ p.sku }}</td>
               <td class="table-td font-mono text-xs text-gray-700">{{ p.barcode || '—' }}</td>
               <td class="table-td">
@@ -73,10 +89,10 @@
               </td>
               <td class="table-td">
                 <div class="flex items-center gap-2">
-                  <button @click="reprintBarcode(p)" :disabled="printingId === p.id" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-100 text-emerald-700 hover:bg-emerald-200 whitespace-nowrap disabled:opacity-60">
+                  <button @click="printOne(p)" :disabled="printingId === p.id" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-100 text-emerald-700 hover:bg-emerald-200 whitespace-nowrap disabled:opacity-60">
                     <svg v-if="printingId === p.id" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
                     <PrinterIcon v-else class="w-3.5 h-3.5" />
-                    {{ printingId === p.id ? 'Printing…' : 'Print Barcode' }}
+                    {{ printingId === p.id ? 'Printing…' : 'Print' }}
                   </button>
                   <button @click="openEdit(p)" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200">
                     <PencilSquareIcon class="w-3.5 h-3.5" /> Edit
@@ -88,7 +104,7 @@
               </td>
             </tr>
             <tr v-if="!products.data?.length">
-              <td colspan="10" class="table-td text-center text-gray-400 py-8">No products found</td>
+              <td colspan="11" class="table-td text-center text-gray-400 py-8">No products found</td>
             </tr>
           </tbody>
         </table>
@@ -110,22 +126,49 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import { PencilSquareIcon, PlusIcon, PrinterIcon, TrashIcon } from '@heroicons/vue/24/outline'
 import JsBarcode from 'jsbarcode'
 import ProductModal from '@/components/ProductModal.vue'
 
-const products      = ref({ data: [] })
-const categories    = ref([])
-const suppliers     = ref([])
-const search        = ref('')
+const products       = ref({ data: [] })
+const categories     = ref([])
+const suppliers      = ref([])
+const search         = ref('')
 const categoryFilter = ref('')
-const lowStockOnly  = ref(false)
-const page          = ref(1)
-const showModal     = ref(false)
-const editing       = ref(null)
-const printingId    = ref(null)
+const lowStockOnly   = ref(false)
+const page           = ref(1)
+const showModal      = ref(false)
+const editing        = ref(null)
+const printingId     = ref(null)
+const selected       = ref(new Set())
+
+// maps product id → product object so we can build labels for selected items
+const productMap     = ref({})
+
+const allPageSelected = computed(() => {
+  const ids = products.value.data?.map(p => p.id) ?? []
+  return ids.length > 0 && ids.every(id => selected.value.has(id))
+})
+
+function toggleOne(p) {
+  const s = new Set(selected.value)
+  if (s.has(p.id)) s.delete(p.id)
+  else s.add(p.id)
+  selected.value = s
+}
+
+function toggleAll() {
+  const ids = products.value.data?.map(p => p.id) ?? []
+  const s = new Set(selected.value)
+  if (allPageSelected.value) {
+    ids.forEach(id => s.delete(id))
+  } else {
+    ids.forEach(id => s.add(id))
+  }
+  selected.value = s
+}
 
 let debounceTimer = null
 function debouncedFetch() {
@@ -138,6 +181,8 @@ async function fetchProducts() {
   if (lowStockOnly.value) params.low_stock = 1
   const { data } = await axios.get('/api/products', { params })
   products.value = data
+  // keep map updated so selected products retain their data
+  data.data?.forEach(p => { productMap.value[p.id] = p })
 }
 
 async function fetchRefs() {
@@ -160,22 +205,29 @@ function createBarcodeSvg(value) {
     marginRight: 3,
     displayValue: false,
   })
-  // preserveAspectRatio="none" forces the SVG to stretch to the container
-  // width rather than shrinking bars — critical for 203 DPI readability
   svg.setAttribute('preserveAspectRatio', 'none')
   return svg.outerHTML
 }
 
-function printProductBarcode(product) {
-  if (!product?.sku) return
+function buildLabelHtml(product) {
   const barcodeValue = product.barcode?.trim() || product.sku
+  const barcodeSvg   = createBarcodeSvg(barcodeValue)
+  const safeName     = (product.name ?? '').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const safeBarcode  = barcodeValue.replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const safeWeight   = product.weight != null ? parseFloat(product.weight).toFixed(2) + 'g' : ''
+  return `
+  <div class="label">
+    <div class="header">
+      <div class="name">${safeName}</div>
+      ${safeWeight ? `<div class="weight">${safeWeight}</div>` : ''}
+    </div>
+    ${barcodeSvg}
+    <div class="sku">${safeBarcode}</div>
+  </div>`
+}
 
-  const barcodeSvg  = createBarcodeSvg(barcodeValue)
-  const safeName    = (product.name ?? '').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  const safeBarcode = barcodeValue.replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  const safeWeight  = product.weight != null ? parseFloat(product.weight).toFixed(2) + 'g' : ''
-
-  const html = `<!doctype html>
+function buildPrintHtml(labelsList) {
+  return `<!doctype html>
 <html>
 <head>
   <meta charset="utf-8">
@@ -185,7 +237,7 @@ function printProductBarcode(product) {
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
-      width: 30mm; height: 20mm;
+      width: 30mm;
       margin: 0; padding: 0;
       background: #fff;
       font-family: Arial, Helvetica, sans-serif;
@@ -198,7 +250,10 @@ function printProductBarcode(product) {
       display: flex; flex-direction: column;
       align-items: center; justify-content: space-between;
       overflow: hidden;
+      page-break-after: always;
+      break-after: page;
     }
+    .label:last-child { page-break-after: avoid; break-after: avoid; }
     .header {
       display: flex; align-items: baseline; justify-content: space-between;
       width: 100%; gap: 1.5mm; flex-shrink: 0; line-height: 1;
@@ -220,22 +275,16 @@ function printProductBarcode(product) {
   </style>
 </head>
 <body>
-  <div class="label">
-    <div class="header">
-      <div class="name">${safeName}</div>
-      ${safeWeight ? `<div class="weight">${safeWeight}</div>` : ''}
-    </div>
-    ${barcodeSvg}
-    <div class="sku">${safeBarcode}</div>
-  </div>
+${labelsList.join('\n')}
 </body>
 </html>`
+}
 
+function firePrint(html) {
   if (window.electronAPI?.printBarcode) {
     window.electronAPI.printBarcode(html)
     return
   }
-
   const iframe = document.createElement('iframe')
   iframe.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;border:none;'
   document.body.appendChild(iframe)
@@ -248,10 +297,20 @@ function printProductBarcode(product) {
   })
 }
 
-function reprintBarcode(product) {
+function printOne(product) {
+  if (!product?.sku) return
   printingId.value = product.id
-  printProductBarcode(product)
+  firePrint(buildPrintHtml([buildLabelHtml(product)]))
   setTimeout(() => { printingId.value = null }, 2500)
+}
+
+function printSelected() {
+  const items = [...selected.value]
+    .map(id => productMap.value[id])
+    .filter(p => p?.sku)
+  if (!items.length) return
+  firePrint(buildPrintHtml(items.map(buildLabelHtml)))
+  selected.value = new Set()
 }
 
 async function deleteProduct(p) {
@@ -264,7 +323,7 @@ async function onSaved(payload) {
   showModal.value = false
   await fetchProducts()
   if (payload?.isNew && payload?.product) {
-    printProductBarcode(payload.product)
+    printOne(payload.product)
   }
 }
 

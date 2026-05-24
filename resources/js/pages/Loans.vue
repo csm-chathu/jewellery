@@ -49,21 +49,35 @@
         <h3 class="font-semibold text-gray-800">Create Loan</h3>
         <div class="grid grid-cols-2 gap-4">
           <div><label class="form-label">Lender *</label><input v-model="createForm.lender_name" class="form-input" /></div>
-          <div><label class="form-label">Principal *</label><input v-model.number="createForm.principal_amount" type="number" min="0" step="0.01" class="form-input" /></div>
+          <div><label class="form-label">Original Principal *</label><input v-model.number="createForm.principal_amount" type="number" min="0" step="0.01" class="form-input" /></div>
           <div><label class="form-label">Start Date *</label><input v-model="createForm.start_date" type="date" class="form-input" /></div>
           <div><label class="form-label">Due Date</label><input v-model="createForm.due_date" type="date" class="form-input" /></div>
+          <div><label class="form-label">Monthly Installment</label><input v-model.number="createForm.monthly_installment" type="number" min="0" step="0.01" class="form-input" placeholder="0.00" /></div>
+          <div><label class="form-label">Outstanding Balance *</label>
+            <input v-model.number="createForm.outstanding_balance" type="number" min="0" step="0.01" class="form-input" placeholder="Remaining amount owed" />
+            <p class="text-xs text-gray-400 mt-0.5">For new loans = principal. For existing loans = remaining balance.</p>
+          </div>
           <div><label class="form-label">Liability Account *</label>
             <select v-model="createForm.liability_account_id" class="form-input">
               <option value="">Select</option>
               <option v-for="a in liabilityAccounts" :key="a.id" :value="a.id">{{ a.code }} - {{ a.name }}</option>
             </select>
           </div>
-          <div><label class="form-label">Received To Account *</label>
+          <div><label class="form-label">Received To Account</label>
             <select v-model="createForm.received_to_account_id" class="form-input">
-              <option value="">Select</option>
+              <option value="">Select (leave blank for existing loans)</option>
               <option v-for="a in assetAccounts" :key="a.id" :value="a.id">{{ a.code }} - {{ a.name }}</option>
             </select>
           </div>
+        </div>
+        <div class="col-span-2 mt-1">
+          <label class="flex items-start gap-2 cursor-pointer">
+            <input type="checkbox" v-model="createForm.skip_gl" class="mt-0.5 rounded text-amber-500" />
+            <span class="text-sm text-gray-700">
+              <span class="font-medium">Skip GL posting</span>
+              <span class="text-gray-400 ml-1">— tick this for existing/half-paid loans already entered in Opening Balances</span>
+            </span>
+          </label>
         </div>
         <div class="flex justify-end gap-2">
           <button @click="showCreate = false" class="btn-secondary">Cancel</button>
@@ -106,8 +120,9 @@ const showCreate = ref(false)
 const repayLoan = ref(null)
 
 const createForm = ref({
-  lender_name: '', principal_amount: 0, start_date: today(), due_date: '',
-  liability_account_id: '', received_to_account_id: '',
+  lender_name: '', principal_amount: 0, outstanding_balance: null,
+  monthly_installment: null, start_date: today(), due_date: '',
+  liability_account_id: '', received_to_account_id: '', skip_gl: false,
 })
 const repayForm = ref({ payment_date: today(), principal_amount: 0, interest_amount: 0, paid_from_account_id: '' })
 
@@ -124,9 +139,14 @@ async function load() {
 }
 
 async function createLoan() {
-  await axios.post('/api/loans', createForm.value)
+  const payload = {
+    ...createForm.value,
+    post_to_gl: !createForm.value.skip_gl,
+    outstanding_balance: createForm.value.outstanding_balance ?? createForm.value.principal_amount,
+  }
+  await axios.post('/api/loans', payload)
   showCreate.value = false
-  createForm.value = { lender_name: '', principal_amount: 0, start_date: today(), due_date: '', liability_account_id: '', received_to_account_id: '' }
+  createForm.value = { lender_name: '', principal_amount: 0, outstanding_balance: null, monthly_installment: null, start_date: today(), due_date: '', liability_account_id: '', received_to_account_id: '', skip_gl: false }
   load()
 }
 
