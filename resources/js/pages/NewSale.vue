@@ -238,6 +238,11 @@
               <input v-model="newCustomer.phone" type="tel" placeholder="Phone number"
                 class="form-input text-sm" @keyup.enter="saveNewCustomer" />
             </div>
+            <div>
+              <label class="text-xs text-gray-500 block mb-1">Address</label>
+              <input v-model="newCustomer.address" type="text" placeholder="Address (optional)"
+                class="form-input text-sm" />
+            </div>
             <p v-if="newCustomerError" class="text-xs text-red-600">{{ newCustomerError }}</p>
             <button @click="saveNewCustomer" :disabled="savingCustomer || !newCustomer.name.trim()" type="button"
               class="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors">
@@ -435,7 +440,7 @@ const selectedTaxId    = ref('')
 const showNewCustomer  = ref(false)
 const savingCustomer   = ref(false)
 const newCustomerError = ref('')
-const newCustomer      = reactive({ name: '', phone: '', nic: '' })
+const newCustomer      = reactive({ name: '', phone: '', nic: '', address: '' })
 
 // Barcode scanner
 const barcodeInput = ref('')
@@ -540,14 +545,15 @@ async function saveNewCustomer() {
   savingCustomer.value = true; newCustomerError.value = ''
   try {
     const { data } = await axios.post('/api/customers', {
-      name:  newCustomer.name.trim(),
-      phone: newCustomer.phone.trim() || null,
-      nic: newCustomer.nic.trim() || null,
+      name:    newCustomer.name.trim(),
+      phone:   newCustomer.phone.trim() || null,
+      nic:     newCustomer.nic.trim() || null,
+      address: newCustomer.address.trim() || null,
     })
     customers.value.unshift(data)
     form.customer_id = data.id
     showNewCustomer.value = false
-    newCustomer.name = ''; newCustomer.phone = ''; newCustomer.nic = ''
+    newCustomer.name = ''; newCustomer.phone = ''; newCustomer.nic = ''; newCustomer.address = ''
   } catch (e) {
     newCustomerError.value = e.response?.data?.message
       ?? Object.values(e.response?.data?.errors ?? {}).flat().join(', ')
