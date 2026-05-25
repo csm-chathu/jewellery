@@ -304,7 +304,9 @@
               <div v-if="Number(sale.subtotal) !== Number(sale.total)" class="inv-total-line">
                 <span>Subtotal</span><span>LKR {{ lkr(sale.subtotal) }}</span>
               </div>
-
+              <div v-if="Number(sale.discount) > 0" class="inv-total-line" style="color:#dc2626;">
+                <span>Discount</span><span>- LKR {{ lkr(sale.discount) }}</span>
+              </div>
               <div v-if="Number(sale.tax) > 0" class="inv-total-line">
                 <span>Tax ({{ sale.tax_rate }}%)</span><span>+ LKR {{ lkr(sale.tax) }}</span>
               </div>
