@@ -81,6 +81,7 @@
             <tr>
               <th class="table-th w-36">Invoice</th>
               <th class="table-th">Customer</th>
+              <th class="table-th">Items</th>
               <th class="table-th w-28">Date</th>
               <th class="table-th w-24">Type</th>
               <th class="table-th w-36 text-right">Total</th>
@@ -92,7 +93,7 @@
           </thead>
           <tbody class="divide-y divide-gray-100">
             <tr v-if="loading">
-              <td colspan="9" class="table-td text-center py-10 text-gray-400">
+              <td colspan="10" class="table-td text-center py-10 text-gray-400">
                 <div class="flex items-center justify-center gap-2">
                   <ArrowPathIcon class="w-4 h-4 animate-spin" /> Loading…
                 </div>
@@ -114,6 +115,16 @@
                     <div>
                       <p class="text-sm font-medium text-gray-800">{{ s.customer?.name ?? 'Walk-in' }}</p>
                       <p v-if="s.customer?.phone" class="text-xs text-gray-400">{{ s.customer.phone }}</p>
+                    </div>
+                  </div>
+                </td>
+                <td class="table-td">
+                  <div class="space-y-1">
+                    <div v-for="item in s.items" :key="item.id" class="text-xs">
+                      <span class="font-medium text-gray-800">{{ item.product?.name }}</span>
+                      <span v-if="item.product?.category?.name" class="ml-1 text-gray-400">({{ item.product.category.name }})</span>
+                      <span v-if="item.product?.weight" class="ml-1 text-amber-600 font-medium">{{ item.product.weight }}g</span>
+                      <span v-if="item.quantity > 1" class="ml-1 text-gray-400">×{{ item.quantity }}</span>
                     </div>
                   </div>
                 </td>
@@ -168,7 +179,7 @@
                 </td>
               </tr>
               <tr v-if="!sales.data?.length">
-                <td colspan="9" class="table-td text-center py-12">
+                <td colspan="10" class="table-td text-center py-12">
                   <div class="flex flex-col items-center gap-2 text-gray-400">
                     <ReceiptPercentIcon class="w-10 h-10 opacity-30" />
                     <span>No sales found</span>

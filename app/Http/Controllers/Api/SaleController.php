@@ -24,7 +24,7 @@ class SaleController extends Controller
     public function index()
     {
         $user = request()->user();
-        $sales = Sale::with(['customer:id,name', 'user:id,name', 'journalEntry:id,entry_number'])
+        $sales = Sale::with(['customer:id,name', 'user:id,name', 'journalEntry:id,entry_number', 'items.product:id,name,weight,category_id', 'items.product.category:id,name'])
             ->when(!$user->isAdmin(), fn($q) => $q->where('branch_id', $user->branch_id))
             ->when(request('search'), fn($q, $s) => $q->where('invoice_number', 'like', "%$s%"))
             ->when(request('customer_id'), fn($q, $c) => $q->where('customer_id', $c))
