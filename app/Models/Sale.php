@@ -14,7 +14,7 @@ class Sale extends Model
     protected $fillable = [
         'branch_id', 'invoice_number', 'customer_id', 'user_id', 'subtotal',
         'discount', 'tax', 'gold_value_total', 'gemstone_value_total',
-        'making_charges_total', 'wastage_total', 'tax_rate', 'total',
+        'making_charges_total', 'wastage_total', 'tax_rate', 'total', 'official_total',
         'payment_method', 'payment_status', 'sale_type', 'delivery_status',
         'booking_expires_at', 'delivered_at', 'amount_paid', 'notes',
         'journal_entry_id', 'sold_at', 'view_token',
@@ -41,8 +41,9 @@ class Sale extends Model
         'making_charges_total' => 'float',
         'wastage_total' => 'float',
         'tax_rate'    => 'float',
-        'total'      => 'float',
-        'amount_paid'=> 'float',
+        'total'          => 'float',
+        'official_total' => 'float',
+        'amount_paid'    => 'float',
     ];
 
     public function customer()

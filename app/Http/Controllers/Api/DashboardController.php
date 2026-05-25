@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\BusinessLoan;
 use App\Models\Customer;
 use App\Models\Product;
 use App\Models\Purchase;
@@ -35,37 +36,47 @@ class DashboardController extends Controller
                 'products'         => (clone $productsQuery)->count(),
                 'customers'        => (clone $customersQuery)->count(),
                 'sales_today'      => (clone $salesQuery)->whereDate('sold_at', $today)->count(),
-                'revenue_today'    => (clone $salesQuery)->whereDate('sold_at', $today)->where('payment_status', 'paid')->sum('total'),
-                'revenue_month'    => (clone $salesQuery)->where('sold_at', '>=', $thisMonth)->where('payment_status', 'paid')->sum('total'),
+                'revenue_today'    => (clone $salesQuery)->whereDate('sold_at', $today)->where('payment_status', 'paid')->sum(DB::raw('COALESCE(official_total, total)')),
+                'revenue_month'    => (clone $salesQuery)->where('sold_at', '>=', $thisMonth)->where('payment_status', 'paid')->sum(DB::raw('COALESCE(official_total, total)')),
                 'purchases_month'  => (clone $purchasesQuery)->where('purchased_at', '>=', $thisMonth)->sum('total'),
-                'low_stock_count'  => (clone $productsQuery)->whereColumn('stock_quantity', '<=', 'min_stock_level')->count(),
+                'low_stock_count'  => (clone $productsQuery)->where('stock_quantity', '<=', 0)->count(),
             ],
             'sales_chart' => (clone $salesQuery)->select(
                     DB::raw('DATE(sold_at) as date'),
-                    DB::raw('SUM(total) as revenue'),
+                    DB::raw('SUM(COALESCE(official_total, total)) as revenue'),
                     DB::raw('COUNT(*) as count')
                 )
                 ->where('sold_at', '>=', now()->subDays(30))
                 ->groupBy('date')
                 ->orderBy('date')
                 ->get(),
-            'top_products' => Product::select('products.id', 'products.name', DB::raw('SUM(sale_items.quantity) as total_sold'))
-                ->join('sale_items', 'products.id', '=', 'sale_items.product_id')
+            'top_categories' => DB::table('sale_items')
                 ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
+                ->join('products', 'sale_items.product_id', '=', 'products.id')
+                ->join('categories', 'products.category_id', '=', 'categories.id')
                 ->where('sales.sold_at', '>=', $thisMonth)
+                ->whereNull('sales.deleted_at')
                 ->when(!$user->isAdmin(), fn($q) => $q->where('products.branch_id', $user->branch_id))
-                ->groupBy('products.id', 'products.name')
+                ->select('categories.id', 'categories.name', DB::raw('SUM(sale_items.quantity) as total_sold'))
+                ->groupBy('categories.id', 'categories.name')
                 ->orderByDesc('total_sold')
                 ->take(5)
                 ->get(),
             'low_stock' => (clone $productsQuery)->with('category:id,name')
-                ->whereColumn('stock_quantity', '<=', 'min_stock_level')
+                ->where('stock_quantity', '<=', 0)
                 ->take(10)
                 ->get(['id', 'name', 'sku', 'stock_quantity', 'min_stock_level', 'category_id']),
             'recent_sales' => (clone $salesQuery)->with('customer:id,name')
                 ->latest('sold_at')
                 ->take(5)
                 ->get(['id', 'invoice_number', 'customer_id', 'total', 'payment_status', 'sold_at']),
+            'loan_due_soon' => BusinessLoan::with(['liabilityAccount:id,code,name'])
+                ->where('status', 'active')
+                ->whereNotNull('next_payment_date')
+                ->whereDate('next_payment_date', '<=', now()->addDays(3))
+                ->when(!$user->isAdmin(), fn($q) => $q->where('branch_id', $user->branch_id))
+                ->orderBy('next_payment_date')
+                ->get(['id', 'loan_number', 'lender_name', 'monthly_installment', 'outstanding_balance', 'next_payment_date', 'liability_account_id']),
             'cheque_reminders' => (clone $purchasesQuery)
                 ->with('supplier:id,name')
                 ->where('payment_method', 'cheque')

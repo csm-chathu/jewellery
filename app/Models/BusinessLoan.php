@@ -11,7 +11,7 @@ class BusinessLoan extends Model
 
     protected $fillable = [
         'loan_number', 'source', 'lender_name', 'customer_id', 'principal_amount', 'outstanding_balance',
-        'interest_rate', 'monthly_installment', 'start_date', 'due_date',
+        'interest_rate', 'monthly_installment', 'start_date', 'due_date', 'next_payment_date',
         'liability_account_id', 'received_to_account_id', 'journal_entry_id',
         'status', 'notes', 'branch_id', 'user_id',
     ];
@@ -21,8 +21,9 @@ class BusinessLoan extends Model
         'outstanding_balance' => 'float',
         'interest_rate' => 'float',
         'monthly_installment' => 'float',
-        'start_date' => 'date',
-        'due_date' => 'date',
+        'start_date'        => 'date',
+        'due_date'          => 'date',
+        'next_payment_date' => 'date',
     ];
 
     public function customer()

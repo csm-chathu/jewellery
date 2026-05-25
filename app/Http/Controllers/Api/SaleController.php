@@ -196,6 +196,7 @@ class SaleController extends Controller
                 'tax'                   => $tax,
                 'tax_rate'              => $data['tax_rate'] ?? 0,
                 'total'                 => $total,
+                'official_total'        => $officialTotal,
                 'gold_value_total'      => $goldTotal,
                 'gemstone_value_total'  => $gemTotal,
                 'making_charges_total'  => $mcTotal,

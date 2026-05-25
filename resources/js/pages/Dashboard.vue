@@ -21,16 +21,16 @@
 
       <!-- Top products -->
       <div class="card">
-        <h3 class="font-semibold text-gray-700 mb-4">Top Products (This Month)</h3>
+        <h3 class="font-semibold text-gray-700 mb-4">Top Categories (This Month)</h3>
         <ul class="space-y-3">
-          <li v-for="(p, i) in data.top_products" :key="p.id" class="flex items-center gap-3">
+          <li v-for="(c, i) in data.top_categories" :key="c.id" class="flex items-center gap-3">
             <span class="w-6 h-6 rounded-full bg-gold-100 text-gold-700 flex items-center justify-center text-xs font-bold">{{ i+1 }}</span>
             <div class="flex-1 min-w-0">
-              <p class="text-sm font-medium text-gray-800 truncate">{{ p.name }}</p>
-              <p class="text-xs text-gray-400">{{ p.total_sold }} sold</p>
+              <p class="text-sm font-medium text-gray-800 truncate">{{ c.name }}</p>
+              <p class="text-xs text-gray-400">{{ c.total_sold }} sold</p>
             </div>
           </li>
-          <li v-if="!data.top_products?.length" class="text-sm text-gray-400">No sales this month</li>
+          <li v-if="!data.top_categories?.length" class="text-sm text-gray-400">No sales this month</li>
         </ul>
       </div>
     </div>
@@ -73,6 +73,87 @@
             <p class="text-sm font-bold text-gray-800">LKR {{ Number(c.total).toLocaleString() }}</p>
             <p class="text-xs font-semibold mt-0.5" :class="chequeDueColor(c)">{{ chequeDueLabel(c) }}</p>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loan Payment Reminders -->
+    <div v-if="loansDueSoon.length" class="card border-l-4 border-l-red-400 p-0 overflow-hidden">
+      <div class="flex items-center justify-between px-5 py-3 bg-red-50 border-b border-red-100">
+        <div class="flex items-center gap-2">
+          <span class="text-red-500">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+          </span>
+          <h3 class="font-semibold text-red-800">Loan Installments Due</h3>
+          <span class="ml-1 text-xs font-bold bg-red-200 text-red-800 rounded-full px-2 py-0.5">{{ loansDueSoon.length }}</span>
+        </div>
+        <router-link to="/loans" class="text-xs text-red-600 hover:underline font-medium">View all →</router-link>
+      </div>
+      <div class="divide-y divide-gray-100">
+        <div v-for="loan in loansDueSoon" :key="loan.id"
+          class="flex items-center justify-between px-5 py-3 hover:bg-gray-50"
+          :class="loanDueBg(loan)">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-full flex items-center justify-center shrink-0 bg-red-100 text-red-600">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+              </svg>
+            </div>
+            <div>
+              <p class="text-sm font-semibold text-gray-800">{{ loan.loan_number }}
+                <span class="font-normal text-gray-500 ml-1">· {{ loan.lender_name }}</span>
+              </p>
+              <p class="text-xs text-gray-500">Installment: LKR {{ Number(loan.monthly_installment || 0).toLocaleString() }}</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 shrink-0 ml-4">
+            <div class="text-right">
+              <p class="text-xs font-semibold" :class="loanDueColor(loan)">{{ loanDueLabel(loan) }}</p>
+              <p class="text-xs text-gray-400">{{ loan.next_payment_date }}</p>
+            </div>
+            <button @click="openPayInstallment(loan)"
+              class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg transition-colors">
+              Pay
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pay Installment Modal -->
+    <div v-if="payInstallmentLoan" class="fixed inset-0 bg-black/40 z-50 p-4 flex items-center justify-center">
+      <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
+        <h3 class="font-semibold text-gray-800">Pay Installment — {{ payInstallmentLoan.loan_number }}</h3>
+        <p class="text-sm text-gray-500">{{ payInstallmentLoan.lender_name }} · Due: {{ payInstallmentLoan.next_payment_date }}</p>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="form-label">Payment Date *</label>
+            <input v-model="installmentForm.payment_date" type="date" class="form-input" />
+          </div>
+          <div>
+            <label class="form-label">Paid From Account *</label>
+            <select v-model="installmentForm.paid_from_account_id" class="form-input">
+              <option value="">Select account</option>
+              <option v-for="a in installmentAccounts" :key="a.id" :value="a.id">{{ a.code }} - {{ a.name }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Principal (LKR)</label>
+            <input v-model.number="installmentForm.principal_amount" type="number" min="0" step="0.01" class="form-input" />
+          </div>
+          <div>
+            <label class="form-label">Interest (LKR)</label>
+            <input v-model.number="installmentForm.interest_amount" type="number" min="0" step="0.01" class="form-input" />
+          </div>
+        </div>
+        <p v-if="installmentError" class="text-sm text-red-600 bg-red-50 px-3 py-2 rounded">{{ installmentError }}</p>
+        <div class="flex justify-end gap-2">
+          <button @click="payInstallmentLoan = null" class="btn-secondary">Cancel</button>
+          <button @click="submitInstallment" :disabled="installmentSaving" class="btn-primary">
+            {{ installmentSaving ? 'Posting…' : 'Post Payment & GL' }}
+          </button>
         </div>
       </div>
     </div>
@@ -174,6 +255,73 @@ const chartOptions = {
 }
 
 const chequeReminders = computed(() => data.value.cheque_reminders ?? [])
+const loansDueSoon   = computed(() => data.value.loan_due_soon ?? [])
+
+// ── Pay Installment ──────────────────────────────────────────────────────────
+const payInstallmentLoan  = ref(null)
+const installmentAccounts = ref([])
+const installmentSaving   = ref(false)
+const installmentError    = ref('')
+const installmentForm     = ref({ payment_date: '', principal_amount: 0, interest_amount: 0, paid_from_account_id: '' })
+
+async function openPayInstallment(loan) {
+  payInstallmentLoan.value = loan
+  installmentError.value   = ''
+  installmentForm.value    = {
+    payment_date:        new Date().toISOString().slice(0, 10),
+    principal_amount:    Number(loan.monthly_installment || 0),
+    interest_amount:     0,
+    paid_from_account_id: '',
+  }
+  if (!installmentAccounts.value.length) {
+    const { data: accs } = await axios.get('/api/accounts/all')
+    installmentAccounts.value = accs.filter(a => a.type === 'asset')
+  }
+}
+
+async function submitInstallment() {
+  installmentError.value = ''
+  if (!installmentForm.value.paid_from_account_id) {
+    installmentError.value = 'Please select an account to pay from.'
+    return
+  }
+  installmentSaving.value = true
+  try {
+    await axios.post(`/api/loans/${payInstallmentLoan.value.id}/repay`, installmentForm.value)
+    payInstallmentLoan.value = null
+    const { data: d } = await axios.get('/api/dashboard')
+    data.value = d
+  } catch (e) {
+    installmentError.value = e.response?.data?.message ?? 'Failed to post payment.'
+  } finally {
+    installmentSaving.value = false
+  }
+}
+
+function loanDueDays(loan) {
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const due   = new Date(loan.next_payment_date); due.setHours(0, 0, 0, 0)
+  return Math.round((due - today) / 86400000)
+}
+function loanDueLabel(loan) {
+  const d = loanDueDays(loan)
+  if (d < 0)   return `Overdue by ${Math.abs(d)} day${Math.abs(d) > 1 ? 's' : ''}`
+  if (d === 0) return 'Due today!'
+  if (d === 1) return 'Due tomorrow'
+  return `Due in ${d} days`
+}
+function loanDueColor(loan) {
+  const d = loanDueDays(loan)
+  if (d < 0)  return 'text-red-600'
+  if (d <= 1) return 'text-red-500'
+  return 'text-amber-600'
+}
+function loanDueBg(loan) {
+  const d = loanDueDays(loan)
+  if (d < 0)  return 'bg-red-50'
+  if (d <= 1) return 'bg-amber-50'
+  return ''
+}
 
 function chequeDays(c) {
   const today = new Date(); today.setHours(0,0,0,0)

@@ -127,7 +127,10 @@
                   </span>
                 </td>
                 <td class="table-td text-right">
-                  <span class="font-bold text-amber-700">LKR {{ Number(s.total).toLocaleString() }}</span>
+                  <span class="font-bold text-amber-700">LKR {{ Number(s.official_total ?? s.total).toLocaleString() }}</span>
+                  <p v-if="s.official_total != null && s.official_total !== s.total" class="text-xs text-gray-400 mt-0.5">
+                    Billed: {{ Number(s.total).toLocaleString() }}
+                  </p>
                 </td>
                 <td class="table-td">
                   <span :class="methodClass(s.payment_method)"
@@ -370,15 +373,16 @@ function clearFilters() {
   page.value = 1; fetchData()
 }
 
+const realTotal = (s) => Number(s.official_total ?? s.total)
 const totalRevenue = computed(() => {
-  const sum = (sales.value.data ?? []).reduce((acc, s) => acc + Number(s.total), 0)
+  const sum = (sales.value.data ?? []).reduce((acc, s) => acc + realTotal(s), 0)
   return Number(sum).toLocaleString()
 })
 const paidCount = computed(() => (sales.value.data ?? []).filter(s => s.payment_status === 'paid').length)
 const avgSale = computed(() => {
   const d = sales.value.data ?? []
   if (!d.length) return '0'
-  return Number(d.reduce((a, s) => a + Number(s.total), 0) / d.length).toLocaleString('en-LK', { maximumFractionDigits: 0 })
+  return Number(d.reduce((a, s) => a + realTotal(s), 0) / d.length).toLocaleString('en-LK', { maximumFractionDigits: 0 })
 })
 
 function formatTime(d) {

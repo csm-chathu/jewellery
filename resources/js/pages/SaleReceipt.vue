@@ -139,9 +139,8 @@
                 <span v-if="item.product?.karat">{{ item.product.karat }}</span>
                 <span v-if="item.product?.weight"> {{ item.product.weight }}g</span>
               </div>
-              <div v-if="item.gold_value || item.making_charge || item.wastage_amount || item.gemstone_value"
+              <div v-if="item.making_charge || item.wastage_amount || item.gemstone_value"
                 style="font-size:9px; color:#555; padding-left:2px;">
-                <span v-if="item.gold_value">Gold:{{ lkr(item.gold_value) }}  </span>
                 <span v-if="item.gemstone_value">Gem:{{ lkr(item.gemstone_value) }}  </span>
                 <span v-if="item.making_charge">MC:{{ lkr(item.making_charge) }}  </span>
                 <span v-if="item.wastage_amount">Wst:{{ lkr(item.wastage_amount) }}</span>
@@ -214,15 +213,13 @@
 
           <!-- SHOP HEADER -->
           <div class="inv-header">
+            <!-- Left: Logo + Shop Name -->
             <div class="inv-logo-block">
               <img v-if="shop.logo_url" :src="shop.logo_url" alt="logo" class="inv-logo" />
-              <div>
-                <div class="inv-shop-name">{{ shop.shop_name || appName }}</div>
-                <div v-if="shop.address" class="inv-shop-sub" style="white-space:pre-line;">{{ shop.address }}</div>
-                <div v-if="shop.phone"     class="inv-shop-sub">Tel: {{ shop.phone }}</div>
-                <div v-if="shop.br_number" class="inv-shop-sub">BR No: {{ shop.br_number }}</div>
-              </div>
+              <div class="inv-shop-name">{{ shop.shop_name || appName }}</div>
             </div>
+
+            <!-- Right: Shop contact + Invoice meta -->
             <div class="inv-meta-block">
               <div v-if="sale.sale_type === 'booking'" style="text-align:right; margin-bottom:6px;">
                 <span style="background:#7c3aed; color:#fff; font-size:10px; font-weight:700; padding:2px 8px; border-radius:4px; letter-spacing:1px; text-transform:uppercase;">Booking Advance</span>
@@ -243,6 +240,15 @@
                 </tbody>
               </table>
             </div>
+          </div>
+
+          <!-- SHOP CONTACT BAR -->
+          <div v-if="shop.address || shop.phone || shop.br_number" class="inv-contact-bar">
+            <span v-if="shop.address">{{ shop.address }}</span>
+            <span v-if="shop.address && (shop.phone || shop.br_number)" class="inv-contact-sep">|</span>
+            <span v-if="shop.phone">Tel: {{ shop.phone }}</span>
+            <span v-if="shop.phone && shop.br_number" class="inv-contact-sep">|</span>
+            <span v-if="shop.br_number">BR No: {{ shop.br_number }}</span>
           </div>
 
           <!-- CUSTOMER -->
@@ -272,9 +278,8 @@
                     <span v-if="item.product?.karat">  Â·  {{ item.product.karat }}</span>
                     <span v-if="item.product?.weight">  Â·  {{ item.product.weight }}g</span>
                   </div>
-                  <div v-if="item.gold_value || item.making_charge || item.wastage_amount || item.gemstone_value"
+                  <div v-if="item.making_charge || item.wastage_amount || item.gemstone_value"
                     style="font-size:10px; color:#888; margin-top:2px;">
-                    <span v-if="item.gold_value">Gold: LKR {{ lkr(item.gold_value) }}  </span>
                     <span v-if="item.gemstone_value">Gem: LKR {{ lkr(item.gemstone_value) }}  </span>
                     <span v-if="item.making_charge">Making: LKR {{ lkr(item.making_charge) }}  </span>
                     <span v-if="item.wastage_amount">Wastage: LKR {{ lkr(item.wastage_amount) }}</span>
@@ -688,15 +693,17 @@ onMounted(async () => {
   box-sizing: border-box;
 }
 .inv-header       { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:12px; padding-bottom:10px; border-bottom:2px solid #1a1a1a; }
-.inv-logo-block   { display:flex; align-items:flex-start; gap:10px; }
-.inv-logo         { max-height:52px; max-width:80px; object-fit:contain; }
-.inv-shop-name    { font-size:15px; font-weight:800; letter-spacing:0.5px; text-transform:uppercase; margin-bottom:2px; }
-.inv-shop-sub     { font-size:10px; color:#555; line-height:1.5; }
-.inv-meta-block   { text-align:right; min-width:140px; }
+.inv-logo-block   { display:flex; flex-direction:column; align-items:flex-start; gap:6px; }
+.inv-logo         { max-height:70px; max-width:85px; object-fit:contain; flex-shrink:0; }
+.inv-shop-name    { font-size:16px; font-weight:800; letter-spacing:0.5px; text-transform:uppercase; }
+.inv-shop-sub     { font-size:10px; color:#555; line-height:1.6; }
+.inv-meta-block   { text-align:right; min-width:160px; flex-shrink:0; }
+.inv-contact-bar  { text-align:center; font-size:10px; color:#555; padding:5px 0 8px; border-bottom:1px solid #ddd; margin-bottom:10px; line-height:1.6; }
+.inv-contact-sep  { margin:0 6px; color:#bbb; }
 .inv-title        { font-size:22px; font-weight:900; letter-spacing:3px; color:#1a1a1a; margin-bottom:6px; }
 .inv-meta-table   { font-size:10px; border-collapse:collapse; margin-left:auto; }
-.inv-meta-table td { padding:1px 4px; }
-.inv-meta-table td:first-child { color:#888; text-align:right; }
+.inv-meta-table td { padding:3px 6px; }
+.inv-meta-table td:first-child { color:#888; text-align:right; white-space:nowrap; }
 .inv-meta-table td:last-child  { font-size:11px; text-align:left; }
 .inv-customer     { font-size:11px; background:#f9f9f9; border:1px solid #e5e7eb; padding:6px 10px; border-radius:4px; margin-bottom:10px; }
 .inv-items-table  { width:100%; border-collapse:collapse; font-size:11px; margin-bottom:10px; }

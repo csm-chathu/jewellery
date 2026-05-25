@@ -41,6 +41,7 @@ class LoanController extends Controller
             'outstanding_balance'    => 'nullable|numeric|min:0',
             'start_date'             => 'required|date',
             'due_date'               => 'nullable|date|after_or_equal:start_date',
+            'next_payment_date'      => 'nullable|date',
             'liability_account_id'   => 'nullable|exists:accounts,id',
             'received_to_account_id' => 'nullable|exists:accounts,id',
             'status'                 => 'nullable|in:active,closed',
@@ -155,6 +156,9 @@ class LoanController extends Controller
 
             $loan->outstanding_balance = max(0, round($loan->outstanding_balance - $principal, 2));
             $loan->status = $loan->outstanding_balance <= 0.0001 ? 'closed' : 'active';
+            if ($loan->next_payment_date && $loan->status === 'active') {
+                $loan->next_payment_date = $loan->next_payment_date->addMonth();
+            }
             $loan->save();
 
             AuditLog::record('loan_repayment', "Loan repayment {$repayment->payment_number} posted", $loan);

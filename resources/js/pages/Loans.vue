@@ -15,6 +15,7 @@
             <th class="table-th">Loan #</th>
             <th class="table-th">Lender</th>
             <th class="table-th">Start</th>
+            <th class="table-th">Next Payment</th>
             <th class="table-th text-right">Principal</th>
             <th class="table-th text-right">Outstanding</th>
             <th class="table-th">Status</th>
@@ -26,6 +27,13 @@
             <td class="table-td font-mono text-xs">{{ loan.loan_number }}</td>
             <td class="table-td">{{ loan.lender_name }}</td>
             <td class="table-td text-xs text-gray-500">{{ fmtDate(loan.start_date) }}</td>
+            <td class="table-td text-xs">
+              <span v-if="loan.next_payment_date"
+                :class="isDueSoon(loan.next_payment_date) ? 'text-red-600 font-semibold' : 'text-gray-500'">
+                {{ fmtDate(loan.next_payment_date) }}
+              </span>
+              <span v-else class="text-gray-300">—</span>
+            </td>
             <td class="table-td text-right">{{ lkr(loan.principal_amount) }}</td>
             <td class="table-td text-right font-semibold" :class="loan.outstanding_balance > 0 ? 'text-red-700' : 'text-green-700'">
               {{ lkr(loan.outstanding_balance) }}
@@ -52,6 +60,7 @@
           <div><label class="form-label">Original Principal *</label><input v-model.number="createForm.principal_amount" type="number" min="0" step="0.01" class="form-input" /></div>
           <div><label class="form-label">Start Date *</label><input v-model="createForm.start_date" type="date" class="form-input" /></div>
           <div><label class="form-label">Due Date</label><input v-model="createForm.due_date" type="date" class="form-input" /></div>
+          <div><label class="form-label">Next Payment Date</label><input v-model="createForm.next_payment_date" type="date" class="form-input" /></div>
           <div><label class="form-label">Monthly Installment</label><input v-model.number="createForm.monthly_installment" type="number" min="0" step="0.01" class="form-input" placeholder="0.00" /></div>
           <div><label class="form-label">Outstanding Balance *</label>
             <input v-model.number="createForm.outstanding_balance" type="number" min="0" step="0.01" class="form-input" placeholder="Remaining amount owed" />
@@ -121,7 +130,7 @@ const repayLoan = ref(null)
 
 const createForm = ref({
   lender_name: '', principal_amount: 0, outstanding_balance: null,
-  monthly_installment: null, start_date: today(), due_date: '',
+  monthly_installment: null, start_date: today(), due_date: '', next_payment_date: '',
   liability_account_id: '', received_to_account_id: '', skip_gl: false,
 })
 const repayForm = ref({ payment_date: today(), principal_amount: 0, interest_amount: 0, paid_from_account_id: '' })
@@ -146,7 +155,7 @@ async function createLoan() {
   }
   await axios.post('/api/loans', payload)
   showCreate.value = false
-  createForm.value = { lender_name: '', principal_amount: 0, outstanding_balance: null, monthly_installment: null, start_date: today(), due_date: '', liability_account_id: '', received_to_account_id: '', skip_gl: false }
+  createForm.value = { lender_name: '', principal_amount: 0, outstanding_balance: null, monthly_installment: null, start_date: today(), due_date: '', next_payment_date: '', liability_account_id: '', received_to_account_id: '', skip_gl: false }
   load()
 }
 
@@ -164,6 +173,10 @@ async function submitRepayment() {
 function lkr(v) { return Number(v || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }
 function fmtDate(v) { return _fmtDate(v) }
 function today() { return new Date().toISOString().slice(0, 10) }
+function isDueSoon(date) {
+  const diff = (new Date(date) - new Date()) / (1000 * 60 * 60 * 24)
+  return diff <= 3
+}
 
 onMounted(load)
 </script>
