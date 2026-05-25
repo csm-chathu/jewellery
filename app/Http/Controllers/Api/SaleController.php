@@ -401,11 +401,18 @@ class SaleController extends Controller
             foreach ($sale->items as $item) {
                 $item->product->increment('stock_quantity', $item->quantity);
             }
-            AuditLog::record('sale_deleted', "Sale {$sale->invoice_number} deleted, stock restored", $sale,
+
+            // Delete the linked GL journal entry and its lines
+            if ($sale->journal_entry_id && $je = $sale->journalEntry()->withTrashed()->first()) {
+                $je->lines()->delete();
+                $je->forceDelete();
+            }
+
+            AuditLog::record('sale_deleted', "Sale {$sale->invoice_number} deleted, stock restored, GL entry removed", $sale,
                 ['invoice' => $sale->invoice_number, 'total' => $sale->total]);
             $sale->delete();
             DB::commit();
-            return response()->json(['message' => 'Sale deleted and stock restored']);
+            return response()->json(['message' => 'Sale deleted, stock restored and GL entry removed']);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['message' => $e->getMessage()], 422);
