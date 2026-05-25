@@ -188,7 +188,7 @@ class SaleController extends Controller
 
             $sale = Sale::create([
                 'branch_id'             => $request->user()->branch_id,
-                'invoice_number'        => 'INV-' . now()->format('Ymd') . '-' . str_pad(Sale::whereDate('created_at', today())->count() + 1, 4, '0', STR_PAD_LEFT),
+                'invoice_number'        => 'INV-' . now()->format('Ymd') . '-' . str_pad(Sale::withTrashed()->whereDate('created_at', today())->count() + 1, 4, '0', STR_PAD_LEFT),
                 'customer_id'           => $data['customer_id'] ?? null,
                 'user_id'               => $request->user()->id,
                 'subtotal'              => $subtotal,
