@@ -467,7 +467,7 @@ class SaleController extends Controller
     {
         $revenue     = Account::where('code', '4000')->first();
         $receivable  = Account::where('code', '1100')->first();
-        $discountAcc = $totalDiscount > 0 ? Account::where('code', '4010')->first() : null;
+        $discountAcc = $totalDiscount > 0 ? Account::where('code', '4100')->first() : null;
         $paidAccount = $this->paymentAccountByMethod($sale->payment_method);
 
         if (!$revenue) {
