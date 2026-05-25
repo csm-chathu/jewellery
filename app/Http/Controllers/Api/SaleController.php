@@ -255,7 +255,8 @@ class SaleController extends Controller
             }
 
             if ($saleType === 'instant') {
-                $entry = $this->postInstantSaleJournal($sale, $officialTotal);
+                $totalDiscount = collect($itemData)->sum('itemDisc') + $discount;
+                $entry = $this->postInstantSaleJournal($sale, $officialTotal, $totalDiscount);
                 $sale->update(['journal_entry_id' => $entry->id]);
             } elseif ($amountPaid > 0) {
                 $entry = $this->postBookingAdvanceJournal($sale);
@@ -446,10 +447,11 @@ class SaleController extends Controller
         return 'JE-' . date('Ymd') . '-' . str_pad($seq, 4, '0', STR_PAD_LEFT);
     }
 
-    private function postInstantSaleJournal(Sale $sale, float $officialTotal): JournalEntry
+    private function postInstantSaleJournal(Sale $sale, float $officialTotal, float $totalDiscount = 0): JournalEntry
     {
         $revenue     = Account::where('code', '4000')->first();
         $receivable  = Account::where('code', '1100')->first();
+        $discountAcc = $totalDiscount > 0 ? Account::where('code', '4010')->first() : null;
         $paidAccount = $this->paymentAccountByMethod($sale->payment_method);
 
         if (!$revenue) {
@@ -498,11 +500,24 @@ class SaleController extends Controller
             ]);
         }
 
+        // DR Sales Discounts for any discount given — gross revenue credited below
+        if ($totalDiscount > 0 && $discountAcc) {
+            JournalEntryLine::create([
+                'journal_entry_id' => $entry->id,
+                'account_id'       => $discountAcc->id,
+                'debit'            => round($totalDiscount, 2),
+                'credit'           => 0,
+                'description'      => 'Sales discount given',
+            ]);
+        }
+
+        // CR Revenue at gross amount (before discounts) so discount is visible separately
+        $grossRevenue = round($officialTotal + ($discountAcc ? $totalDiscount : 0), 2);
         JournalEntryLine::create([
             'journal_entry_id' => $entry->id,
             'account_id'       => $revenue->id,
             'debit'            => 0,
-            'credit'           => $officialTotal,
+            'credit'           => $grossRevenue,
             'description'      => 'Sales revenue',
         ]);
 
