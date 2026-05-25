@@ -140,10 +140,27 @@ class ReportController extends Controller
             SUM(total - amount_paid) as outstanding
         ')->first();
 
+        // Add item-level discounts to the total_discount figure
+        $itemDiscountTotal = DB::table('sale_items')
+            ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
+            ->when(!$user->isAdmin(), fn($q) => $q->where('sales.branch_id', $user->branch_id))
+            ->whereBetween(DB::raw('DATE(sales.created_at)'), [$from, $to])
+            ->whereNull('sales.deleted_at')
+            ->sum('sale_items.discount');
+
+        if ($totals) {
+            $totals->total_discount = round(($totals->total_discount ?? 0) + $itemDiscountTotal, 2);
+        }
+
         $rows = (clone $query)
             ->with('customer:id,name')
+            ->withSum('items as item_discount_total', 'discount')
             ->orderByDesc('created_at')
-            ->get(['id', 'invoice_number', 'customer_id', 'total', 'amount_paid', 'discount', 'tax', 'payment_method', 'sale_type', 'created_at']);
+            ->get(['id', 'invoice_number', 'customer_id', 'total', 'amount_paid', 'discount', 'tax', 'payment_method', 'sale_type', 'created_at'])
+            ->each(function ($row) {
+                $row->discount = round(($row->discount ?? 0) + ($row->item_discount_total ?? 0), 2);
+                unset($row->item_discount_total);
+            });
 
         return response()->json([
             'from'   => $from,
