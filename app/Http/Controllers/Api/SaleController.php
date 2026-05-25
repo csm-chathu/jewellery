@@ -454,8 +454,13 @@ class SaleController extends Controller
 
     private function nextEntryNumber(): string
     {
-        $seq = JournalEntry::whereDate('created_at', today())->withTrashed()->count() + 1;
-        return 'JE-' . date('Ymd') . '-' . str_pad($seq, 4, '0', STR_PAD_LEFT);
+        $prefix = 'JE-' . date('Ymd') . '-';
+        $last = JournalEntry::withTrashed()
+            ->where('entry_number', 'like', $prefix . '%')
+            ->orderByRaw('CAST(SUBSTR(entry_number, ?) AS UNSIGNED) DESC', [strlen($prefix) + 1])
+            ->value('entry_number');
+        $next = $last ? (int) substr($last, strlen($prefix)) + 1 : 1;
+        return $prefix . str_pad($next, 4, '0', STR_PAD_LEFT);
     }
 
     private function postInstantSaleJournal(Sale $sale, float $officialTotal, float $totalDiscount = 0): JournalEntry

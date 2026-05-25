@@ -80,7 +80,9 @@ class SaleReturnController extends Controller
                 ];
             }
 
-            $returnNumber = 'RET-' . now()->format('Ymd') . '-' . str_pad(SaleReturn::whereDate('created_at', today())->count() + 1, 4, '0', STR_PAD_LEFT);
+            $retPrefix    = 'RET-' . now()->format('Ymd') . '-';
+            $lastRet      = SaleReturn::withTrashed()->where('return_number', 'like', $retPrefix . '%')->orderByRaw('CAST(SUBSTR(return_number, ?) AS UNSIGNED) DESC', [strlen($retPrefix) + 1])->value('return_number');
+            $returnNumber = $retPrefix . str_pad($lastRet ? (int) substr($lastRet, strlen($retPrefix)) + 1 : 1, 4, '0', STR_PAD_LEFT);
 
             $saleReturn = SaleReturn::create([
                 'return_number' => $returnNumber,
@@ -142,7 +144,7 @@ class SaleReturnController extends Controller
         if (!$revenue || !$cashAccount) return; // silently skip if accounts not configured
 
         $entry = JournalEntry::create([
-            'entry_number'   => 'JE-' . date('Ymd') . '-' . str_pad(JournalEntry::whereDate('created_at', today())->withTrashed()->count() + 1, 4, '0', STR_PAD_LEFT),
+            'entry_number'   => $this->nextEntryNumber(),
             'entry_date'     => now(),
             'description'    => "Sales return {$saleReturn->return_number} for invoice {$sale->invoice_number}",
             'reference_type' => 'SaleReturn',
@@ -169,6 +171,17 @@ class SaleReturnController extends Controller
             'credit'           => $amount,
             'description'      => 'Refund to customer',
         ]);
+    }
+
+    private function nextEntryNumber(): string
+    {
+        $prefix = 'JE-' . date('Ymd') . '-';
+        $last = JournalEntry::withTrashed()
+            ->where('entry_number', 'like', $prefix . '%')
+            ->orderByRaw('CAST(SUBSTR(entry_number, ?) AS UNSIGNED) DESC', [strlen($prefix) + 1])
+            ->value('entry_number');
+        $next = $last ? (int) substr($last, strlen($prefix)) + 1 : 1;
+        return $prefix . str_pad($next, 4, '0', STR_PAD_LEFT);
     }
 
     private function authorizeBranch(?int $branchId): void
