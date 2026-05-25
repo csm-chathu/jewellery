@@ -265,7 +265,7 @@
                 <th style="text-align:left;">Item / Description</th>
                 <th style="text-align:center; width:40px;">Qty</th>
                 <th style="text-align:right; width:90px;">Unit Price</th>
-
+                <th style="text-align:right; width:80px;">Discount</th>
                 <th style="text-align:right; width:100px;">Total</th>
               </tr>
             </thead>
@@ -287,7 +287,10 @@
                 </td>
                 <td style="text-align:center;">{{ item.quantity }}</td>
                 <td style="text-align:right;">{{ lkr(item.display_price ?? item.unit_price) }}</td>
-
+                <td style="text-align:right; color:#dc2626;">
+                  <span v-if="Number(item.discount) > 0">- {{ lkr(item.discount) }}</span>
+                  <span v-else style="color:#ccc;">—</span>
+                </td>
                 <td style="text-align:right; font-weight:700;">LKR {{ lkr(item.total) }}</td>
               </tr>
             </tbody>
@@ -329,7 +332,7 @@
           <div class="inv-footer">
             <div style="font-weight:600;">*** Thank You! Come Again ***</div>
             <div v-if="shop.shop_name" style="font-size:10px; color:#888; margin-top:2px;">{{ shop.shop_name }}</div>
-            <div style="margin-top:6px; font-size:10px; font-weight:700; letter-spacing:0.5px;">www.lumac.lk &nbsp;|&nbsp; 076 464 3050</div>
+            <div style="margin-top:6px; font-size:8px; color:#888; letter-spacing:0.5px;">www.lumac.lk &nbsp;|&nbsp; 076 464 3050</div>
           </div>
 
         </div>
