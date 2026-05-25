@@ -188,7 +188,7 @@ class SaleController extends Controller
 
             $sale = Sale::create([
                 'branch_id'             => $request->user()->branch_id,
-                'invoice_number'        => 'INV-' . now()->format('Ymd') . '-' . str_pad(Sale::withTrashed()->whereDate('created_at', today())->count() + 1, 4, '0', STR_PAD_LEFT),
+                'invoice_number'        => $this->nextInvoiceNumber(),
                 'customer_id'           => $data['customer_id'] ?? null,
                 'user_id'               => $request->user()->id,
                 'subtotal'              => $subtotal,
@@ -439,6 +439,17 @@ class SaleController extends Controller
         }
 
         return null;
+    }
+
+    private function nextInvoiceNumber(): string
+    {
+        $prefix = 'INV-' . now()->format('Ymd') . '-';
+        $last = Sale::withTrashed()
+            ->where('invoice_number', 'like', $prefix . '%')
+            ->orderByRaw('CAST(SUBSTR(invoice_number, ?) AS UNSIGNED) DESC', [strlen($prefix) + 1])
+            ->value('invoice_number');
+        $next = $last ? (int) substr($last, strlen($prefix)) + 1 : 1;
+        return $prefix . str_pad($next, 4, '0', STR_PAD_LEFT);
     }
 
     private function nextEntryNumber(): string
