@@ -74,9 +74,78 @@
           <StatTile label="Total Tax"       :value="lkr(data.totals.total_tax)" />
           <StatTile label="Total Discounts" :value="lkr(data.totals.total_discount)" />
         </div>
-        <ReportTable :headers="['Invoice','Customer','Date','Total','Paid','Discount','Tax','Method','Type']"
-          :rows="data.rows.map(r => [r.invoice_number, r.customer?.name ?? '—', fmt(r.created_at),
-            lkr(r.total), lkr(r.amount_paid), lkr(r.discount), lkr(r.tax), r.payment_method, r.sale_type])" />
+        <div class="card p-0 overflow-hidden overflow-x-auto" id="report-table">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 border-b">
+              <tr>
+                <th class="table-th">Invoice</th>
+                <th class="table-th">Customer</th>
+                <th class="table-th">Date</th>
+                <th class="table-th">Item Name</th>
+                <th class="table-th">Karat</th>
+                <th class="table-th text-right">Weight (g)</th>
+                <th class="table-th text-right">Qty</th>
+                <th class="table-th text-right">Unit Price</th>
+                <th class="table-th text-right">Item Total</th>
+                <th class="table-th text-right">Invoice Total</th>
+                <th class="table-th text-right">Paid</th>
+                <th class="table-th">Method</th>
+                <th class="table-th">Type</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+              <template v-for="r in data.rows" :key="r.id">
+                <template v-if="r.items && r.items.length">
+                  <tr v-for="(item, idx) in r.items" :key="item.id"
+                      class="hover:bg-gray-50">
+                    <td class="table-td font-mono text-xs whitespace-nowrap">
+                      {{ idx === 0 ? r.invoice_number : '' }}
+                    </td>
+                    <td class="table-td whitespace-nowrap">{{ idx === 0 ? (r.customer?.name ?? '—') : '' }}</td>
+                    <td class="table-td whitespace-nowrap">{{ idx === 0 ? fmt(r.created_at) : '' }}</td>
+                    <td class="table-td">
+                      <span class="font-medium">{{ item.product?.name ?? '—' }}</span>
+                      <span v-if="item.product?.sku" class="ml-1 text-gray-400 text-xs">{{ item.product.sku }}</span>
+                    </td>
+                    <td class="table-td text-center">
+                      <span v-if="item.product?.karat" class="inline-block bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded text-[10px] font-semibold">
+                        {{ item.product.karat }}
+                      </span>
+                      <span v-else class="text-gray-400">—</span>
+                    </td>
+                    <td class="table-td text-right font-mono text-yellow-700">
+                      {{ item.product?.weight != null ? item.product.weight + 'g' : '—' }}
+                    </td>
+                    <td class="table-td text-center">{{ item.quantity }}</td>
+                    <td class="table-td text-right font-mono">{{ lkr(item.unit_price) }}</td>
+                    <td class="table-td text-right font-mono font-medium">{{ lkr(item.total) }}</td>
+                    <td class="table-td text-right font-mono font-semibold text-green-700">
+                      {{ idx === 0 ? lkr(r.total) : '' }}
+                    </td>
+                    <td class="table-td text-right font-mono text-green-600">
+                      {{ idx === 0 ? lkr(r.amount_paid) : '' }}
+                    </td>
+                    <td class="table-td whitespace-nowrap">{{ idx === 0 ? r.payment_method : '' }}</td>
+                    <td class="table-td whitespace-nowrap">{{ idx === 0 ? r.sale_type : '' }}</td>
+                  </tr>
+                </template>
+                <tr v-else class="hover:bg-gray-50">
+                  <td class="table-td font-mono text-xs whitespace-nowrap">{{ r.invoice_number }}</td>
+                  <td class="table-td">{{ r.customer?.name ?? '—' }}</td>
+                  <td class="table-td whitespace-nowrap">{{ fmt(r.created_at) }}</td>
+                  <td class="table-td text-gray-400" colspan="6">—</td>
+                  <td class="table-td text-right font-mono font-semibold text-green-700">{{ lkr(r.total) }}</td>
+                  <td class="table-td text-right font-mono text-green-600">{{ lkr(r.amount_paid) }}</td>
+                  <td class="table-td">{{ r.payment_method }}</td>
+                  <td class="table-td">{{ r.sale_type }}</td>
+                </tr>
+              </template>
+              <tr v-if="!data.rows.length">
+                <td colspan="13" class="table-td text-center text-gray-400 py-8">No data for this period</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </template>
 
       <!-- ══════════ PURCHASES ══════════ -->
@@ -296,6 +365,106 @@
         </div>
       </template>
 
+      <!-- ══════════ REVENUE CHECK ══════════ -->
+      <template v-else-if="active === 'revenue'">
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <StatTile label="Items Sold"       :value="data.totals.count" plain :sub="'LKR ' + lkr(data.totals.sale_revenue)" />
+          <StatTile label="Sale Revenue"     :value="lkr(data.totals.sale_revenue)"  color="green" />
+          <StatTile label="Purchase Cost"    :value="lkr(data.totals.purchase_cost)" color="gold" />
+          <StatTile label="Gold Value"       :value="lkr(data.totals.gold_value)"    color="gold" />
+          <StatTile label="Making Charges"   :value="lkr(data.totals.making_charge)" />
+          <StatTile label="Gold Margin"
+            :value="(data.totals.gold_margin >= 0 ? '+' : '') + lkr(data.totals.gold_margin)"
+            :color="data.totals.gold_margin >= 0 ? 'green' : 'red'" plain />
+          <StatTile label="Gross Profit"
+            :value="(data.totals.gross_profit >= 0 ? '+' : '') + lkr(data.totals.gross_profit)"
+            :color="data.totals.gross_profit >= 0 ? 'green' : 'red'" plain
+            class="col-span-2" />
+        </div>
+        <div class="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+          <strong>Revenue Check</strong> — compares what each item cost us (purchase price) against
+          the gold market value on the sale date and the actual selling price.
+          <strong>Gold Margin</strong> = Revenue − Gold Value &nbsp;|&nbsp;
+          <strong>Gross Profit</strong> = Revenue − Purchase Cost
+        </div>
+        <div class="card p-0 overflow-hidden overflow-x-auto" id="report-table">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-800 text-white">
+              <tr>
+                <th class="table-th whitespace-nowrap text-left">Date</th>
+                <th class="table-th whitespace-nowrap text-left">Invoice</th>
+                <th class="table-th whitespace-nowrap text-left">Customer</th>
+                <th class="table-th whitespace-nowrap text-left">Product</th>
+                <th class="table-th whitespace-nowrap">Karat</th>
+                <th class="table-th whitespace-nowrap">Wt (g)</th>
+                <th class="table-th whitespace-nowrap">Qty</th>
+                <th class="table-th whitespace-nowrap text-right">Gold Rate/g</th>
+                <th class="table-th whitespace-nowrap text-right">Gold Value</th>
+                <th class="table-th whitespace-nowrap text-right">Purchase Cost</th>
+                <th class="table-th whitespace-nowrap text-right">Making</th>
+                <th class="table-th whitespace-nowrap text-right">Sale Revenue</th>
+                <th class="table-th whitespace-nowrap text-right">Gold Margin</th>
+                <th class="table-th whitespace-nowrap text-right">Gross Profit</th>
+                <th class="table-th whitespace-nowrap text-right">Margin %</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+              <tr v-for="(r, i) in data.rows" :key="i" class="hover:bg-gray-50">
+                <td class="table-td whitespace-nowrap">{{ fmt(r.sale_date) }}</td>
+                <td class="table-td whitespace-nowrap font-mono text-xs">{{ r.invoice }}</td>
+                <td class="table-td whitespace-nowrap">{{ r.customer }}</td>
+                <td class="table-td">
+                  <span class="font-medium">{{ r.product }}</span>
+                  <span v-if="r.sku" class="ml-1 text-gray-400 text-xs">{{ r.sku }}</span>
+                </td>
+                <td class="table-td text-center">
+                  <span v-if="r.karat" class="inline-block bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded text-[10px] font-semibold">{{ r.karat }}</span>
+                  <span v-else class="text-gray-400">—</span>
+                </td>
+                <td class="table-td text-center text-yellow-700 font-mono">{{ r.weight_g || '—' }}</td>
+                <td class="table-td text-center">{{ r.qty }}</td>
+                <td class="table-td text-right font-mono text-xs text-gray-500">{{ r.gold_rate ? lkr(r.gold_rate) : '—' }}</td>
+                <td class="table-td text-right font-mono text-yellow-700">{{ r.gold_value ? lkr(r.gold_value) : '—' }}</td>
+                <td class="table-td text-right font-mono text-gray-600">{{ lkr(r.purchase_cost) }}</td>
+                <td class="table-td text-right font-mono text-xs text-gray-500">{{ lkr(r.making_charge) }}</td>
+                <td class="table-td text-right font-mono font-semibold text-green-700">{{ lkr(r.sale_revenue) }}</td>
+                <td class="table-td text-right font-mono font-semibold"
+                    :class="r.gold_margin >= 0 ? 'text-green-600' : 'text-red-600'">
+                  {{ (r.gold_margin >= 0 ? '+' : '') + lkr(r.gold_margin) }}
+                </td>
+                <td class="table-td text-right font-mono font-semibold"
+                    :class="r.gross_profit >= 0 ? 'text-green-700' : 'text-red-600'">
+                  {{ (r.gross_profit >= 0 ? '+' : '') + lkr(r.gross_profit) }}
+                </td>
+                <td class="table-td text-right text-xs"
+                    :class="r.margin_pct != null && r.margin_pct >= 0 ? 'text-green-600' : 'text-red-600'">
+                  {{ r.margin_pct != null ? r.margin_pct + '%' : '—' }}
+                </td>
+              </tr>
+              <tr v-if="!data.rows.length">
+                <td colspan="15" class="table-td text-center text-gray-400 py-8">No sales data for this period</td>
+              </tr>
+              <tr v-if="data.rows.length" class="bg-gray-800 text-white font-bold text-sm">
+                <td colspan="8" class="table-td">TOTAL</td>
+                <td class="table-td text-right font-mono text-yellow-300">{{ lkr(data.totals.gold_value) }}</td>
+                <td class="table-td text-right font-mono">{{ lkr(data.totals.purchase_cost) }}</td>
+                <td class="table-td text-right font-mono">{{ lkr(data.totals.making_charge) }}</td>
+                <td class="table-td text-right font-mono text-green-300">{{ lkr(data.totals.sale_revenue) }}</td>
+                <td class="table-td text-right font-mono"
+                    :class="data.totals.gold_margin >= 0 ? 'text-green-300' : 'text-red-300'">
+                  {{ (data.totals.gold_margin >= 0 ? '+' : '') + lkr(data.totals.gold_margin) }}
+                </td>
+                <td class="table-td text-right font-mono"
+                    :class="data.totals.gross_profit >= 0 ? 'text-green-300' : 'text-red-300'">
+                  {{ (data.totals.gross_profit >= 0 ? '+' : '') + lkr(data.totals.gross_profit) }}
+                </td>
+                <td class="table-td"></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </template>
+
       <!-- ══════════ TAX SETTINGS ══════════ -->
       <template v-else-if="active === 'tax'">
         <div class="flex justify-end">
@@ -415,6 +584,7 @@ const reportList = [
   { key: 'metal',          label: 'Metal Balance',       icon: '⚖️', hasDateFilter: false, endpoint: '/api/reports/metal-balance' },
   { key: 'pnl',            label: 'Rate P&L',            icon: '📊', hasDateFilter: false, endpoint: '/api/reports/rate-pnl' },
   { key: 'category-stock', label: 'Category Stock Value', icon: '🏷️', hasDateFilter: false, endpoint: '/api/reports/category-stock' },
+  { key: 'revenue',        label: 'Revenue Check',       icon: '💰', hasDateFilter: true,  endpoint: '/api/reports/revenue-check' },
   { key: 'tax',            label: 'Tax Settings',        icon: '🧾', hasDateFilter: false, endpoint: null },
 ]
 

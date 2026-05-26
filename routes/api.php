@@ -132,6 +132,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/reports/gold-loans',       [ReportController::class, 'goldLoansReport']);
     Route::get('/reports/stock-ledger',       [ReportController::class, 'stockLedger']);
     Route::get('/reports/category-stock',     [ReportController::class, 'categoryStockValue']);
+    Route::get('/reports/revenue-check',      [ReportController::class, 'revenueCheck']);
 
     // Audit log
     Route::get('/audit-logs', [AuditLogController::class, 'index']);
@@ -240,10 +241,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/private-cash-adjustments/{privateCashAdjustment}', [PrivateCashAdjustmentController::class, 'update']);
     Route::delete('/private-cash-adjustments/{privateCashAdjustment}', [PrivateCashAdjustmentController::class, 'destroy']);
 
-    Route::get('/private-buyers',                        [PrivateBuyerController::class, 'index']);
-    Route::post('/private-buyers',                       [PrivateBuyerController::class, 'store']);
-    Route::put('/private-buyers/{privateBuyer}',         [PrivateBuyerController::class, 'update']);
-    Route::delete('/private-buyers/{privateBuyer}',      [PrivateBuyerController::class, 'destroy']);
+    Route::get('/private-buyers',                    [PrivateBuyerController::class, 'index']);
+    Route::post('/private-buyers',                   [PrivateBuyerController::class, 'store']);
+    Route::put('/private-buyers/{customer}',         [PrivateBuyerController::class, 'update']);
+    Route::delete('/private-buyers/{customer}',      [PrivateBuyerController::class, 'destroy']);
 
     // Layaway / Installment Bookings
     Route::get('/layaways',                          [LayawayController::class, 'index']);

@@ -43,11 +43,56 @@
                 {{ loan.status }}
               </span>
             </td>
-            <td class="table-td">
-              <button @click="openRepay(loan)" class="px-2.5 py-1 rounded bg-blue-100 text-blue-700 text-xs">Repay</button>
+            <td class="table-td flex gap-1.5">
+              <button @click="openRepay(loan)" class="px-2.5 py-1 rounded bg-blue-100 text-blue-700 text-xs font-medium">Repay</button>
+              <button @click="openHistory(loan)" class="px-2.5 py-1 rounded bg-gray-100 text-gray-600 text-xs font-medium">History</button>
             </td>
           </tr>
           <tr v-if="!loans.data?.length"><td colspan="7" class="table-td text-center text-gray-400 py-8">No loans yet</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Repayment History Panel -->
+    <div v-if="historyLoan" class="card p-0 overflow-hidden border-t-4 border-t-blue-400">
+      <div class="flex items-center justify-between px-5 py-3 bg-blue-50 border-b border-blue-100">
+        <div>
+          <h3 class="font-semibold text-blue-800">Repayment History — {{ historyLoan.loan_number }}</h3>
+          <p class="text-xs text-blue-600 mt-0.5">{{ historyLoan.lender_name }} · Outstanding: LKR {{ lkr(historyLoan.outstanding_balance) }}</p>
+        </div>
+        <button @click="historyLoan = null" class="text-blue-400 hover:text-blue-600 text-lg font-bold">✕</button>
+      </div>
+      <div v-if="historyLoading" class="py-8 text-center text-gray-400 text-sm">Loading…</div>
+      <div v-else-if="!historyRepayments.length" class="py-8 text-center text-gray-400 text-sm">No repayments recorded yet.</div>
+      <table v-else class="w-full text-sm">
+        <thead class="bg-gray-50 border-b">
+          <tr>
+            <th class="table-th">Payment #</th>
+            <th class="table-th">Date</th>
+            <th class="table-th text-right">Principal</th>
+            <th class="table-th text-right">Interest</th>
+            <th class="table-th text-right">Total Paid</th>
+            <th class="table-th">Paid From</th>
+            <th class="table-th">Notes</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+          <tr v-for="r in historyRepayments" :key="r.id" class="hover:bg-gray-50">
+            <td class="table-td font-mono text-xs">{{ r.payment_number }}</td>
+            <td class="table-td whitespace-nowrap">{{ fmtDate(r.payment_date) }}</td>
+            <td class="table-td text-right font-mono">{{ lkr(r.principal_amount) }}</td>
+            <td class="table-td text-right font-mono text-red-600">{{ lkr(r.interest_amount) }}</td>
+            <td class="table-td text-right font-mono font-semibold">{{ lkr(r.total_amount) }}</td>
+            <td class="table-td text-xs text-gray-500">{{ r.paid_from_account?.name ?? '—' }}</td>
+            <td class="table-td text-xs text-gray-400">{{ r.notes ?? '—' }}</td>
+          </tr>
+          <tr class="bg-gray-50 font-semibold text-sm">
+            <td colspan="2" class="table-td text-right text-gray-500">Totals</td>
+            <td class="table-td text-right">{{ lkr(historyRepayments.reduce((s, r) => s + r.principal_amount, 0)) }}</td>
+            <td class="table-td text-right text-red-600">{{ lkr(historyRepayments.reduce((s, r) => s + r.interest_amount, 0)) }}</td>
+            <td class="table-td text-right">{{ lkr(historyRepayments.reduce((s, r) => s + r.total_amount, 0)) }}</td>
+            <td colspan="2" class="table-td"></td>
+          </tr>
         </tbody>
       </table>
     </div>
@@ -89,8 +134,14 @@
           </label>
         </div>
         <div class="flex justify-end gap-2">
-          <button @click="showCreate = false" class="btn-secondary">Cancel</button>
-          <button @click="createLoan" class="btn-primary">Save Loan</button>
+          <button @click="showCreate = false" :disabled="creating" class="btn-secondary">Cancel</button>
+          <button @click="createLoan" :disabled="creating" class="btn-primary flex items-center gap-2">
+            <svg v-if="creating" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+            </svg>
+            {{ creating ? 'Saving…' : 'Save Loan' }}
+          </button>
         </div>
       </div>
     </div>
@@ -110,8 +161,14 @@
           <div><label class="form-label">Interest</label><input v-model.number="repayForm.interest_amount" type="number" min="0" step="0.01" class="form-input" /></div>
         </div>
         <div class="flex justify-end gap-2">
-          <button @click="repayLoan = null" class="btn-secondary">Cancel</button>
-          <button @click="submitRepayment" class="btn-primary">Post Repayment</button>
+          <button @click="repayLoan = null" :disabled="repaying" class="btn-secondary">Cancel</button>
+          <button @click="submitRepayment" :disabled="repaying" class="btn-primary flex items-center gap-2">
+            <svg v-if="repaying" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+            </svg>
+            {{ repaying ? 'Posting…' : 'Post Repayment' }}
+          </button>
         </div>
       </div>
     </div>
@@ -127,6 +184,12 @@ const loans = ref({ data: [] })
 const accounts = ref([])
 const showCreate = ref(false)
 const repayLoan = ref(null)
+const historyLoan = ref(null)
+const historyRepayments = ref([])
+const historyLoading = ref(false)
+
+const creating = ref(false)
+const repaying = ref(false)
 
 const createForm = ref({
   lender_name: '', principal_amount: 0, outstanding_balance: null,
@@ -148,26 +211,55 @@ async function load() {
 }
 
 async function createLoan() {
-  const payload = {
-    ...createForm.value,
-    post_to_gl: !createForm.value.skip_gl,
-    outstanding_balance: createForm.value.outstanding_balance ?? createForm.value.principal_amount,
+  creating.value = true
+  try {
+    const payload = {
+      ...createForm.value,
+      post_to_gl: !createForm.value.skip_gl,
+      outstanding_balance: createForm.value.outstanding_balance ?? createForm.value.principal_amount,
+    }
+    await axios.post('/api/loans', payload)
+    showCreate.value = false
+    createForm.value = { lender_name: '', principal_amount: 0, outstanding_balance: null, monthly_installment: null, start_date: today(), due_date: '', next_payment_date: '', liability_account_id: '', received_to_account_id: '', skip_gl: false }
+    load()
+  } finally {
+    creating.value = false
   }
-  await axios.post('/api/loans', payload)
-  showCreate.value = false
-  createForm.value = { lender_name: '', principal_amount: 0, outstanding_balance: null, monthly_installment: null, start_date: today(), due_date: '', next_payment_date: '', liability_account_id: '', received_to_account_id: '', skip_gl: false }
-  load()
 }
 
 function openRepay(loan) {
   repayLoan.value = loan
-  repayForm.value = { payment_date: today(), principal_amount: Number(loan.outstanding_balance || 0), interest_amount: 0, paid_from_account_id: '' }
+  historyLoan.value = null
+  repayForm.value = {
+    payment_date: today(),
+    principal_amount: Number(loan.monthly_installment || loan.outstanding_balance || 0),
+    interest_amount: 0,
+    paid_from_account_id: '',
+  }
 }
 
 async function submitRepayment() {
-  await axios.post(`/api/loans/${repayLoan.value.id}/repay`, repayForm.value)
+  repaying.value = true
+  try {
+    await axios.post(`/api/loans/${repayLoan.value.id}/repay`, repayForm.value)
+    repayLoan.value = null
+    load()
+  } finally {
+    repaying.value = false
+  }
+}
+
+async function openHistory(loan) {
   repayLoan.value = null
-  load()
+  historyLoan.value = loan
+  historyRepayments.value = []
+  historyLoading.value = true
+  try {
+    const { data: d } = await axios.get(`/api/loans/${loan.id}`)
+    historyRepayments.value = d.repayments ?? []
+  } finally {
+    historyLoading.value = false
+  }
 }
 
 function lkr(v) { return Number(v || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }

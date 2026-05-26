@@ -153,7 +153,10 @@ class ReportController extends Controller
         }
 
         $rows = (clone $query)
-            ->with('customer:id,name')
+            ->with([
+                'customer:id,name',
+                'items.product:id,name,weight,karat,sku',
+            ])
             ->withSum('items as item_discount_total', 'discount')
             ->orderByDesc('created_at')
             ->get(['id', 'invoice_number', 'customer_id', 'total', 'amount_paid', 'discount', 'tax', 'payment_method', 'sale_type', 'created_at'])
@@ -536,6 +539,92 @@ class ReportController extends Controller
         );
 
         return response()->json($report, 201);
+    }
+
+    /** Revenue Check: compare purchase cost vs gold value vs sale revenue per sold item */
+    public function revenueCheck(Request $request)
+    {
+        $user = $request->user();
+        $from = $request->date_from ?? now()->startOfMonth()->toDateString();
+        $to   = $request->date_to   ?? now()->toDateString();
+
+        $items = SaleItem::with([
+                'product:id,name,karat,weight,purchase_price,sku',
+                'sale:id,invoice_number,sold_at,customer_id,branch_id',
+                'sale.customer:id,name',
+            ])
+            ->whereHas('sale', function ($q) use ($user, $from, $to) {
+                $q->whereNull('deleted_at')
+                  ->whereBetween(DB::raw('DATE(sold_at)'), [$from, $to])
+                  ->when(!$user->isAdmin(), fn($q2) => $q2->where('branch_id', $user->branch_id));
+            })
+            ->get();
+
+        $saleDates = $items->map(fn($i) => $i->sale?->sold_at?->toDateString())->filter()->unique();
+
+        $goldRatesByDate = GoldRate::with('carat')
+            ->whereIn('date', $saleDates)
+            ->get()
+            ->groupBy(fn($r) => $r->date->toDateString())
+            ->map(fn($dayRates) => $dayRates->keyBy(fn($r) => strtolower($r->carat?->label ?? '')));
+
+        $todayRates = GoldRate::todayRatesByLabel();
+
+        $rows = $items->map(function ($item) use ($goldRatesByDate, $todayRates) {
+            $product  = $item->product;
+            $sale     = $item->sale;
+            $saleDate = $sale?->sold_at?->toDateString();
+            $karat    = strtolower($product?->karat ?? '');
+            $weight   = (float) ($product?->weight ?? 0);
+            $qty      = (int) $item->quantity;
+
+            $dayRates     = $goldRatesByDate[$saleDate] ?? collect();
+            $rateForKarat = $dayRates[$karat] ?? $todayRates[$karat] ?? null;
+            $ratePerGram  = $rateForKarat?->rate_per_gram ?? 0;
+
+            $goldValue    = round($ratePerGram * $weight * $qty, 2);
+            $purchaseCost = round(($product?->purchase_price ?? 0) * $qty, 2);
+            $saleRevenue  = round((float) $item->total, 2);
+            $makingCharge = round((float) ($item->making_charge ?? 0), 2);
+            $goldMargin   = round($saleRevenue - $goldValue, 2);
+            $grossProfit  = round($saleRevenue - $purchaseCost, 2);
+
+            return [
+                'invoice'       => $sale?->invoice_number,
+                'sale_date'     => $saleDate,
+                'customer'      => $sale?->customer?->name ?? 'Walk-in',
+                'product'       => $product?->name,
+                'sku'           => $product?->sku,
+                'karat'         => $product?->karat,
+                'weight_g'      => $weight,
+                'qty'           => $qty,
+                'purchase_cost' => $purchaseCost,
+                'gold_rate'     => $ratePerGram,
+                'gold_value'    => $goldValue,
+                'making_charge' => $makingCharge,
+                'sale_revenue'  => $saleRevenue,
+                'gold_margin'   => $goldMargin,
+                'gross_profit'  => $grossProfit,
+                'margin_pct'    => $purchaseCost > 0 ? round(($grossProfit / $purchaseCost) * 100, 1) : null,
+            ];
+        })->values();
+
+        $totals = [
+            'count'         => $rows->count(),
+            'purchase_cost' => round($rows->sum('purchase_cost'), 2),
+            'gold_value'    => round($rows->sum('gold_value'), 2),
+            'making_charge' => round($rows->sum('making_charge'), 2),
+            'sale_revenue'  => round($rows->sum('sale_revenue'), 2),
+            'gold_margin'   => round($rows->sum('gold_margin'), 2),
+            'gross_profit'  => round($rows->sum('gross_profit'), 2),
+        ];
+
+        return response()->json([
+            'from'   => $from,
+            'to'     => $to,
+            'totals' => $totals,
+            'rows'   => $rows->sortByDesc('sale_date')->values(),
+        ]);
     }
 
     /** Category Stock Value Report: total weight & gold value per category */
