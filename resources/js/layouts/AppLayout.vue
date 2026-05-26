@@ -166,22 +166,22 @@ const branding = ref({
   logo_url: '',
 })
 
-const ALL_STANDARD = ['admin', 'manager', 'accountant', 'hr', 'finance', 'cashier', 'branch', 'auditor']
+const ALL_STANDARD = ['admin', 'manager', 'accountant', 'hr', 'finance', 'cashier', 'branch']
 
 const navItems = [
-  { to: '/',           label: 'Dashboard',  icon: HomeIcon,          roles: ALL_STANDARD },
-  { to: '/products',   label: 'Products',   icon: CubeIcon,          roles: ALL_STANDARD },
-  { to: '/categories', label: 'Categories', icon: TagIcon,            roles: ALL_STANDARD },
-  { to: '/customers',  label: 'Customers',  icon: UsersIcon,          roles: ALL_STANDARD },
-  { to: '/suppliers',  label: 'Suppliers',  icon: TruckIcon,          roles: ALL_STANDARD },
-  { to: '/sales',      label: 'Sales',      icon: ShoppingCartIcon,  roles: ALL_STANDARD },
-  { to: '/purchases',  label: 'Purchases',  icon: ArchiveBoxIcon,    roles: ALL_STANDARD },
+  { to: '/',           label: 'Dashboard',  icon: HomeIcon,         roles: [...ALL_STANDARD, 'auditor'] },
+  { to: '/products',   label: 'Products',   icon: CubeIcon,         roles: ALL_STANDARD },
+  { to: '/categories', label: 'Categories', icon: TagIcon,           roles: ALL_STANDARD },
+  { to: '/customers',  label: 'Customers',  icon: UsersIcon,         roles: ALL_STANDARD },
+  { to: '/suppliers',  label: 'Suppliers',  icon: TruckIcon,         roles: ALL_STANDARD },
+  { to: '/sales',      label: 'Sales',      icon: ShoppingCartIcon, roles: ALL_STANDARD },
+  { to: '/purchases',  label: 'Purchases',  icon: ArchiveBoxIcon,   roles: ALL_STANDARD },
 ]
 
 const adminNavItems = [
   { to: '/gold-rates', label: 'Gold Rates', icon: SparklesIcon, roles: ['admin', 'manager'] },
-  { to: '/buy-back', label: 'Buy-Back', icon: CurrencyDollarIcon, roles: ['admin', 'manager', 'cashier', 'branch', 'auditor'] },
-  { to: '/scrap', label: 'Scrap Gold', icon: FireIcon, roles: ['admin', 'manager', 'auditor'] },
+  { to: '/buy-back', label: 'Buy-Back', icon: CurrencyDollarIcon, roles: ['admin', 'manager', 'cashier', 'branch'] },
+  { to: '/scrap', label: 'Scrap Gold', icon: FireIcon, roles: ['admin', 'manager'] },
   { to: '/rework-orders', label: 'Rework / Jobs', icon: WrenchScrewdriverIcon, roles: ['admin', 'manager', 'cashier', 'branch'] },
   { to: '/layaways', label: 'Layaways', icon: SquaresPlusIcon, roles: ['admin', 'manager', 'cashier', 'branch'] },
   { to: '/reports', label: 'Reports', icon: ChartBarIcon, roles: ['admin', 'manager', 'accountant', 'auditor'] },
