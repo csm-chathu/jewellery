@@ -180,14 +180,14 @@ const navItems = [
 
 const adminNavItems = [
   { to: '/gold-rates', label: 'Gold Rates', icon: SparklesIcon, roles: ['admin', 'manager'] },
-  { to: '/buy-back', label: 'Buy-Back', icon: CurrencyDollarIcon, roles: ['admin', 'manager', 'cashier', 'branch'] },
-  { to: '/scrap', label: 'Scrap Gold', icon: FireIcon, roles: ['admin', 'manager'] },
+  { to: '/buy-back', label: 'Buy-Back', icon: CurrencyDollarIcon, roles: ['admin', 'manager', 'cashier', 'branch', 'auditor'] },
+  { to: '/scrap', label: 'Scrap Gold', icon: FireIcon, roles: ['admin', 'manager', 'auditor'] },
   { to: '/rework-orders', label: 'Rework / Jobs', icon: WrenchScrewdriverIcon, roles: ['admin', 'manager', 'cashier', 'branch'] },
   { to: '/layaways', label: 'Layaways', icon: SquaresPlusIcon, roles: ['admin', 'manager', 'cashier', 'branch'] },
   { to: '/reports', label: 'Reports', icon: ChartBarIcon, roles: ['admin', 'manager', 'accountant', 'auditor'] },
   { to: '/stock-ledger',   label: 'Stock Ledger',       icon: ClipboardDocumentListIcon, roles: ['admin', 'manager', 'auditor'] },
   { to: '/day-end', label: 'Day End', icon: ClipboardDocumentCheckIcon, roles: ['admin', 'manager', 'cashier', 'branch'] },
-  { to: '/audit-log', label: 'Audit Log', icon: ClipboardDocumentListIcon, roles: ['admin'] },
+  { to: '/audit-log', label: 'Audit Log', icon: ClipboardDocumentListIcon, roles: ['admin', 'auditor'] },
   { to: '/users', label: 'Users', icon: UserGroupIcon, roles: ['admin'] },
   { to: '/shop-settings', label: 'Shop Settings', icon: Cog6ToothIcon, roles: ['admin', 'manager'] },
   { to: '/expenses', label: 'Expenses', icon: ReceiptPercentIcon, roles: ['admin', 'manager', 'finance', 'auditor'] },
@@ -198,13 +198,13 @@ const adminNavItems = [
 ]
 
 const hrNavItems = [
-  { to: '/employees', label: 'Employees', icon: UserGroupIcon, roles: ['admin', 'manager', 'hr'] },
-  { to: '/salary-payments', label: 'Salary Payments', icon: BanknotesIcon, roles: ['admin', 'manager', 'hr'] },
+  { to: '/employees', label: 'Employees', icon: UserGroupIcon, roles: ['admin', 'manager', 'hr', 'auditor'] },
+  { to: '/salary-payments', label: 'Salary Payments', icon: BanknotesIcon, roles: ['admin', 'manager', 'hr', 'auditor'] },
 ]
 
 const financeNavItems = [
   { to: '/loans', label: 'Business Loans', icon: BuildingLibraryIcon, roles: ['admin', 'manager', 'finance', 'auditor'] },
-  { to: '/customer-investments', label: 'Owner Investments', icon: CurrencyDollarIcon, roles: ['admin', 'manager', 'finance'] },
+  { to: '/customer-investments', label: 'Owner Investments', icon: CurrencyDollarIcon, roles: ['admin', 'manager', 'finance', 'auditor'] },
   { to: '/rentals', label: 'Monthly Rentals', icon: HomeModernIcon, roles: ['admin', 'manager', 'finance', 'auditor'] },
   { to: '/gold-loans', label: 'Gold Loans', icon: CurrencyDollarIcon, roles: ['admin', 'manager', 'finance', 'auditor'] },
 ]
@@ -213,7 +213,7 @@ const accountingNavItems = [
   { to: '/opening-balances', label: 'Opening Balances', icon: ScaleIcon, roles: ['admin', 'manager', 'accountant', 'auditor'] },
   { to: '/accounts', label: 'Chart of Accounts', icon: BookOpenIcon, roles: ['admin', 'manager', 'accountant', 'auditor'] },
   { to: '/journal-entries', label: 'Journal Entries', icon: DocumentTextIcon, roles: ['admin', 'manager', 'accountant', 'auditor'] },
-  { to: '/account-transfers', label: 'Account Transfers', icon: ArrowsRightLeftIcon, roles: ['admin', 'manager', 'accountant'] },
+  { to: '/account-transfers', label: 'Account Transfers', icon: ArrowsRightLeftIcon, roles: ['admin', 'manager', 'accountant', 'auditor'] },
   { to: '/general-ledger', label: 'General Ledger', icon: PresentationChartBarIcon, roles: ['admin', 'manager', 'accountant', 'auditor'] },
 ]
 
