@@ -410,7 +410,7 @@
     ══════════════════════════════════════ -->
     <teleport to="body">
       <div v-if="purchaseModal" class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
           <div class="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white">
             <h3 class="font-semibold text-gray-800 flex items-center gap-2">
               <span class="w-3 h-3 rounded-full bg-red-500 inline-block"></span>
@@ -419,77 +419,92 @@
             <button @click="closePurchaseModal" class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
           </div>
           <form @submit.prevent="savePurchase" class="p-6 space-y-4">
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label class="form-label">Purchase Date *</label>
-                <input v-model="pForm.purchase_date" type="date" required class="form-input" />
+            <!-- 2-column main fields -->
+            <div class="grid grid-cols-2 gap-6">
+              <!-- LEFT COLUMN -->
+              <div class="space-y-3">
+                <div>
+                  <label class="form-label">Purchase Date *</label>
+                  <input v-model="pForm.purchase_date" type="date" required class="form-input" />
+                </div>
+                <div>
+                  <label class="form-label">Item Type</label>
+                  <select v-model="pForm.item_type" class="form-input">
+                    <option value="jewelry">Jewelry</option>
+                    <option value="coin">Coin</option>
+                    <option value="bar">Bar</option>
+                    <option value="scrap">Scrap</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label">Karat</label>
+                  <select v-model="pForm.declared_karat" class="form-input">
+                    <option value="24K">24K</option>
+                    <option value="23K">23K</option>
+                    <option value="22K">22K</option>
+                    <option value="21K">21K</option>
+                    <option value="20K">20K</option>
+                    <option value="19K">19K</option>
+                    <option value="18K">18K</option>
+                    <option value="17K">17K</option>
+                    <option value="16K">16K</option>
+                    <option value="15K">15K</option>
+                    <option value="14K">14K</option>
+                    <option value="13K">13K</option>
+                    <option value="12K">12K</option>
+                    <option value="11K">11K</option>
+                    <option value="10K">10K</option>
+                    <option value="9K">9K</option>
+                    <option value="8K">8K</option>
+                    <option value="unknown">Unknown</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label">Gross Wt (g)</label>
+                  <input v-model.number="pForm.gross_weight" type="number" step="0.001" min="0" class="form-input" @input="pCalc" />
+                </div>
+                <div>
+                  <label class="form-label">Deduction (g)</label>
+                  <input v-model.number="pForm.deduction_weight" type="number" step="0.001" min="0" class="form-input" @input="pCalc" />
+                </div>
+                <div>
+                  <label class="form-label">Net Wt (g)</label>
+                  <input v-model.number="pForm.net_weight" type="number" step="0.001" min="0" class="form-input bg-gray-50" readonly />
+                </div>
               </div>
-              <div>
-                <label class="form-label">Item Type</label>
-                <select v-model="pForm.item_type" class="form-input">
-                  <option value="jewelry">Jewelry</option>
-                  <option value="coin">Coin</option>
-                  <option value="bar">Bar</option>
-                  <option value="scrap">Scrap</option>
-                  <option value="other">Other</option>
-                </select>
+              <!-- RIGHT COLUMN -->
+              <div class="space-y-3">
+                <div>
+                  <label class="form-label">Description</label>
+                  <input v-model="pForm.description" type="text" placeholder="e.g. Gold necklace 22K" class="form-input" />
+                </div>
+                <div>
+                  <label class="form-label">Rate / gram (LKR)</label>
+                  <input v-model.number="pForm.rate_per_gram" type="number" step="0.01" min="0" class="form-input" @input="pCalc" />
+                </div>
+                <div>
+                  <label class="form-label">Total Amount (LKR)</label>
+                  <input v-model.number="pForm.final_price" type="number" step="0.01" min="0" class="form-input font-bold" />
+                </div>
+                <div>
+                  <label class="form-label">Payment Method</label>
+                  <select v-model="pForm.payment_method" class="form-input">
+                    <option value="cash">Cash</option>
+                    <option value="bank_transfer">Bank Transfer</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label">Notes</label>
+                  <textarea v-model="pForm.notes" rows="4" class="form-input resize-none" placeholder="Seller name, condition, remarks…"></textarea>
+                </div>
               </div>
-            </div>
-            <div>
-              <label class="form-label">Description</label>
-              <input v-model="pForm.description" type="text" placeholder="e.g. Gold necklace 22K" class="form-input" />
-            </div>
-            <div class="grid grid-cols-3 gap-3">
-              <div>
-                <label class="form-label">Karat</label>
-                <select v-model="pForm.declared_karat" class="form-input">
-                  <option value="24K">24K</option>
-                  <option value="22K">22K</option>
-                  <option value="21K">21K</option>
-                  <option value="18K">18K</option>
-                  <option value="14K">14K</option>
-                  <option value="unknown">Unknown</option>
-                </select>
-              </div>
-              <div>
-                <label class="form-label">Gross Wt (g)</label>
-                <input v-model.number="pForm.gross_weight" type="number" step="0.001" min="0" class="form-input" @input="pCalc" />
-              </div>
-              <div>
-                <label class="form-label">Deduction (g)</label>
-                <input v-model.number="pForm.deduction_weight" type="number" step="0.001" min="0" class="form-input" @input="pCalc" />
-              </div>
-            </div>
-            <div class="grid grid-cols-3 gap-3">
-              <div>
-                <label class="form-label">Net Wt (g)</label>
-                <input v-model.number="pForm.net_weight" type="number" step="0.001" min="0" class="form-input bg-gray-50" readonly />
-              </div>
-              <div>
-                <label class="form-label">Rate / gram (LKR)</label>
-                <input v-model.number="pForm.rate_per_gram" type="number" step="0.01" min="0" class="form-input" @input="pCalc" />
-              </div>
-              <div>
-                <label class="form-label">Total Amount (LKR)</label>
-                <input v-model.number="pForm.final_price" type="number" step="0.01" min="0" class="form-input font-bold" />
-              </div>
-            </div>
-            <div>
-              <label class="form-label">Payment Method</label>
-              <select v-model="pForm.payment_method" class="form-input">
-                <option value="cash">Cash</option>
-                <option value="bank_transfer">Bank Transfer</option>
-              </select>
-            </div>
-            <div>
-              <label class="form-label">Notes</label>
-              <textarea v-model="pForm.notes" rows="2" class="form-input resize-none" placeholder="Seller name, condition, remarks…"></textarea>
             </div>
 
-            <!-- Photo capture section -->
+            <!-- Photo capture section - full width -->
             <div class="border-t pt-4 space-y-3">
               <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Reference Photos</p>
-              <div class="grid grid-cols-3 gap-3">
+              <div class="grid grid-cols-4 gap-3">
                 <!-- NIC Front -->
                 <div class="flex flex-col gap-1.5">
                   <p class="text-xs font-medium text-gray-500 text-center">NIC Front</p>
@@ -567,6 +582,33 @@
                     <button type="button" @click="$refs.fInvoice.click()" :disabled="photoUploading.invoice"
                       class="text-xs py-1 px-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-40">📁 File</button>
                     <button type="button" @click="openCamera('invoice')" :disabled="photoUploading.invoice"
+                      class="text-xs py-1 px-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-40">📷 Cam</button>
+                  </div>
+                </div>
+
+                <!-- Weight Scale -->
+                <div class="flex flex-col gap-1.5">
+                  <p class="text-xs font-medium text-gray-500 text-center">Weight Scale</p>
+                  <div class="relative border-2 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center cursor-pointer"
+                    style="aspect-ratio:3/4"
+                    @click="!pForm.weight_photo_url && !photoUploading.weight && $refs.fWeight.click()">
+                    <img v-if="pForm.weight_photo_url" :src="pForm.weight_photo_url" class="w-full h-full object-cover" />
+                    <div v-else-if="photoUploading.weight" class="flex flex-col items-center gap-1 text-gray-400">
+                      <svg class="w-6 h-6 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                      <span class="text-xs">Uploading…</span>
+                    </div>
+                    <div v-else class="flex flex-col items-center gap-1 text-gray-300 select-none">
+                      <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3 9.75h18M4.5 19.5h15a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H4.5A1.5 1.5 0 003 6v12a1.5 1.5 0 001.5 1.5z"/></svg>
+                      <span class="text-xs">Tap to add</span>
+                    </div>
+                    <button v-if="pForm.weight_photo_url" type="button" @click.stop="pForm.weight_photo_url = ''"
+                      class="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center text-xs hover:bg-red-600">&times;</button>
+                  </div>
+                  <input ref="fWeight" type="file" accept="image/*" class="hidden" @change="onFileSelect($event, 'weight')" />
+                  <div class="grid grid-cols-2 gap-1">
+                    <button type="button" @click="$refs.fWeight.click()" :disabled="photoUploading.weight"
+                      class="text-xs py-1 px-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-40">📁 File</button>
+                    <button type="button" @click="openCamera('weight')" :disabled="photoUploading.weight"
                       class="text-xs py-1 px-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-40">📷 Cam</button>
                   </div>
                 </div>
@@ -700,6 +742,9 @@
                       <div class="flex gap-2">
                         <input v-model="newBuyerName" type="text" placeholder="Name" class="form-input flex-1 text-sm py-1" @mousedown.stop />
                         <input v-model="newBuyerPhone" type="text" placeholder="Phone (opt.)" class="form-input w-28 text-sm py-1" @mousedown.stop />
+                      </div>
+                      <div class="flex gap-2">
+                        <input v-model="newBuyerAddress" type="text" placeholder="Address (opt.)" class="form-input flex-1 text-sm py-1" @mousedown.stop />
                         <button type="button" :disabled="!newBuyerName.trim() || buyerCreating"
                           class="px-3 py-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-xs rounded-lg font-medium"
                           @mousedown.prevent="createAndSelectBuyer">
@@ -711,6 +756,16 @@
                 </div>
               </div>
             </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="form-label">Phone</label>
+                <input v-model="sForm.buyer_phone" type="text" placeholder="e.g. 0771234567" class="form-input" />
+              </div>
+              <div>
+                <label class="form-label">Address</label>
+                <input v-model="sForm.buyer_address" type="text" placeholder="Customer address" class="form-input" />
+              </div>
+            </div>
             <div>
               <label class="form-label">Description</label>
               <input v-model="sForm.description" type="text" placeholder="e.g. Gold chain 22K, 15g" class="form-input" />
@@ -720,10 +775,22 @@
                 <label class="form-label">Karat</label>
                 <select v-model="sForm.declared_karat" class="form-input">
                   <option value="24K">24K</option>
+                  <option value="23K">23K</option>
                   <option value="22K">22K</option>
                   <option value="21K">21K</option>
+                  <option value="20K">20K</option>
+                  <option value="19K">19K</option>
                   <option value="18K">18K</option>
+                  <option value="17K">17K</option>
+                  <option value="16K">16K</option>
+                  <option value="15K">15K</option>
                   <option value="14K">14K</option>
+                  <option value="13K">13K</option>
+                  <option value="12K">12K</option>
+                  <option value="11K">11K</option>
+                  <option value="10K">10K</option>
+                  <option value="9K">9K</option>
+                  <option value="8K">8K</option>
                   <option value="unknown">Unknown</option>
                 </select>
               </div>
@@ -1005,17 +1072,18 @@ const pForm = reactive({
   purchase_date: '', item_type: 'jewelry', description: '',
   declared_karat: '22K', gross_weight: 0, deduction_weight: 0, net_weight: 0,
   rate_per_gram: 0, final_price: 0, payment_method: 'cash', notes: '',
-  nic_front_url: '', nic_back_url: '', invoice_photo_url: '',
+  nic_front_url: '', nic_back_url: '', invoice_photo_url: '', weight_photo_url: '',
 })
 
 // ── photo upload ───────────────────────────────────────
-const photoUploading = reactive({ nic_front: false, nic_back: false, invoice: false })
+const photoUploading = reactive({ nic_front: false, nic_back: false, invoice: false, weight: false })
 const anyPhotoUploading = computed(() => Object.values(photoUploading).some(Boolean))
 
 const photoFieldMap = {
   nic_front: 'nic_front_url',
   nic_back:  'nic_back_url',
   invoice:   'invoice_photo_url',
+  weight:    'weight_photo_url',
 }
 
 async function uploadToCloudinary(file) {
@@ -1051,7 +1119,7 @@ const videoEl      = ref(null)
 const canvasEl     = ref(null)
 let   cameraStream = null
 
-const cameraLabels = { nic_front: 'NIC Front', nic_back: 'NIC Back', invoice: 'Invoice' }
+const cameraLabels = { nic_front: 'NIC Front', nic_back: 'NIC Back', invoice: 'Invoice', weight: 'Weight Scale' }
 
 async function openCamera(field) {
   cameraField.value = field
@@ -1150,9 +1218,10 @@ function openPurchaseModal(p) {
     final_price:      p?.final_price ?? 0,
     payment_method:   p?.payment_method ?? 'cash',
     notes:            p?.notes ?? '',
-    nic_front_url:    p?.nic_front_url ?? '',
-    nic_back_url:     p?.nic_back_url ?? '',
-    invoice_photo_url:p?.invoice_photo_url ?? '',
+    nic_front_url:     p?.nic_front_url ?? '',
+    nic_back_url:      p?.nic_back_url ?? '',
+    invoice_photo_url: p?.invoice_photo_url ?? '',
+    weight_photo_url:  p?.weight_photo_url ?? '',
   })
   purchaseModal.value = true
 }
@@ -1230,6 +1299,7 @@ const buyerAddFormOpen  = ref(false)
 const buyerCreating     = ref(false)
 const newBuyerName      = ref('')
 const newBuyerPhone     = ref('')
+const newBuyerAddress   = ref('')
 let _buyerMouseInDropdown = false
 
 async function loadBuyers(search = '') {
@@ -1243,8 +1313,9 @@ const filteredBuyers = computed(() => {
 })
 
 function selectBuyer(buyer) {
-  sForm.buyer_name  = buyer.name
-  sForm.buyer_phone = buyer.phone || ''
+  sForm.buyer_name    = buyer.name
+  sForm.buyer_phone   = buyer.phone || ''
+  sForm.buyer_address = buyer.address || ''
   buyerSearch.value       = buyer.name
   buyerDropdownOpen.value = false
   buyerAddFormOpen.value  = false
@@ -1275,13 +1346,15 @@ async function createAndSelectBuyer() {
   buyerCreating.value = true
   try {
     const { data } = await axios.post('/api/private-buyers', {
-      name:  newBuyerName.value.trim(),
-      phone: newBuyerPhone.value.trim() || null,
+      name:    newBuyerName.value.trim(),
+      phone:   newBuyerPhone.value.trim() || null,
+      address: newBuyerAddress.value.trim() || null,
     })
     buyersList.value.unshift(data)
     selectBuyer(data)
-    newBuyerName.value  = ''
-    newBuyerPhone.value = ''
+    newBuyerName.value    = ''
+    newBuyerPhone.value   = ''
+    newBuyerAddress.value = ''
     buyerCreating.value = false
     buyerAddFormOpen.value = false
   } catch { buyerCreating.value = false }
@@ -1297,7 +1370,7 @@ const sSaving = ref(false)
 const sError  = ref('')
 
 const sForm = reactive({
-  sale_date: '', item_type: 'jewelry', buyer_name: '', buyer_phone: '', description: '',
+  sale_date: '', item_type: 'jewelry', buyer_name: '', buyer_phone: '', buyer_address: '', description: '',
   declared_karat: '22K', gross_weight: 0, net_weight: 0,
   rate_per_gram: 0, total_amount: 0, payment_method: 'cash', notes: '',
 })
@@ -1335,6 +1408,7 @@ function openSaleModal(s) {
     item_type:      s?.item_type ?? 'jewelry',
     buyer_name:     s?.buyer_name ?? '',
     buyer_phone:    s?.buyer_phone ?? '',
+    buyer_address:  s?.buyer_address ?? '',
     description:    s?.description ?? '',
     declared_karat: s?.declared_karat ?? '22K',
     gross_weight:   s?.gross_weight ?? 0,
@@ -1597,7 +1671,6 @@ async function printPurchaseInvoice(p) {
       <th style="text-align:center;width:55px">Karat</th>
       <th style="text-align:right;width:75px">Gross Wt</th>
       <th style="text-align:right;width:75px">Net Wt</th>
-      <th style="text-align:right;width:100px">Rate / g</th>
       <th style="text-align:right;width:110px">Amount</th>
     </tr></thead>
     <tbody>
@@ -1610,7 +1683,6 @@ async function printPurchaseInvoice(p) {
         <td style="text-align:center;font-weight:700">${p.declared_karat}</td>
         <td style="text-align:right">${Number(p.gross_weight || 0).toFixed(3)} g</td>
         <td style="text-align:right;font-weight:700">${Number(p.net_weight || 0).toFixed(3)} g</td>
-        <td style="text-align:right">${fmtLkr(p.rate_per_gram)}</td>
         <td style="text-align:right;font-weight:700">${fmtLkr(p.final_price)}</td>
       </tr>
     </tbody>
@@ -1629,7 +1701,6 @@ async function printPurchaseInvoice(p) {
   <div class="footer">
     <div style="font-weight:600">Thank you!</div>
     ${shop.shop_name ? `<div style="font-size:10px;color:#888;margin-top:2px">${shop.shop_name}</div>` : ''}
-    <div style="font-size:10px;font-weight:700;margin-top:6px;letter-spacing:0.5px">www.lumac.lk &nbsp;|&nbsp; 076 464 3050</div>
   </div>
   </body></html>`)
 }
@@ -1638,6 +1709,9 @@ async function printPurchaseInvoice(p) {
 function printSaleInvoice(s) {
   const shop = shopSettings.value
   const today = new Date().toLocaleDateString('en-LK', { day: '2-digit', month: 'short', year: 'numeric' })
+  const saleDate = s.sale_date
+    ? new Date(s.sale_date).toLocaleDateString('en-LK', { day: '2-digit', month: 'short', year: 'numeric' })
+    : '—'
   const css = a5Css()
   openPrint(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Sale — ${s.reference_number}</title>
   <style>${css}</style></head><body>
@@ -1655,19 +1729,23 @@ function printSaleInvoice(s) {
       <div class="inv-title" style="color:#16a34a">SALE RECEIPT</div>
       <table class="meta-table">
         <tr><td>Ref No</td><td><strong>${s.reference_number}</strong></td></tr>
-        <tr><td>Date</td><td>${s.sale_date}</td></tr>
+        <tr><td>Date</td><td>${saleDate}</td></tr>
         <tr><td>Printed</td><td>${today}</td></tr>
       </table>
     </div>
   </div>
-  ${s.buyer_name ? `<div class="cust"><strong>Buyer:</strong> ${s.buyer_name}</div>` : ''}
+  ${(s.buyer_name || s.buyer_phone || s.buyer_address) ? `
+  <div class="cust">
+    ${s.buyer_name ? `<strong>${s.buyer_name}</strong>` : ''}
+    ${s.buyer_phone ? `<span style="margin-left:8px;color:#555">${s.buyer_phone}</span>` : ''}
+    ${s.buyer_address ? `<div style="font-size:10px;color:#666;margin-top:2px">${s.buyer_address}</div>` : ''}
+  </div>` : ''}
   <table class="items">
     <thead><tr>
       <th style="text-align:left">Description</th>
       <th style="text-align:center;width:55px">Karat</th>
       <th style="text-align:right;width:75px">Gross Wt</th>
       <th style="text-align:right;width:75px">Net Wt</th>
-      <th style="text-align:right;width:100px">Rate / g</th>
       <th style="text-align:right;width:110px">Amount</th>
     </tr></thead>
     <tbody>
@@ -1680,7 +1758,6 @@ function printSaleInvoice(s) {
         <td style="text-align:center;font-weight:700">${s.declared_karat}</td>
         <td style="text-align:right">${Number(s.gross_weight || 0).toFixed(3)} g</td>
         <td style="text-align:right;font-weight:700">${Number(s.net_weight || 0).toFixed(3)} g</td>
-        <td style="text-align:right">${fmtLkr(s.rate_per_gram)}</td>
         <td style="text-align:right;font-weight:700">${fmtLkr(s.total_amount)}</td>
       </tr>
     </tbody>
@@ -1698,8 +1775,6 @@ function printSaleInvoice(s) {
   <div class="footer">
     <div style="font-weight:600">Thank you!</div>
     ${shop.shop_name ? `<div style="font-size:10px;color:#888;margin-top:2px">${shop.shop_name}</div>` : ''}
-    <div style="font-size:10px;font-weight:700;margin-top:6px;letter-spacing:0.5px">www.lumac.lk &nbsp;|&nbsp; 0764643050</div>
-    <div style="font-size:9px;color:#bbb;margin-top:4px">CONFIDENTIAL — Private sale record</div>
   </div>
   </body></html>`)
 }
