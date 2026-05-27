@@ -159,33 +159,33 @@
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- Low stock -->
+      <!-- Cash on Hand (GL) -->
       <div class="card">
         <h3 class="font-semibold text-gray-700 mb-4 flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full bg-red-500"></span>
-          Low Stock Alerts
+          <span class="w-2 h-2 rounded-full bg-green-500"></span>
+          Cash &amp; Bank Balances
+          <span class="ml-auto text-xs text-gray-400 font-normal">As of today</span>
         </h3>
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead><tr>
-              <th class="table-th">SKU</th>
-              <th class="table-th">Name</th>
-              <th class="table-th">Stock</th>
-              <th class="table-th">Min</th>
-            </tr></thead>
-            <tbody class="divide-y divide-gray-100">
-              <tr v-for="p in data.low_stock" :key="p.id">
-                <td class="table-td font-mono text-xs">{{ p.sku }}</td>
-                <td class="table-td">{{ p.name }}</td>
-                <td class="table-td"><span class="badge bg-red-100 text-red-700">{{ p.stock_quantity }}</span></td>
-                <td class="table-td text-gray-400">{{ p.min_stock_level }}</td>
-              </tr>
-              <tr v-if="!data.low_stock?.length">
-                <td colspan="4" class="table-td text-center text-gray-400">All items are well-stocked ✓</td>
-              </tr>
-            </tbody>
-          </table>
+        <div v-if="glCashLoading" class="flex items-center justify-center py-8 text-gray-400 gap-2">
+          <span class="animate-spin inline-block w-4 h-4 border-2 border-gray-300 border-t-amber-500 rounded-full"></span> Loading…
         </div>
+        <div v-else-if="glCashAccounts.length" class="space-y-3">
+          <div v-for="acc in glCashAccounts" :key="acc.id"
+            class="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+            <div>
+              <p class="text-sm font-medium text-gray-800">{{ acc.name }}</p>
+              <p class="text-xs text-gray-400 font-mono">{{ acc.code }}</p>
+            </div>
+            <p class="text-sm font-bold" :class="acc.balance >= 0 ? 'text-green-700' : 'text-red-600'">
+              LKR {{ lkr(Math.abs(acc.balance)) }}
+            </p>
+          </div>
+          <div class="flex items-center justify-between pt-2 border-t-2 border-gray-200">
+            <p class="text-sm font-semibold text-gray-700">Total Cash &amp; Bank</p>
+            <p class="text-base font-bold text-green-700">LKR {{ lkr(glCashTotal) }}</p>
+          </div>
+        </div>
+        <p v-else class="text-sm text-gray-400 text-center py-8">No cash or bank accounts found</p>
       </div>
 
       <!-- Recent sales -->
@@ -229,7 +229,7 @@ const stats = computed(() => [
   { label: 'Total Products',    value: data.value.totals?.products        ?? '—', color: 'blue',   icon: '📦' },
   { label: 'Customers',         value: data.value.totals?.customers       ?? '—', color: 'purple', icon: '👥' },
   { label: "Today's Revenue",   value: 'LKR ' + Number(data.value.totals?.revenue_today   ?? 0).toLocaleString(), color: 'gold',  icon: '💰' },
-  { label: 'Low Stock Items',   value: data.value.totals?.low_stock_count ?? '—', color: 'red',    icon: '⚠️' },
+  { label: 'Cash on Hand',      value: glCashLoading.value ? '…' : 'LKR ' + lkr(glCashTotal.value), color: 'green',  icon: '💵' },
 ])
 
 const chartData = computed(() => {
@@ -256,6 +256,13 @@ const chartOptions = {
 
 const chequeReminders = computed(() => data.value.cheque_reminders ?? [])
 const loansDueSoon   = computed(() => data.value.loan_due_soon ?? [])
+
+// ── GL Cash on Hand ──────────────────────────────────────────────────────────
+const glCashLoading  = ref(false)
+const glCashAccounts = ref([])
+const glCashTotal    = computed(() => glCashAccounts.value.reduce((s, a) => s + Number(a.balance), 0))
+
+function lkr(v) { return Number(v || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }
 
 // ── Pay Installment ──────────────────────────────────────────────────────────
 const payInstallmentLoan  = ref(null)
@@ -370,6 +377,15 @@ onMounted(async () => {
     data.value = d
   } finally {
     loaded.value = true
+  }
+
+  glCashLoading.value = true
+  try {
+    const today = new Date().toISOString().slice(0, 10)
+    const { data: bs } = await axios.get('/api/gl/balance-sheet', { params: { as_of: today } })
+    glCashAccounts.value = (bs.assets ?? []).filter(a => /(cash|bank)/i.test(a.name))
+  } finally {
+    glCashLoading.value = false
   }
 })
 </script>
