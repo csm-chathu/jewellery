@@ -10,11 +10,13 @@ use App\Models\JournalEntryLine;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
+
 class AccountTransferController extends Controller
 {
     public function index(Request $request)
     {
         $transfers = JournalEntry::with('createdBy:id,name', 'lines.account:id,code,name')
+            ->withSum('lines', 'debit')
             ->where('reference_type', 'account_transfer')
             ->when($request->from, fn($q, $v) => $q->where('entry_date', '>=', $v))
             ->when($request->to,   fn($q, $v) => $q->where('entry_date', '<=', $v))
