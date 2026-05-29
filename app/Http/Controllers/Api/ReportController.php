@@ -136,8 +136,8 @@ class ReportController extends Controller
             SUM(wastage_total) as wastage,
             SUM(tax) as total_tax,
             SUM(discount) as total_discount,
-            SUM(amount_paid) as amount_paid,
-            SUM(official_total - amount_paid) as outstanding
+            SUM(LEAST(amount_paid, official_total)) as amount_paid,
+            SUM(GREATEST(official_total - amount_paid, 0)) as outstanding
         ')->first();
 
         // Add item-level discounts to the total_discount figure
@@ -161,7 +161,8 @@ class ReportController extends Controller
             ->orderByDesc('created_at')
             ->get(['id', 'invoice_number', 'customer_id', 'official_total', 'amount_paid', 'discount', 'tax', 'payment_method', 'sale_type', 'created_at'])
             ->each(function ($row) {
-                $row->discount = round(($row->discount ?? 0) + ($row->item_discount_total ?? 0), 2);
+                $row->discount    = round(($row->discount ?? 0) + ($row->item_discount_total ?? 0), 2);
+                $row->amount_paid = min((float) $row->amount_paid, (float) $row->official_total);
                 unset($row->item_discount_total);
             });
 
@@ -550,7 +551,7 @@ class ReportController extends Controller
 
         $items = SaleItem::with([
                 'product:id,name,karat,weight,purchase_price,sku',
-                'sale:id,invoice_number,sold_at,customer_id,branch_id',
+                'sale:id,invoice_number,sold_at,customer_id,branch_id,total,official_total',
                 'sale.customer:id,name',
             ])
             ->whereHas('sale', function ($q) use ($user, $from, $to) {
@@ -584,7 +585,10 @@ class ReportController extends Controller
 
             $goldValue    = round($ratePerGram * $weight * $qty, 2);
             $purchaseCost = round(($product?->purchase_price ?? 0) * $qty, 2);
-            $saleRevenue  = round((float) $item->total, 2);
+            $saleTotal    = (float) $sale?->total;
+            $officialTotal = (float) $sale?->official_total;
+            $ratio        = ($saleTotal > 0) ? $officialTotal / $saleTotal : 1;
+            $saleRevenue  = round((float) $item->total * $ratio, 2);
             $makingCharge = round((float) ($item->making_charge ?? 0), 2);
             $goldMargin   = round($saleRevenue - $goldValue, 2);
             $grossProfit  = round($saleRevenue - $purchaseCost, 2);
