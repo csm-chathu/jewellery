@@ -14,9 +14,8 @@ class ExpenseController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Expense::with(['paidByUser:id,name,email', 'createdByUser:id,name', 'branch:id,name,code']);
+        $query = Expense::with(['paidByUser:id,name,email', 'createdByUser:id,name', 'branch:id,name,code', 'expenseAccount:id,name,code']);
 
-        // Filter by date range
         if ($request->from_date) {
             $query->where('expense_date', '>=', $request->from_date);
         }
@@ -24,9 +23,8 @@ class ExpenseController extends Controller
             $query->where('expense_date', '<=', $request->to_date);
         }
 
-        // Filter by category
-        if ($request->category && $request->category !== 'all') {
-            $query->where('category', $request->category);
+        if ($request->expense_account_id) {
+            $query->where('expense_account_id', $request->expense_account_id);
         }
 
         // Filter by payment method
@@ -52,37 +50,36 @@ class ExpenseController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'expense_date'      => 'required|date',
-            'category'          => 'required|in:' . implode(',', array_keys(Expense::CATEGORIES)),
-            'description'       => 'required|string|max:500',
-            'amount'            => 'required|numeric|min:0.01',
-            'payment_method'    => 'required|in:' . implode(',', Expense::PAYMENT_METHODS),
-            'reference_number'  => 'nullable|string|max:100',
-            'paid_by_user_id'   => 'required|exists:users,id',
-            'branch_id'         => 'nullable|exists:branches,id',
-            'notes'             => 'nullable|string|max:1000',
+            'expense_date'       => 'required|date',
+            'expense_account_id' => 'required|exists:accounts,id',
+            'description'        => 'required|string|max:500',
+            'amount'             => 'required|numeric|min:0.01',
+            'payment_method'     => 'required|in:' . implode(',', Expense::PAYMENT_METHODS),
+            'reference_number'   => 'nullable|string|max:100',
+            'paid_by_user_id'    => 'required|exists:users,id',
+            'branch_id'          => 'nullable|exists:branches,id',
+            'notes'              => 'nullable|string|max:1000',
         ]);
 
         $data['created_by_user_id'] = $request->user()->id;
 
         $expense = Expense::create($data);
 
-        // Post to General Ledger
         try {
             $entry = $this->postExpenseJournal($expense);
             $expense->update(['journal_entry_id' => $entry->id]);
         } catch (\Exception $e) {
-            // Log error but don't fail the request
             \Log::error('Expense GL posting failed: ' . $e->getMessage(), ['expense_id' => $expense->id]);
+            return response()->json(['message' => 'Expense saved but GL posting failed: ' . $e->getMessage()], 422);
         }
 
         AuditLog::record(
             'expense_created',
-            "Created expense: {$expense->description} ({$expense->category}) - LKR {$expense->amount}",
+            "Created expense: {$expense->description} - LKR {$expense->amount}",
             $expense
         );
 
-        return response()->json($expense->load(['paidByUser:id,name', 'createdByUser:id,name', 'branch:id,name']), 201);
+        return response()->json($expense->load(['paidByUser:id,name', 'createdByUser:id,name', 'branch:id,name', 'expenseAccount:id,name,code']), 201);
     }
 
     public function show(Expense $expense)
@@ -93,15 +90,15 @@ class ExpenseController extends Controller
     public function update(Request $request, Expense $expense)
     {
         $data = $request->validate([
-            'expense_date'      => 'sometimes|date',
-            'category'          => 'sometimes|in:' . implode(',', array_keys(Expense::CATEGORIES)),
-            'description'       => 'sometimes|string|max:500',
-            'amount'            => 'sometimes|numeric|min:0.01',
-            'payment_method'    => 'sometimes|in:' . implode(',', Expense::PAYMENT_METHODS),
-            'reference_number'  => 'nullable|string|max:100',
-            'paid_by_user_id'   => 'sometimes|exists:users,id',
-            'branch_id'         => 'nullable|exists:branches,id',
-            'notes'             => 'nullable|string|max:1000',
+            'expense_date'       => 'sometimes|date',
+            'expense_account_id' => 'sometimes|exists:accounts,id',
+            'description'        => 'sometimes|string|max:500',
+            'amount'             => 'sometimes|numeric|min:0.01',
+            'payment_method'     => 'sometimes|in:' . implode(',', Expense::PAYMENT_METHODS),
+            'reference_number'   => 'nullable|string|max:100',
+            'paid_by_user_id'    => 'sometimes|exists:users,id',
+            'branch_id'          => 'nullable|exists:branches,id',
+            'notes'              => 'nullable|string|max:1000',
         ]);
 
         $old = $expense->only(array_keys($data));
@@ -115,7 +112,7 @@ class ExpenseController extends Controller
             $expense->fresh()->only(array_keys($old))
         );
 
-        return response()->json($expense->load(['paidByUser:id,name', 'createdByUser:id,name', 'branch:id,name']));
+        return response()->json($expense->load(['paidByUser:id,name', 'createdByUser:id,name', 'branch:id,name', 'expenseAccount:id,name,code']));
     }
 
     public function destroy(Request $request, Expense $expense)
@@ -140,8 +137,8 @@ class ExpenseController extends Controller
         if ($request->to_date) {
             $query->where('expense_date', '<=', $request->to_date);
         }
-        if ($request->category) {
-            $query->where('category', $request->category);
+        if ($request->expense_account_id) {
+            $query->where('expense_account_id', $request->expense_account_id);
         }
         if ($request->payment_method) {
             $query->where('payment_method', $request->payment_method);
@@ -150,27 +147,24 @@ class ExpenseController extends Controller
             $query->where('branch_id', $request->branch_id);
         }
 
-        $byCategory = $query->selectRaw('category, COUNT(*) as count, SUM(amount) as total')
-            ->groupBy('category')
-            ->orderByRaw('SUM(amount) DESC')
+        $byCategory = $query->join('accounts', 'expenses.expense_account_id', '=', 'accounts.id')
+            ->selectRaw('expenses.expense_account_id, accounts.name as account_name, accounts.code as account_code, COUNT(*) as count, SUM(expenses.amount) as total')
+            ->groupBy('expenses.expense_account_id', 'accounts.name', 'accounts.code')
+            ->orderByRaw('SUM(expenses.amount) DESC')
             ->get();
 
-        $total = $query->sum('amount');
+        $total = $query->sum('expenses.amount');
 
         return response()->json(['by_category' => $byCategory, 'grand_total' => $total]);
     }
 
     private function postExpenseJournal(Expense $expense): JournalEntry
     {
-        // Get expense account by category code
-        $categoryCode = Expense::CATEGORY_ACCOUNT_CODES[$expense->category] ?? '5999';
-        $expenseAccount = Account::where('code', $categoryCode)->first();
-        
-        // Get payment account by method
+        $expenseAccount = Account::find($expense->expense_account_id);
         $paidAccount = $this->paymentAccountByMethod($expense->payment_method);
 
         if (!$expenseAccount) {
-            throw new \Exception("Expense account ({$categoryCode}) not found for category: {$expense->category}");
+            throw new \Exception("Expense account (id={$expense->expense_account_id}) not found.");
         }
         if (!$paidAccount) {
             throw new \Exception("Payment account not found for method: {$expense->payment_method}");

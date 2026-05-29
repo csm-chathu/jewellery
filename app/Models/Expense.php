@@ -20,34 +20,7 @@ class Expense extends Model
         'amount'       => 'decimal:2',
     ];
 
-    const CATEGORIES = [
-        'rent'             => 'Shop Rent',
-        'utilities'        => 'Utilities (Electricity, Water)',
-        'supplies'         => 'Office Supplies (Pen, Paper, etc)',
-        'maintenance'      => 'Maintenance & Repairs',
-        'travel'           => 'Travel & Transportation',
-        'marketing'        => 'Marketing & Advertising',
-        'insurance'        => 'Insurance',
-        'licenses'         => 'Licenses & Permits',
-        'professional'     => 'Professional Fees',
-        'miscellaneous'    => 'Miscellaneous',
-    ];
-
     const PAYMENT_METHODS = ['cash', 'cheque', 'bank_transfer', 'card'];
-
-    // Map expense categories to GL account codes
-    const CATEGORY_ACCOUNT_CODES = [
-        'rent'             => '5100',
-        'utilities'        => '5200',
-        'supplies'         => '5300',
-        'maintenance'      => '5400',
-        'travel'           => '5500',
-        'marketing'        => '5600',
-        'insurance'        => '5700',
-        'licenses'         => '5800',
-        'professional'     => '5900',
-        'miscellaneous'    => '5999',
-    ];
 
     public function paidByUser()
     {

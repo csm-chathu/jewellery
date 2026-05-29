@@ -16,9 +16,9 @@
         <input v-model="search" placeholder="Search description..." class="form-input" @input="load" />
         <input v-model="filters.from_date" type="date" class="form-input" @change="load" />
         <input v-model="filters.to_date" type="date" class="form-input" @change="load" />
-        <select v-model="filters.category" class="form-input" @change="load">
-          <option value="">All Categories</option>
-          <option v-for="(label, key) in categories" :key="key" :value="key">{{ label }}</option>
+        <select v-model="filters.expense_account_id" class="form-input" @change="load">
+          <option value="">All Accounts</option>
+          <option v-for="a in expenseAccounts" :key="a.id" :value="a.id">{{ a.code }} – {{ a.name }}</option>
         </select>
         <select v-model="filters.payment_method" class="form-input" @change="load">
           <option value="">All Payment Methods</option>
@@ -50,9 +50,9 @@
     <div v-if="summary.by_category?.length" class="card">
       <h3 class="font-semibold text-gray-800 mb-4">Expenses by Category</h3>
       <div class="space-y-3">
-        <div v-for="item in summary.by_category" :key="item.category" class="flex items-center justify-between pb-3 border-b last:border-b-0">
+        <div v-for="item in summary.by_category" :key="item.expense_account_id" class="flex items-center justify-between pb-3 border-b last:border-b-0">
           <div class="flex-1">
-            <p class="font-medium text-gray-700">{{ categories[item.category] || item.category }}</p>
+            <p class="font-medium text-gray-700">{{ item.account_name || item.expense_account_id }}</p>
             <p class="text-xs text-gray-500">{{ item.count }} {{ item.count === 1 ? 'entry' : 'entries' }}</p>
           </div>
           <div class="text-right">
@@ -83,7 +83,7 @@
               <td class="table-td text-sm">{{ fmtDate(exp.expense_date) }}</td>
               <td class="table-td">
                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                  {{ categories[exp.category] || exp.category }}
+                  {{ exp.expense_account?.name || '—' }}
                 </span>
               </td>
               <td class="table-td text-sm max-w-xs truncate">{{ exp.description }}</td>
@@ -130,10 +130,10 @@
               <input v-model="form.expense_date" type="date" required class="form-input" />
             </div>
             <div>
-              <label class="form-label">Category *</label>
-              <select v-model="form.category" required class="form-input">
-                <option value="">— Select Category —</option>
-                <option v-for="(label, key) in categories" :key="key" :value="key">{{ label }}</option>
+              <label class="form-label">Expense Account *</label>
+              <select v-model.number="form.expense_account_id" required class="form-input">
+                <option value="">— Select Account —</option>
+                <option v-for="a in expenseAccounts" :key="a.id" :value="a.id">{{ a.code }} – {{ a.name }}</option>
               </select>
             </div>
             <div class="col-span-2">
@@ -199,24 +199,12 @@ const formError = ref('')
 const summary = ref({ by_category: [], grand_total: 0 })
 
 const search = ref('')
-const filters = reactive({ from_date: '', to_date: '', category: '', payment_method: '' })
-
-const categories = {
-  rent: 'Shop Rent',
-  utilities: 'Utilities (Electricity, Water)',
-  supplies: 'Office Supplies (Pen, Paper, etc)',
-  maintenance: 'Maintenance & Repairs',
-  travel: 'Travel & Transportation',
-  marketing: 'Marketing & Advertising',
-  insurance: 'Insurance',
-  licenses: 'Licenses & Permits',
-  professional: 'Professional Fees',
-  miscellaneous: 'Miscellaneous',
-}
+const filters = reactive({ from_date: '', to_date: '', expense_account_id: '', payment_method: '' })
+const expenseAccounts = ref([])
 
 const form = reactive({
   expense_date: new Date().toISOString().split('T')[0],
-  category: '', description: '', amount: 0,
+  expense_account_id: '', description: '', amount: 0,
   payment_method: 'cash', reference_number: '', paid_by_user_id: '',
   notes: '',
 })
@@ -262,7 +250,7 @@ function openModal(expense) {
   if (expense) {
     Object.assign(form, {
       expense_date: expense.expense_date,
-      category: expense.category,
+      expense_account_id: expense.expense_account_id,
       description: expense.description,
       amount: parseFloat(expense.amount),
       payment_method: expense.payment_method,
@@ -273,7 +261,7 @@ function openModal(expense) {
   } else {
     Object.assign(form, {
       expense_date: new Date().toISOString().split('T')[0],
-      category: '', description: '', amount: 0,
+      expense_account_id: '', description: '', amount: 0,
       payment_method: 'cash', reference_number: '', paid_by_user_id: '',
       notes: '',
     })
@@ -310,8 +298,12 @@ async function deleteExpense(expense) {
 }
 
 onMounted(async () => {
-  const { data: usersData } = await axios.get('/api/users?per_page=100')
-  users.value = usersData.data || []
+  const [usersRes, accountsRes] = await Promise.all([
+    axios.get('/api/users?per_page=100'),
+    axios.get('/api/accounts?type=expense'),
+  ])
+  users.value = usersRes.data.data || []
+  expenseAccounts.value = (accountsRes.data || []).filter(a => a.sub_type !== 'cogs' && a.is_active !== false)
   load()
 })
 </script>
