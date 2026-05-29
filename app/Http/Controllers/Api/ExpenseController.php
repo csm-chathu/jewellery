@@ -147,13 +147,13 @@ class ExpenseController extends Controller
             $query->where('branch_id', $request->branch_id);
         }
 
-        $byCategory = $query->join('accounts', 'expenses.expense_account_id', '=', 'accounts.id')
-            ->selectRaw('expenses.expense_account_id, accounts.name as account_name, accounts.code as account_code, COUNT(*) as count, SUM(expenses.amount) as total')
+        $total = (clone $query)->sum('amount');
+
+        $byCategory = $query->leftJoin('accounts', 'expenses.expense_account_id', '=', 'accounts.id')
+            ->selectRaw('expenses.expense_account_id, COALESCE(accounts.name, \'Unknown\') as account_name, accounts.code as account_code, COUNT(*) as count, SUM(expenses.amount) as total')
             ->groupBy('expenses.expense_account_id', 'accounts.name', 'accounts.code')
             ->orderByRaw('SUM(expenses.amount) DESC')
             ->get();
-
-        $total = $query->sum('expenses.amount');
 
         return response()->json(['by_category' => $byCategory, 'grand_total' => $total]);
     }
