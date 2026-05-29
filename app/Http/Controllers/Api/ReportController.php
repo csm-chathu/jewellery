@@ -129,7 +129,7 @@ class ReportController extends Controller
 
         $totals = (clone $query)->selectRaw('
             COUNT(*) as count,
-            SUM(total) as total_revenue,
+            SUM(official_total) as total_revenue,
             SUM(gold_value_total) as gold_value,
             SUM(gemstone_value_total) as gemstone_value,
             SUM(making_charges_total) as making_charges,
@@ -137,7 +137,7 @@ class ReportController extends Controller
             SUM(tax) as total_tax,
             SUM(discount) as total_discount,
             SUM(amount_paid) as amount_paid,
-            SUM(total - amount_paid) as outstanding
+            SUM(official_total - amount_paid) as outstanding
         ')->first();
 
         // Add item-level discounts to the total_discount figure
@@ -159,7 +159,7 @@ class ReportController extends Controller
             ])
             ->withSum('items as item_discount_total', 'discount')
             ->orderByDesc('created_at')
-            ->get(['id', 'invoice_number', 'customer_id', 'total', 'amount_paid', 'discount', 'tax', 'payment_method', 'sale_type', 'created_at'])
+            ->get(['id', 'invoice_number', 'customer_id', 'official_total', 'amount_paid', 'discount', 'tax', 'payment_method', 'sale_type', 'created_at'])
             ->each(function ($row) {
                 $row->discount = round(($row->discount ?? 0) + ($row->item_discount_total ?? 0), 2);
                 unset($row->item_discount_total);

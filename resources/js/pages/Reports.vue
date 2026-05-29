@@ -120,7 +120,7 @@
                     <td class="table-td text-right font-mono">{{ lkr(item.unit_price) }}</td>
                     <td class="table-td text-right font-mono font-medium">{{ lkr(item.total) }}</td>
                     <td class="table-td text-right font-mono font-semibold text-green-700">
-                      {{ idx === 0 ? lkr(r.total) : '' }}
+                      {{ idx === 0 ? lkr(r.official_total) : '' }}
                     </td>
                     <td class="table-td text-right font-mono text-green-600">
                       {{ idx === 0 ? lkr(r.amount_paid) : '' }}
@@ -134,7 +134,7 @@
                   <td class="table-td">{{ r.customer?.name ?? '—' }}</td>
                   <td class="table-td whitespace-nowrap">{{ fmt(r.created_at) }}</td>
                   <td class="table-td text-gray-400" colspan="6">—</td>
-                  <td class="table-td text-right font-mono font-semibold text-green-700">{{ lkr(r.total) }}</td>
+                  <td class="table-td text-right font-mono font-semibold text-green-700">{{ lkr(r.official_total) }}</td>
                   <td class="table-td text-right font-mono text-green-600">{{ lkr(r.amount_paid) }}</td>
                   <td class="table-td">{{ r.payment_method }}</td>
                   <td class="table-td">{{ r.sale_type }}</td>
