@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\CustomMadeOrder;
 use App\Models\InformalGoldPurchase;
 use App\Models\PrivateCashAdjustment;
 use App\Models\PrivateExpense;
@@ -136,14 +137,51 @@ class PrivateSaleController extends Controller
                    'description', 'type', 'amount', 'payment_method'])
             ->map(fn($r) => [...$r->toArray(), 'kind' => 'adjustment']);
 
+        // Custom made order advance payments (cash in)
+        $customAdvances = CustomMadeOrder::query()
+            ->when(!$user->isAdmin(), fn($q) => $q->where('branch_id', $user->branch_id))
+            ->where('advance_amount', '>', 0)
+            ->whereNotNull('advance_paid_at')
+            ->when($from, fn($q, $d) => $q->whereDate('advance_paid_at', '>=', $d))
+            ->when($to,   fn($q, $d) => $q->whereDate('advance_paid_at', '<=', $d))
+            ->get(['id', 'reference_number', 'advance_paid_at', 'description', 'advance_amount'])
+            ->map(fn($r) => [
+                'id'               => $r->id,
+                'reference_number' => $r->reference_number,
+                'entry_date'       => $r->advance_paid_at?->format('Y-m-d'),
+                'description'      => $r->description,
+                'amount'           => $r->advance_amount,
+                'kind'             => 'custom_order',
+                'sub_kind'         => 'advance',
+            ]);
+
+        // Custom made order balance payments collected on issue (cash in)
+        $customBalances = CustomMadeOrder::query()
+            ->when(!$user->isAdmin(), fn($q) => $q->where('branch_id', $user->branch_id))
+            ->where('status', 'issued')
+            ->where('balance_amount', '>', 0)
+            ->when($from, fn($q, $d) => $q->whereDate('issued_at', '>=', $d))
+            ->when($to,   fn($q, $d) => $q->whereDate('issued_at', '<=', $d))
+            ->get(['id', 'reference_number', 'issued_at', 'description', 'balance_amount'])
+            ->map(fn($r) => [
+                'id'               => $r->id,
+                'reference_number' => $r->reference_number,
+                'entry_date'       => $r->issued_at?->format('Y-m-d'),
+                'description'      => $r->description,
+                'amount'           => $r->balance_amount,
+                'kind'             => 'custom_order',
+                'sub_kind'         => 'balance',
+            ]);
+
         $entries = $purchases->concat($sales)->concat($expenses)->concat($adjustments)
+            ->concat($customAdvances)->concat($customBalances)
             ->sortBy('entry_date')
             ->values();
 
-        // sales + adj(add) = cash in (+); purchases + expenses + adj(withdraw) = cash out (-)
+        // sales + adj(add) + custom_order = cash in (+); purchases + expenses + adj(withdraw) = cash out (-)
         $balance = 0;
         $rows = $entries->map(function ($e) use (&$balance) {
-            if ($e['kind'] === 'sale' || ($e['kind'] === 'adjustment' && $e['type'] === 'add')) {
+            if ($e['kind'] === 'sale' || ($e['kind'] === 'adjustment' && $e['type'] === 'add') || $e['kind'] === 'custom_order') {
                 $balance += $e['amount'];
                 return [...$e, 'cash_in' => $e['amount'], 'cash_out' => 0, 'balance' => $balance];
             } else {
@@ -154,7 +192,8 @@ class PrivateSaleController extends Controller
 
         $adjIn  = $adjustments->where('type', 'add')->sum('amount');
         $adjOut = $adjustments->where('type', 'withdraw')->sum('amount');
-        $totalIn  = $sales->sum('amount') + $adjIn;
+        $customIn = $customAdvances->sum('amount') + $customBalances->sum('amount');
+        $totalIn  = $sales->sum('amount') + $adjIn + $customIn;
         $totalOut = $purchases->sum('amount') + $expenses->sum('amount') + $adjOut;
 
         return response()->json([
