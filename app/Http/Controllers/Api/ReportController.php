@@ -586,7 +586,7 @@ class ReportController extends Controller
             $goldValue    = round($ratePerGram * $weight * $qty, 2);
             $purchaseCost = round(($product?->purchase_price ?? 0) * $qty, 2);
             $saleTotal    = (float) $sale?->total;
-            $officialTotal = (float) $sale?->official_total;
+            $officialTotal = (float) ($sale?->official_total ?? $sale?->total);
             $ratio        = ($saleTotal > 0) ? $officialTotal / $saleTotal : 1;
             $saleRevenue  = round((float) $item->total * $ratio, 2);
             $makingCharge = round((float) ($item->making_charge ?? 0), 2);
