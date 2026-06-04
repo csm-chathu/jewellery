@@ -12,7 +12,7 @@ class GLController extends Controller
     private function dateRange(Request $request): array
     {
         return [
-            $request->from ?? date('Y-01-01'),
+            $request->from ?? '2025-01-01',
             $request->to   ?? date('Y-m-d'),
         ];
     }

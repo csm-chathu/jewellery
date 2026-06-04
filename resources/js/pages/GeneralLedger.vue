@@ -359,7 +359,7 @@ import {
 
 const activeTab      = ref('trial-balance')
 const loading        = ref(false)
-const dateFrom       = ref(new Date().getFullYear() + '-01-01')
+const dateFrom       = ref('2025-01-01')
 const dateTo         = ref(new Date().toISOString().slice(0, 10))
 const asOf           = ref(new Date().toISOString().slice(0, 10))
 const ledgerAccountId = ref('')
@@ -428,7 +428,7 @@ async function loadTab() {
 }
 
 function resetDates() {
-  dateFrom.value = new Date().getFullYear() + '-01-01'
+  dateFrom.value = '2025-01-01'
   dateTo.value   = new Date().toISOString().slice(0, 10)
   loadTab()
 }

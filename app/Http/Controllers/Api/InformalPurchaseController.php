@@ -45,6 +45,7 @@ class InformalPurchaseController extends Controller
             'nic_front_url'     => 'nullable|string|max:500',
             'nic_back_url'      => 'nullable|string|max:500',
             'invoice_photo_url' => 'nullable|string|max:500',
+            'weight_photo_url'  => 'nullable|string|max:500',
         ]);
 
         $data['recorded_by'] = $request->user()->id;
@@ -74,6 +75,7 @@ class InformalPurchaseController extends Controller
             'nic_front_url'     => 'nullable|string|max:500',
             'nic_back_url'      => 'nullable|string|max:500',
             'invoice_photo_url' => 'nullable|string|max:500',
+            'weight_photo_url'  => 'nullable|string|max:500',
         ]);
 
         $informalGoldPurchase->update($data);
