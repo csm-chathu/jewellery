@@ -229,7 +229,7 @@ const stats = computed(() => [
   { label: 'Total Products',    value: data.value.totals?.products        ?? '—', color: 'blue',   icon: '📦' },
   { label: 'Customers',         value: data.value.totals?.customers       ?? '—', color: 'purple', icon: '👥' },
   { label: "Today's Revenue",   value: 'LKR ' + Number(data.value.totals?.revenue_today   ?? 0).toLocaleString(), color: 'gold',  icon: '💰' },
-  { label: 'Cash on Hand',      value: glCashLoading.value ? '…' : 'LKR ' + lkr(glCashTotal.value), color: 'green',  icon: '💵' },
+  { label: 'Cash on Hand',      value: glCashLoading.value ? '…' : 'LKR ' + lkr(glCashOnHand.value), color: 'green',  icon: '💵' },
 ])
 
 const chartData = computed(() => {
@@ -261,6 +261,7 @@ const loansDueSoon   = computed(() => data.value.loan_due_soon ?? [])
 const glCashLoading  = ref(false)
 const glCashAccounts = ref([])
 const glCashTotal    = computed(() => glCashAccounts.value.reduce((s, a) => s + Number(a.balance), 0))
+const glCashOnHand   = computed(() => { const a = glCashAccounts.value.find(a => a.code === '1000'); return a ? Number(a.balance) : 0 })
 
 function lkr(v) { return Number(v || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }
 
