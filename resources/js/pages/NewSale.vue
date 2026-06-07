@@ -271,6 +271,49 @@
             </div>
           </div>
 
+          <!-- Active layaways notice -->
+          <div v-if="customerLayaways.length" class="border border-amber-200 bg-amber-50 rounded-lg p-2.5 space-y-1.5">
+            <p class="text-xs font-semibold text-amber-800 flex items-center gap-1.5">
+              <ExclamationTriangleIcon class="w-3.5 h-3.5 shrink-0" />
+              {{ customerLayaways.length }} active layaway{{ customerLayaways.length > 1 ? 's' : '' }} on file
+            </p>
+            <div v-for="lay in customerLayaways" :key="lay.id"
+              class="bg-white border rounded-md px-2.5 py-1.5 text-xs flex items-center justify-between gap-2"
+              :class="linkedLayaway?.id === lay.id ? 'border-green-400 ring-1 ring-green-300' : 'border-amber-100'">
+              <div class="min-w-0">
+                <span class="font-mono font-semibold text-amber-700">{{ lay.reference_number }}</span>
+                <p class="text-gray-500 truncate mt-0.5">{{ lay.item_description }}</p>
+                <p class="text-gray-400 mt-0.5">
+                  Paid: <strong class="text-green-700">LKR {{ lkr(lay.paid_amount) }}</strong>
+                  · Balance: <strong class="text-red-600">LKR {{ lkr(lay.balance_amount) }}</strong>
+                </p>
+              </div>
+              <div class="shrink-0 flex flex-col gap-1 items-end">
+                <button v-if="linkedLayaway?.id !== lay.id"
+                  @click="applyLayawayCredit(lay)"
+                  class="px-2 py-1 text-xs bg-green-600 text-white rounded-md hover:bg-green-700 font-medium whitespace-nowrap">
+                  Apply Credit
+                </button>
+                <button v-else
+                  @click="removeLayawayCredit"
+                  class="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 font-medium whitespace-nowrap">
+                  Remove
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Applied credit badge -->
+          <div v-if="linkedLayaway" class="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-2.5 py-1.5 text-xs">
+            <span class="text-green-800 font-semibold flex items-center gap-1.5">
+              <CheckCircleIcon class="w-3.5 h-3.5" />
+              Layaway credit applied: LKR {{ lkr(layawayCredit) }}
+            </span>
+            <button @click="removeLayawayCredit" class="text-gray-400 hover:text-red-500">
+              <XMarkIcon class="w-3.5 h-3.5" />
+            </button>
+          </div>
+
           <div v-if="selectedCustomer?.id_number && !selectedCustomer?.kyc_verified"
             class="text-xs bg-yellow-50 border border-yellow-200 text-yellow-700 rounded px-2 py-1.5 flex items-center gap-1.5">
             <ExclamationTriangleIcon class="w-3.5 h-3.5 shrink-0" /> KYC not verified for this customer
@@ -379,21 +422,31 @@
               <span>Total</span>
               <span class="text-amber-400">LKR {{ lkr(total) }}</span>
             </div>
+            <div v-if="layawayCredit > 0" class="flex justify-between text-sm">
+              <span class="text-green-400">Layaway Credit</span>
+              <span class="text-green-400">-LKR {{ lkr(layawayCredit) }}</span>
+            </div>
+            <div v-if="layawayCredit > 0" class="flex justify-between font-bold border-t border-gray-600 pt-2">
+              <span class="text-gray-200">You Collect Today</span>
+              <span class="text-white">LKR {{ lkr(Math.max(0, total - layawayCredit)) }}</span>
+            </div>
           </div>
 
           <div class="mt-3 pt-3 border-t border-gray-600">
-            <label class="text-xs text-gray-400 mb-1 block">Amount Paid (LKR)</label>
+            <label class="text-xs text-gray-400 mb-1 block">
+              {{ layawayCredit > 0 ? 'New Cash Collected Today (LKR)' : 'Amount Paid (LKR)' }}
+            </label>
             <input v-model.number="form.amount_paid" type="number" min="0"
               class="w-full bg-gray-700 text-white border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
           </div>
-          <div v-if="form.payment_status === 'partial' && form.amount_paid < total"
+          <div v-if="form.payment_status === 'partial' && form.amount_paid < (total - layawayCredit)"
             class="mt-2 text-xs text-yellow-300 bg-yellow-900/40 rounded px-2 py-1.5 flex items-center gap-1.5">
             <ExclamationTriangleIcon class="w-3.5 h-3.5 shrink-0" />
-            Balance due: LKR {{ lkr(total - form.amount_paid) }}
+            Balance due: LKR {{ lkr(total - layawayCredit - form.amount_paid) }}
           </div>
-          <div v-if="form.payment_status === 'paid' && form.amount_paid > total"
+          <div v-if="form.payment_status === 'paid' && form.amount_paid > (total - layawayCredit)"
             class="mt-2 text-xs text-green-300 bg-green-900/40 rounded px-2 py-1.5 flex items-center gap-1.5">
-            Change to return: LKR {{ lkr(form.amount_paid - total) }}
+            Change to return: LKR {{ lkr(form.amount_paid - (total - layawayCredit)) }}
           </div>
         </div>
 
@@ -418,7 +471,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import {
@@ -504,6 +557,32 @@ const form = reactive({
   discount: 0, tax: 0, tax_rate: 0, amount_paid: 0, notes: '',
   sale_type: 'instant', booking_expires_at: addMonths(new Date(), 3),
   items: [],
+})
+
+// Active layaways for selected customer
+const customerLayaways = ref([])
+const linkedLayaway    = ref(null)
+const layawayCredit    = computed(() => Number(linkedLayaway.value?.paid_amount ?? 0))
+
+function applyLayawayCredit(lay) {
+  linkedLayaway.value = lay
+  // Pre-fill amount_paid to the cash the customer needs to bring today
+  form.amount_paid = Math.max(0, total.value - layawayCredit.value)
+}
+
+function removeLayawayCredit() {
+  linkedLayaway.value = null
+  form.amount_paid = total.value
+}
+
+watch(() => form.customer_id, async (id) => {
+  linkedLayaway.value  = null
+  customerLayaways.value = []
+  if (!id) return
+  try {
+    const { data } = await axios.get('/api/layaways', { params: { customer_id: id, status: 'active', per_page: 50 } })
+    customerLayaways.value = data.data ?? []
+  } catch { customerLayaways.value = [] }
 })
 
 function normalizeText(value) {
@@ -649,7 +728,7 @@ function recalc() {
     form.tax = Math.round(subtotal.value * (form.tax_rate / 100) * 100) / 100
   }
   if (form.payment_status === 'paid') {
-    form.amount_paid = total.value
+    form.amount_paid = Math.max(0, total.value - layawayCredit.value)
   }
 }
 
@@ -690,6 +769,7 @@ async function submit() {
       notes:          form.notes,
       total:          total.value,
       subtotal:       subtotal.value,
+      layaway_id: linkedLayaway.value?.id ?? null,
       items: form.items.map(i => ({
         product_id:     i.product_id,
         quantity:       i.quantity,

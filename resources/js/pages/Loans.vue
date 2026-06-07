@@ -23,32 +23,46 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
-          <tr v-for="loan in loans.data" :key="loan.id">
-            <td class="table-td font-mono text-xs">{{ loan.loan_number }}</td>
-            <td class="table-td">{{ loan.lender_name }}</td>
-            <td class="table-td text-xs text-gray-500">{{ fmtDate(loan.start_date) }}</td>
-            <td class="table-td text-xs">
-              <span v-if="loan.next_payment_date"
-                :class="isDueSoon(loan.next_payment_date) ? 'text-red-600 font-semibold' : 'text-gray-500'">
-                {{ fmtDate(loan.next_payment_date) }}
-              </span>
-              <span v-else class="text-gray-300">—</span>
-            </td>
-            <td class="table-td text-right">{{ lkr(loan.principal_amount) }}</td>
-            <td class="table-td text-right font-semibold" :class="loan.outstanding_balance > 0 ? 'text-red-700' : 'text-green-700'">
-              {{ lkr(loan.outstanding_balance) }}
-            </td>
-            <td class="table-td">
-              <span class="badge text-xs" :class="loan.status === 'active' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'">
-                {{ loan.status }}
-              </span>
-            </td>
-            <td class="table-td flex gap-1.5">
-              <button @click="openRepay(loan)" class="px-2.5 py-1 rounded bg-blue-100 text-blue-700 text-xs font-medium">Repay</button>
-              <button @click="openHistory(loan)" class="px-2.5 py-1 rounded bg-gray-100 text-gray-600 text-xs font-medium">History</button>
-            </td>
-          </tr>
-          <tr v-if="!loans.data?.length"><td colspan="7" class="table-td text-center text-gray-400 py-8">No loans yet</td></tr>
+          <template v-if="loading">
+            <tr v-for="n in 6" :key="n" class="animate-pulse">
+              <td class="table-td"><div class="h-3.5 w-24 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-3.5 w-28 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-3.5 w-20 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-3.5 w-20 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-3.5 w-28 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-3.5 w-28 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-5 w-14 bg-gray-200 rounded-full"></div></td>
+              <td class="table-td"><div class="flex gap-2"><div class="h-6 w-10 bg-gray-200 rounded-md"></div></div></td>
+            </tr>
+          </template>
+          <template v-else>
+            <tr v-for="loan in loans.data" :key="loan.id">
+              <td class="table-td font-mono text-xs">{{ loan.loan_number }}</td>
+              <td class="table-td">{{ loan.lender_name }}</td>
+              <td class="table-td text-xs text-gray-500">{{ fmtDate(loan.start_date) }}</td>
+              <td class="table-td text-xs">
+                <span v-if="loan.next_payment_date"
+                  :class="isDueSoon(loan.next_payment_date) ? 'text-red-600 font-semibold' : 'text-gray-500'">
+                  {{ fmtDate(loan.next_payment_date) }}
+                </span>
+                <span v-else class="text-gray-300">—</span>
+              </td>
+              <td class="table-td text-right">{{ lkr(loan.principal_amount) }}</td>
+              <td class="table-td text-right font-semibold" :class="loan.outstanding_balance > 0 ? 'text-red-700' : 'text-green-700'">
+                {{ lkr(loan.outstanding_balance) }}
+              </td>
+              <td class="table-td">
+                <span class="badge text-xs" :class="loan.status === 'active' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'">
+                  {{ loan.status }}
+                </span>
+              </td>
+              <td class="table-td flex gap-1.5">
+                <button @click="openRepay(loan)" class="px-2.5 py-1 rounded bg-blue-100 text-blue-700 text-xs font-medium">Repay</button>
+                <button @click="openHistory(loan)" class="px-2.5 py-1 rounded bg-gray-100 text-gray-600 text-xs font-medium">History</button>
+              </td>
+            </tr>
+            <tr v-if="!loans.data?.length"><td colspan="8" class="table-td text-center text-gray-400 py-8">No loans yet</td></tr>
+          </template>
         </tbody>
       </table>
     </div>
@@ -182,6 +196,7 @@ import { fmtDate as _fmtDate } from '../utils/date.js'
 
 const loans = ref({ data: [] })
 const accounts = ref([])
+const loading = ref(false)
 const showCreate = ref(false)
 const repayLoan = ref(null)
 const historyLoan = ref(null)
@@ -202,12 +217,17 @@ const liabilityAccounts = computed(() => accounts.value.filter(a => a.type === '
 const assetAccounts = computed(() => accounts.value.filter(a => a.type === 'asset'))
 
 async function load() {
-  const [loanRes, accRes] = await Promise.all([
-    axios.get('/api/loans'),
-    axios.get('/api/accounts/all'),
-  ])
-  loans.value = loanRes.data
-  accounts.value = accRes.data
+  loading.value = true
+  try {
+    const [loanRes, accRes] = await Promise.all([
+      axios.get('/api/loans'),
+      axios.get('/api/accounts/all'),
+    ])
+    loans.value = loanRes.data
+    accounts.value = accRes.data
+  } finally {
+    loading.value = false
+  }
 }
 
 async function createLoan() {

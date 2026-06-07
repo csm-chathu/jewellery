@@ -56,61 +56,79 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
-          <tr v-for="r in orders.data" :key="r.id" class="hover:bg-gray-50">
-            <td class="table-td font-mono text-xs text-gray-500">{{ r.reference_number }}</td>
-            <td class="table-td text-xs">
-              <span v-if="r.source_type === 'buyback'" class="badge bg-blue-100 text-blue-700">
-                Buy-Back
-              </span>
-              <span v-else-if="r.source_type === 'scrap'" class="badge bg-orange-100 text-orange-700">
-                Scrap
-              </span>
-              <span v-else class="badge bg-gray-100 text-gray-600">Manual</span>
-              <p class="text-gray-400 mt-0.5 text-[10px]">
-                {{ r.buyback?.buyback_number ?? r.scrap_item?.sku ?? '' }}
-              </p>
-              <p v-if="r.buyback?.customer" class="text-gray-400 text-[10px]">{{ r.buyback.customer.name }}</p>
-            </td>
-            <td class="table-td text-sm font-medium max-w-[160px] truncate">{{ r.description }}</td>
-            <td class="table-td text-sm text-gray-500">{{ r.goldsmith_name || '—' }}</td>
-            <td class="table-td text-sm font-mono">
-              {{ r.input_weight }}g
-              <span v-if="r.input_karat" class="text-xs text-gold-600 ml-1">{{ r.input_karat }}</span>
-            </td>
-            <td class="table-td text-sm font-mono">{{ r.added_gold_weight ? r.added_gold_weight + 'g' : '—' }}</td>
-            <td class="table-td text-sm">{{ r.making_charge ? 'LKR ' + lkr(r.making_charge) : '—' }}</td>
-            <td class="table-td font-semibold text-gold-700">LKR {{ lkr(r.total_cost) }}</td>
-            <td class="table-td text-sm text-gray-500">{{ fmtDate(r.expected_at) }}</td>
-            <td class="table-td">
-              <span :class="statusClass(r.status)" class="badge text-xs">{{ statusLabel(r.status) }}</span>
-            </td>
-            <td class="table-td text-xs">
-              <span v-if="r.output_product" class="text-green-700 font-medium">{{ r.output_product.name }}</span>
-              <span v-else class="text-gray-300">—</span>
-            </td>
-            <td class="table-td">
-              <div class="flex gap-1.5 flex-wrap">
-                <button v-if="r.status !== 'completed' && r.status !== 'cancelled'"
-                  @click="openEdit(r)"
-                  class="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200">
-                  <PencilSquareIcon class="w-3.5 h-3.5" /> Edit
-                </button>
-                <button v-if="r.status !== 'completed' && r.status !== 'cancelled'"
-                  @click="openComplete(r)"
-                  class="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200 whitespace-nowrap">
-                  <CheckCircleIcon class="w-3.5 h-3.5" /> Complete
-                </button>
-                <button v-if="r.status !== 'completed'"
-                  @click="del(r)"
-                  class="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-red-100 text-red-700 hover:bg-red-200">
-                  <TrashIcon class="w-3.5 h-3.5" /> Delete
-                </button>
-              </div>
-            </td>
-          </tr>
-          <tr v-if="!orders.data?.length">
-            <td colspan="12" class="table-td text-center text-gray-400 py-10">No job orders found</td>
-          </tr>
+          <template v-if="loading">
+            <tr v-for="i in 7" :key="i" class="animate-pulse">
+              <td class="table-td"><div class="h-3 bg-gray-200 rounded w-20"></div></td>
+              <td class="table-td"><div class="h-3 bg-gray-200 rounded w-16"></div></td>
+              <td class="table-td"><div class="h-3 bg-gray-200 rounded w-32"></div></td>
+              <td class="table-td"><div class="h-3 bg-gray-200 rounded w-24"></div></td>
+              <td class="table-td"><div class="h-3 bg-gray-200 rounded w-14"></div></td>
+              <td class="table-td"><div class="h-3 bg-gray-200 rounded w-14"></div></td>
+              <td class="table-td"><div class="h-3 bg-gray-200 rounded w-20"></div></td>
+              <td class="table-td"><div class="h-3 bg-gray-200 rounded w-20"></div></td>
+              <td class="table-td"><div class="h-3 bg-gray-200 rounded w-20"></div></td>
+              <td class="table-td"><div class="h-3 bg-gray-200 rounded w-16"></div></td>
+              <td class="table-td"><div class="h-3 bg-gray-200 rounded w-24"></div></td>
+              <td class="table-td"><div class="h-3 bg-gray-200 rounded w-20"></div></td>
+            </tr>
+          </template>
+          <template v-else>
+            <tr v-for="r in orders.data" :key="r.id" class="hover:bg-gray-50">
+              <td class="table-td font-mono text-xs text-gray-500">{{ r.reference_number }}</td>
+              <td class="table-td text-xs">
+                <span v-if="r.source_type === 'buyback'" class="badge bg-blue-100 text-blue-700">
+                  Buy-Back
+                </span>
+                <span v-else-if="r.source_type === 'scrap'" class="badge bg-orange-100 text-orange-700">
+                  Scrap
+                </span>
+                <span v-else class="badge bg-gray-100 text-gray-600">Manual</span>
+                <p class="text-gray-400 mt-0.5 text-[10px]">
+                  {{ r.buyback?.buyback_number ?? r.scrap_item?.sku ?? '' }}
+                </p>
+                <p v-if="r.buyback?.customer" class="text-gray-400 text-[10px]">{{ r.buyback.customer.name }}</p>
+              </td>
+              <td class="table-td text-sm font-medium max-w-[160px] truncate">{{ r.description }}</td>
+              <td class="table-td text-sm text-gray-500">{{ r.goldsmith_name || '—' }}</td>
+              <td class="table-td text-sm font-mono">
+                {{ r.input_weight }}g
+                <span v-if="r.input_karat" class="text-xs text-gold-600 ml-1">{{ r.input_karat }}</span>
+              </td>
+              <td class="table-td text-sm font-mono">{{ r.added_gold_weight ? r.added_gold_weight + 'g' : '—' }}</td>
+              <td class="table-td text-sm">{{ r.making_charge ? 'LKR ' + lkr(r.making_charge) : '—' }}</td>
+              <td class="table-td font-semibold text-gold-700">LKR {{ lkr(r.total_cost) }}</td>
+              <td class="table-td text-sm text-gray-500">{{ fmtDate(r.expected_at) }}</td>
+              <td class="table-td">
+                <span :class="statusClass(r.status)" class="badge text-xs">{{ statusLabel(r.status) }}</span>
+              </td>
+              <td class="table-td text-xs">
+                <span v-if="r.output_product" class="text-green-700 font-medium">{{ r.output_product.name }}</span>
+                <span v-else class="text-gray-300">—</span>
+              </td>
+              <td class="table-td">
+                <div class="flex gap-1.5 flex-wrap">
+                  <button v-if="r.status !== 'completed' && r.status !== 'cancelled'"
+                    @click="openEdit(r)"
+                    class="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200">
+                    <PencilSquareIcon class="w-3.5 h-3.5" /> Edit
+                  </button>
+                  <button v-if="r.status !== 'completed' && r.status !== 'cancelled'"
+                    @click="openComplete(r)"
+                    class="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200 whitespace-nowrap">
+                    <CheckCircleIcon class="w-3.5 h-3.5" /> Complete
+                  </button>
+                  <button v-if="r.status !== 'completed'"
+                    @click="del(r)"
+                    class="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-red-100 text-red-700 hover:bg-red-200">
+                    <TrashIcon class="w-3.5 h-3.5" /> Delete
+                  </button>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="!orders.data?.length">
+              <td colspan="12" class="table-td text-center text-gray-400 py-10">No job orders found</td>
+            </tr>
+          </template>
         </tbody>
       </table>
       <div class="px-4 py-3 border-t flex justify-between text-sm text-gray-600">
@@ -389,6 +407,7 @@ const scraps    = ref([])
 const categories = ref([])
 const page      = ref(1)
 const filters   = reactive({ search: '', status: '' })
+const loading   = ref(false)
 
 const showForm  = ref(false)
 const editing   = ref(null)
@@ -550,8 +569,13 @@ async function del(r) {
 }
 
 async function load() {
-  const { data } = await axios.get('/api/rework-orders', { params: { ...filters, page: page.value } })
-  orders.value = data
+  loading.value = true
+  try {
+    const { data } = await axios.get('/api/rework-orders', { params: { ...filters, page: page.value } })
+    orders.value = data
+  } finally {
+    loading.value = false
+  }
 }
 
 onMounted(async () => {

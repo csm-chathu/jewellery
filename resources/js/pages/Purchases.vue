@@ -40,54 +40,73 @@
           <th class="table-th">Payment</th><th class="table-th">Status</th><th class="table-th">Actions</th>
         </tr></thead>
         <tbody class="divide-y divide-gray-100">
-          <tr v-for="p in purchases.data" :key="p.id"
-            :class="isDueSoon(p) ? 'bg-amber-50 hover:bg-amber-100' : 'hover:bg-gray-50'">
-            <td class="table-td font-mono text-xs font-medium">{{ p.purchase_number }}</td>
-            <td class="table-td">{{ p.supplier?.name }}</td>
-            <td class="table-td text-gray-500 text-xs">{{ fmtDate(p.purchased_at) }}</td>
-            <td class="table-td font-semibold">LKR {{ Number(p.total).toLocaleString() }}</td>
-            <td class="table-td text-xs text-gray-600">
-              <div class="flex flex-col gap-0.5">
-                <span class="uppercase">{{ p.payment_method || 'cash' }}</span>
-                <span v-if="p.cheque_settled_at" class="text-green-600 font-semibold flex items-center gap-1">
-                  <CheckCircleIcon class="w-3 h-3" /> Settled
-                </span>
-                <span v-else-if="isDueSoon(p)" :class="chequeUrgencyClass(p)"
-                  class="flex items-center gap-1 font-semibold">
-                  <ExclamationTriangleIcon class="w-3 h-3" />{{ chequeDueLabel(p) }}
-                </span>
-              </div>
-            </td>
-            <td class="table-td">
-              <span :class="statusClass(p.status)" class="badge">{{ p.status }}</span>
-            </td>
-            <td class="table-td">
-              <div class="flex items-center gap-2">
-                <button @click="openView(p)"
-                  class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200">
-                  <EyeIcon class="w-3.5 h-3.5" /> View
-                </button>
-                <button
-                  v-if="p.payment_method === 'cheque' && !p.cheque_settled_at"
-                  @click="openSettle(p)"
-                  class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-purple-100 text-purple-700 hover:bg-purple-200 whitespace-nowrap"
-                >
-                  <BanknotesIcon class="w-3.5 h-3.5" /> Settle Cheque
-                </button>
-                <button
-                  v-if="p.status !== 'received' && p.status !== 'cancelled'"
-                  @click="openGrn(p)"
-                  class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-100 text-emerald-700 hover:bg-emerald-200 whitespace-nowrap"
-                >
-                  <CheckCircleIcon class="w-3.5 h-3.5" /> Receive GRN
-                </button>
-                <button @click="del(p)" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-red-100 text-red-700 hover:bg-red-200">
-                  <TrashIcon class="w-3.5 h-3.5" /> Delete
-                </button>
-              </div>
-            </td>
-          </tr>
-          <tr v-if="!purchases.data?.length"><td colspan="7" class="table-td text-center text-gray-400 py-8">No purchases</td></tr>
+          <template v-if="loading">
+            <tr v-for="n in 7" :key="n" class="animate-pulse">
+              <td class="table-td"><div class="h-3.5 w-20 bg-gray-200 rounded font-mono"></div></td>
+              <td class="table-td"><div class="h-3.5 w-24 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-3.5 w-16 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-3.5 w-20 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-3.5 w-16 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-5 w-16 bg-gray-200 rounded-full"></div></td>
+              <td class="table-td">
+                <div class="flex items-center gap-2">
+                  <div class="h-6 w-14 bg-gray-200 rounded-md"></div>
+                  <div class="h-6 w-24 bg-gray-200 rounded-md"></div>
+                  <div class="h-6 w-24 bg-gray-200 rounded-md"></div>
+                </div>
+              </td>
+            </tr>
+          </template>
+          <template v-else>
+            <tr v-for="p in purchases.data" :key="p.id"
+              :class="isDueSoon(p) ? 'bg-amber-50 hover:bg-amber-100' : 'hover:bg-gray-50'">
+              <td class="table-td font-mono text-xs font-medium">{{ p.purchase_number }}</td>
+              <td class="table-td">{{ p.supplier?.name }}</td>
+              <td class="table-td text-gray-500 text-xs">{{ fmtDate(p.purchased_at) }}</td>
+              <td class="table-td font-semibold">LKR {{ Number(p.total).toLocaleString() }}</td>
+              <td class="table-td text-xs text-gray-600">
+                <div class="flex flex-col gap-0.5">
+                  <span class="uppercase">{{ p.payment_method || 'cash' }}</span>
+                  <span v-if="p.cheque_settled_at" class="text-green-600 font-semibold flex items-center gap-1">
+                    <CheckCircleIcon class="w-3 h-3" /> Settled
+                  </span>
+                  <span v-else-if="isDueSoon(p)" :class="chequeUrgencyClass(p)"
+                    class="flex items-center gap-1 font-semibold">
+                    <ExclamationTriangleIcon class="w-3 h-3" />{{ chequeDueLabel(p) }}
+                  </span>
+                </div>
+              </td>
+              <td class="table-td">
+                <span :class="statusClass(p.status)" class="badge">{{ p.status }}</span>
+              </td>
+              <td class="table-td">
+                <div class="flex items-center gap-2">
+                  <button @click="openView(p)"
+                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200">
+                    <EyeIcon class="w-3.5 h-3.5" /> View
+                  </button>
+                  <button
+                    v-if="p.payment_method === 'cheque' && !p.cheque_settled_at"
+                    @click="openSettle(p)"
+                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-purple-100 text-purple-700 hover:bg-purple-200 whitespace-nowrap"
+                  >
+                    <BanknotesIcon class="w-3.5 h-3.5" /> Settle Cheque
+                  </button>
+                  <button
+                    v-if="p.status !== 'received' && p.status !== 'cancelled'"
+                    @click="openGrn(p)"
+                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-100 text-emerald-700 hover:bg-emerald-200 whitespace-nowrap"
+                  >
+                    <CheckCircleIcon class="w-3.5 h-3.5" /> Receive GRN
+                  </button>
+                  <button @click="del(p)" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-red-100 text-red-700 hover:bg-red-200">
+                    <TrashIcon class="w-3.5 h-3.5" /> Delete
+                  </button>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="!purchases.data?.length"><td colspan="7" class="table-td text-center text-gray-400 py-8">No purchases</td></tr>
+          </template>
         </tbody>
       </table>
       <div class="px-4 py-3 border-t flex justify-between text-sm text-gray-600">
@@ -338,6 +357,7 @@ const suppliers      = ref([])
 const accounts       = ref([])
 const search         = ref(''); const page = ref(1)
 const supplierFilter = ref('')
+const loading        = ref(false)
 
 // Cheque due-soon helpers
 function chequeDaysUntil(p) {
@@ -422,8 +442,13 @@ let timer = null
 function debouncedFetch() { clearTimeout(timer); timer = setTimeout(() => { page.value=1; fetch() }, 400) }
 
 async function fetch() {
-  const { data } = await axios.get('/api/purchases', { params: { page: page.value, search: search.value, supplier_id: supplierFilter.value } })
-  purchases.value = data
+  loading.value = true
+  try {
+    const { data } = await axios.get('/api/purchases', { params: { page: page.value, search: search.value, supplier_id: supplierFilter.value } })
+    purchases.value = data
+  } finally {
+    loading.value = false
+  }
 }
 
 function statusClass(s) {

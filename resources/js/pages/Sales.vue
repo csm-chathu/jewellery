@@ -24,7 +24,7 @@
           <option value="instant">Instant</option>
           <option value="booking">Booking</option>
         </select>
-        <button v-if="search || dateFrom || dateTo || statusFilter || typeFilter" @click="clearFilters"
+        <button v-if="search || statusFilter || typeFilter || dateFrom !== daysAgo(6) || dateTo !== today()" @click="clearFilters"
           class="text-xs text-gray-400 hover:text-gray-600 underline">Clear</button>
       </div>
       <router-link to="/sales/new"
@@ -92,13 +92,54 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-100">
-            <tr v-if="loading">
-              <td colspan="10" class="table-td text-center py-10 text-gray-400">
-                <div class="flex items-center justify-center gap-2">
-                  <ArrowPathIcon class="w-4 h-4 animate-spin" /> Loading…
-                </div>
-              </td>
-            </tr>
+            <!-- Skeleton rows -->
+            <template v-if="loading">
+              <tr v-for="n in 8" :key="n" class="animate-pulse">
+                <!-- Invoice -->
+                <td class="table-td"><div class="h-5 w-28 bg-gray-200 rounded"></div></td>
+                <!-- Customer -->
+                <td class="table-td">
+                  <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-full bg-gray-200 shrink-0"></div>
+                    <div class="space-y-1.5">
+                      <div class="h-3.5 w-24 bg-gray-200 rounded"></div>
+                      <div class="h-2.5 w-16 bg-gray-100 rounded"></div>
+                    </div>
+                  </div>
+                </td>
+                <!-- Items -->
+                <td class="table-td">
+                  <div class="space-y-1.5">
+                    <div class="h-3 w-36 bg-gray-200 rounded"></div>
+                    <div class="h-2.5 w-24 bg-gray-100 rounded"></div>
+                  </div>
+                </td>
+                <!-- Date -->
+                <td class="table-td">
+                  <div class="space-y-1.5">
+                    <div class="h-3 w-20 bg-gray-200 rounded"></div>
+                    <div class="h-2.5 w-12 bg-gray-100 rounded"></div>
+                  </div>
+                </td>
+                <!-- Type -->
+                <td class="table-td"><div class="h-5 w-16 bg-gray-200 rounded-full"></div></td>
+                <!-- Total -->
+                <td class="table-td text-right"><div class="h-4 w-24 bg-gray-200 rounded ml-auto"></div></td>
+                <!-- Payment method -->
+                <td class="table-td"><div class="h-5 w-20 bg-gray-200 rounded-full"></div></td>
+                <!-- Delivery -->
+                <td class="table-td"><div class="h-5 w-16 bg-gray-200 rounded-full"></div></td>
+                <!-- Status -->
+                <td class="table-td"><div class="h-5 w-14 bg-gray-200 rounded-full"></div></td>
+                <!-- Actions -->
+                <td class="table-td">
+                  <div class="flex items-center justify-center gap-1.5">
+                    <div class="h-6 w-16 bg-gray-200 rounded-md"></div>
+                    <div class="h-6 w-6 bg-gray-200 rounded-md"></div>
+                  </div>
+                </td>
+              </tr>
+            </template>
             <template v-else>
               <tr v-for="s in sales.data" :key="s.id"
                 class="hover:bg-amber-50/40 transition-colors cursor-default group">
@@ -347,8 +388,12 @@ const router       = useRouter()
 const sales        = ref({ data: [] })
 const search       = ref('')
 const page         = ref(1)
-const dateFrom     = ref('')
-const dateTo       = ref('')
+
+function today()       { return new Date().toISOString().slice(0, 10) }
+function daysAgo(n)    { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10) }
+
+const dateFrom     = ref(daysAgo(6))
+const dateTo       = ref(today())
 const statusFilter = ref('')
 const typeFilter   = ref('')
 const loading      = ref(false)
@@ -379,7 +424,7 @@ async function fetchData() {
 }
 
 function clearFilters() {
-  search.value = ''; dateFrom.value = ''; dateTo.value = ''
+  search.value = ''; dateFrom.value = daysAgo(6); dateTo.value = today()
   statusFilter.value = ''; typeFilter.value = ''
   page.value = 1; fetchData()
 }

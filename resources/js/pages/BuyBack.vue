@@ -42,6 +42,21 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
+          <template v-if="loading">
+            <tr v-for="i in 7" :key="i" class="animate-pulse">
+              <td class="table-td"><div class="h-3.5 w-16 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-3.5 w-24 bg-gray-200 rounded mb-1"></div><div class="h-3 w-16 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-3.5 w-28 bg-gray-200 rounded mb-1"></div><div class="h-5 w-14 bg-gray-200 rounded-full"></div></td>
+              <td class="table-td"><div class="h-3.5 w-16 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-5 w-14 bg-gray-200 rounded-full"></div></td>
+              <td class="table-td"><div class="h-3.5 w-20 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-5 w-14 bg-gray-200 rounded-full"></div></td>
+              <td class="table-td"><div class="h-5 w-14 bg-gray-200 rounded-full"></div></td>
+              <td class="table-td"><div class="h-5 w-14 bg-gray-200 rounded-full"></div></td>
+              <td class="table-td"><div class="flex gap-2"><div class="h-6 w-10 bg-gray-200 rounded-md"></div><div class="h-6 w-10 bg-gray-200 rounded-md"></div></div></td>
+            </tr>
+          </template>
+          <template v-else>
           <tr v-for="b in buybacks.data" :key="b.id" class="hover:bg-gray-50">
             <td class="table-td font-mono text-xs text-gray-500">{{ b.buyback_number }}</td>
             <td class="table-td">
@@ -86,6 +101,7 @@
           <tr v-if="!buybacks.data?.length">
             <td colspan="10" class="table-td text-center text-gray-400 py-10">No buy-back records found</td>
           </tr>
+          </template>
         </tbody>
       </table>
       <div class="px-4 py-3 border-t flex justify-between text-sm text-gray-600">
@@ -361,6 +377,7 @@ const saving    = ref(false)
 const formError = ref('')
 const page      = ref(1)
 const filters   = reactive({ search: '', status: '' })
+const loading   = ref(false)
 const proofUploader = ref(null)
 const proofImages = ref([])
 
@@ -463,8 +480,13 @@ async function del(b) {
 }
 
 async function load() {
-  const { data } = await axios.get('/api/gold-buybacks', { params: { ...filters, page: page.value } })
-  buybacks.value = data
+  loading.value = true
+  try {
+    const { data } = await axios.get('/api/gold-buybacks', { params: { ...filters, page: page.value } })
+    buybacks.value = data
+  } finally {
+    loading.value = false
+  }
 }
 
 onMounted(async () => {

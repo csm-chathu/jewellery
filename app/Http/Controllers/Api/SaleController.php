@@ -7,6 +7,7 @@ use App\Models\Account;
 use App\Models\AuditLog;
 use App\Models\Customer;
 use App\Models\GoldRate;
+use App\Models\Layaway;
 use App\Models\JournalEntry;
 use App\Models\JournalEntryLine;
 use App\Models\PrivateSale;
@@ -60,10 +61,28 @@ class SaleController extends Controller
             'amount_paid'              => 'required|numeric|min:0',
             'notes'                    => 'nullable|string',
             'sold_at'                  => 'nullable|date',
+            'layaway_id'               => 'nullable|exists:layaways,id',
         ]);
 
         DB::beginTransaction();
         try {
+            // ── Layaway credit resolution ──────────────────────────────────
+            $linkedLayaway = null;
+            $layawayCredit = 0.0;
+            if (!empty($data['layaway_id'])) {
+                $linkedLayaway = Layaway::findOrFail($data['layaway_id']);
+                if ($linkedLayaway->status !== 'active') {
+                    throw new \Exception('The selected layaway is not active.');
+                }
+                if ($linkedLayaway->sale_id) {
+                    throw new \Exception('This layaway has already been converted to a sale.');
+                }
+                if ((string) $linkedLayaway->customer_id !== (string) ($data['customer_id'] ?? '')) {
+                    throw new \Exception('Layaway customer does not match the selected customer.');
+                }
+                $layawayCredit = (float) $linkedLayaway->paid_amount;
+            }
+
             $goldRates = GoldRate::todayRatesByLabel(); // ['24k' => GoldRate, ...]
             $subtotal         = 0;
             $officialSubtotal = 0;
@@ -256,11 +275,26 @@ class SaleController extends Controller
 
             if ($saleType === 'instant') {
                 $totalDiscount = collect($itemData)->sum('itemDisc') + $discount;
-                $entry = $this->postInstantSaleJournal($sale, $officialTotal, $totalDiscount);
+                $entry = $this->postInstantSaleJournal($sale, $officialTotal, $totalDiscount, $layawayCredit);
                 $sale->update(['journal_entry_id' => $entry->id]);
             } elseif ($amountPaid > 0) {
                 $entry = $this->postBookingAdvanceJournal($sale);
                 $sale->update(['journal_entry_id' => $entry->id]);
+            }
+
+            // ── Close the linked layaway ───────────────────────────────────
+            if ($linkedLayaway) {
+                $linkedLayaway->update([
+                    'sale_id'       => $sale->id,
+                    'status'        => 'completed',
+                    'balance_amount' => 0,
+                    'collected_at'  => now()->toDateString(),
+                ]);
+                // Mark sale as fully paid (new cash + layaway credit = total)
+                $sale->update([
+                    'amount_paid'    => $total,
+                    'payment_status' => 'paid',
+                ]);
             }
 
             AuditLog::record('sale_created', "Sale {$sale->invoice_number} — LKR {$total}", $sale);
@@ -463,7 +497,7 @@ class SaleController extends Controller
         return $prefix . str_pad($next, 4, '0', STR_PAD_LEFT);
     }
 
-    private function postInstantSaleJournal(Sale $sale, float $officialTotal, float $totalDiscount = 0): JournalEntry
+    private function postInstantSaleJournal(Sale $sale, float $officialTotal, float $totalDiscount = 0, float $layawayCredit = 0): JournalEntry
     {
         $revenue     = Account::where('code', '4000')->first();
         $receivable  = Account::where('code', '1100')->first();
@@ -474,12 +508,20 @@ class SaleController extends Controller
             throw new \Exception('Revenue account (4000) is missing.');
         }
 
-        // GL uses officialTotal (karat-rate price) — excess above karat rate is off-books (private cashbook)
-        $paid = round(min($sale->amount_paid, $officialTotal), 2);
-        $due  = round(max(0, $officialTotal - $paid), 2);
+        // GL uses officialTotal (karat-rate price) — excess is off-books
+        // When layaway credit is applied, Cash/Bank DR covers only the new cash portion
+        $creditCapped = round(min($layawayCredit, $officialTotal), 2);
+        $paid = round(min($sale->amount_paid, $officialTotal - $creditCapped), 2);
+        $due  = round(max(0, $officialTotal - $creditCapped - $paid), 2);
 
         if ($paid > 0 && !$paidAccount) {
             throw new \Exception('Payment account could not be resolved for this method.');
+        }
+        if ($creditCapped > 0) {
+            $depositAccount = Account::where('code', '2200')->first();
+            if (!$depositAccount) {
+                throw new \Exception('Customer Deposit account (2200) is missing.');
+            }
         }
         if ($due > 0 && !$receivable) {
             throw new \Exception('Accounts receivable account (1100) is missing.');
@@ -503,6 +545,17 @@ class SaleController extends Controller
                 'debit'            => $paid,
                 'credit'           => 0,
                 'description'      => 'Cash/Bank received for sale',
+            ]);
+        }
+
+        // DR Customer Deposit (2200) — clearing the layaway liability
+        if ($creditCapped > 0) {
+            JournalEntryLine::create([
+                'journal_entry_id' => $entry->id,
+                'account_id'       => $depositAccount->id,
+                'debit'            => $creditCapped,
+                'credit'           => 0,
+                'description'      => 'Layaway deposit applied to sale',
             ]);
         }
 

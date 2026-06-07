@@ -47,40 +47,55 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
-          <tr v-for="s in scraps.data" :key="s.id" class="hover:bg-gray-50">
-            <td class="table-td font-mono text-xs text-gray-500">{{ s.sku }}</td>
-            <td class="table-td text-sm font-medium">{{ s.description }}</td>
-            <td class="table-td text-xs">
-              <span v-if="s.source_type === 'buyback'" class="badge bg-blue-100 text-blue-700">
-                Buy-back {{ s.buyback?.buyback_number }}
-              </span>
-              <span v-else-if="s.source_type === 'converted_product'" class="badge bg-purple-100 text-purple-700">
-                Converted
-              </span>
-              <span v-else class="badge bg-gray-100 text-gray-600">Other</span>
-              <p class="text-gray-400 mt-0.5">{{ s.buyback?.customer?.name ?? s.product?.name }}</p>
-            </td>
-            <td class="table-td text-gold-700 font-semibold uppercase text-sm">{{ s.karat }}</td>
-            <td class="table-td font-mono text-sm">{{ s.weight_g }}g</td>
-            <td class="table-td text-sm font-semibold">LKR {{ lkr(s.estimated_value) }}</td>
-            <td class="table-td">
-              <span :class="statusClass(s.status)" class="badge text-xs">{{ statusLabel(s.status) }}</span>
-            </td>
-            <td class="table-td text-xs text-gray-500">{{ s.refinery_name ?? '—' }}</td>
-            <td class="table-td">
-              <div class="flex gap-1.5">
-                <button @click="openEdit(s)" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200">
-                  <PencilSquareIcon class="w-3.5 h-3.5" /> Update
-                </button>
-                <button @click="del(s)" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-red-100 text-red-700 hover:bg-red-200">
-                  <TrashIcon class="w-3.5 h-3.5" /> Delete
-                </button>
-              </div>
-            </td>
-          </tr>
-          <tr v-if="!scraps.data?.length">
-            <td colspan="9" class="table-td text-center text-gray-400 py-10">No scrap items found</td>
-          </tr>
+          <template v-if="loading">
+            <tr v-for="n in 7" :key="n" class="animate-pulse">
+              <td class="table-td"><div class="h-3.5 w-20 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-3.5 w-32 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-5 w-20 bg-gray-200 rounded-full"></div></td>
+              <td class="table-td"><div class="h-3.5 w-12 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-3.5 w-16 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-3.5 w-24 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-5 w-14 bg-gray-200 rounded-full"></div></td>
+              <td class="table-td"><div class="h-3.5 w-20 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="flex gap-2"><div class="h-6 w-10 bg-gray-200 rounded-md"></div></div></td>
+            </tr>
+          </template>
+          <template v-else>
+            <tr v-for="s in scraps.data" :key="s.id" class="hover:bg-gray-50">
+              <td class="table-td font-mono text-xs text-gray-500">{{ s.sku }}</td>
+              <td class="table-td text-sm font-medium">{{ s.description }}</td>
+              <td class="table-td text-xs">
+                <span v-if="s.source_type === 'buyback'" class="badge bg-blue-100 text-blue-700">
+                  Buy-back {{ s.buyback?.buyback_number }}
+                </span>
+                <span v-else-if="s.source_type === 'converted_product'" class="badge bg-purple-100 text-purple-700">
+                  Converted
+                </span>
+                <span v-else class="badge bg-gray-100 text-gray-600">Other</span>
+                <p class="text-gray-400 mt-0.5">{{ s.buyback?.customer?.name ?? s.product?.name }}</p>
+              </td>
+              <td class="table-td text-gold-700 font-semibold uppercase text-sm">{{ s.karat }}</td>
+              <td class="table-td font-mono text-sm">{{ s.weight_g }}g</td>
+              <td class="table-td text-sm font-semibold">LKR {{ lkr(s.estimated_value) }}</td>
+              <td class="table-td">
+                <span :class="statusClass(s.status)" class="badge text-xs">{{ statusLabel(s.status) }}</span>
+              </td>
+              <td class="table-td text-xs text-gray-500">{{ s.refinery_name ?? '—' }}</td>
+              <td class="table-td">
+                <div class="flex gap-1.5">
+                  <button @click="openEdit(s)" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200">
+                    <PencilSquareIcon class="w-3.5 h-3.5" /> Update
+                  </button>
+                  <button @click="del(s)" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-red-100 text-red-700 hover:bg-red-200">
+                    <TrashIcon class="w-3.5 h-3.5" /> Delete
+                  </button>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="!scraps.data?.length">
+              <td colspan="9" class="table-td text-center text-gray-400 py-10">No scrap items found</td>
+            </tr>
+          </template>
         </tbody>
       </table>
       <div class="px-4 py-3 border-t flex justify-between text-sm text-gray-600">
@@ -182,6 +197,7 @@ const scraps   = ref({ data: [], total: 0, last_page: 1 })
 const products = ref([])
 const page     = ref(1)
 const filters  = reactive({ status: '' })
+const loading  = ref(false)
 
 // Edit state
 const showEdit  = ref(false)
@@ -261,8 +277,13 @@ async function del(s) {
 }
 
 async function load() {
-  const { data } = await axios.get('/api/scrap-items', { params: { ...filters, page: page.value } })
-  scraps.value = data
+  loading.value = true
+  try {
+    const { data } = await axios.get('/api/scrap-items', { params: { ...filters, page: page.value } })
+    scraps.value = data
+  } finally {
+    loading.value = false
+  }
 }
 
 onMounted(async () => {

@@ -18,29 +18,45 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
-          <tr v-for="c in categories.data" :key="c.id" class="hover:bg-gray-50">
-            <td class="table-td font-medium">{{ c.name }}</td>
-            <td class="table-td text-gray-400 font-mono text-xs">{{ c.slug }}</td>
-            <td class="table-td">{{ c.products_count }}</td>
-            <td class="table-td">
-              <span :class="c.is_active ? 'badge bg-green-100 text-green-700' : 'badge bg-gray-100 text-gray-500'">
-                {{ c.is_active ? 'Active' : 'Inactive' }}
-              </span>
-            </td>
-            <td class="table-td">
-              <div class="flex gap-2">
-            <button @click="openEdit(c)" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200">
-              <PencilSquareIcon class="w-3.5 h-3.5" /> Edit
-            </button>
-            <button @click="del(c)" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-red-100 text-red-700 hover:bg-red-200">
-              <TrashIcon class="w-3.5 h-3.5" /> Delete
-            </button>
-              </div>
-            </td>
-          </tr>
-          <tr v-if="!categories.data?.length">
-            <td colspan="5" class="table-td text-center text-gray-400 py-8">No categories</td>
-          </tr>
+          <template v-if="loading">
+            <tr v-for="n in 5" :key="n" class="animate-pulse">
+              <td class="table-td"><div class="h-3.5 w-24 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-3.5 w-20 bg-gray-200 rounded font-mono"></div></td>
+              <td class="table-td"><div class="h-3.5 w-6 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-5 w-14 bg-gray-200 rounded-full"></div></td>
+              <td class="table-td">
+                <div class="flex gap-2">
+                  <div class="h-6 w-14 bg-gray-200 rounded-md"></div>
+                  <div class="h-6 w-16 bg-gray-200 rounded-md"></div>
+                </div>
+              </td>
+            </tr>
+          </template>
+          <template v-else>
+            <tr v-for="c in categories.data" :key="c.id" class="hover:bg-gray-50">
+              <td class="table-td font-medium">{{ c.name }}</td>
+              <td class="table-td text-gray-400 font-mono text-xs">{{ c.slug }}</td>
+              <td class="table-td">{{ c.products_count }}</td>
+              <td class="table-td">
+                <span :class="c.is_active ? 'badge bg-green-100 text-green-700' : 'badge bg-gray-100 text-gray-500'">
+                  {{ c.is_active ? 'Active' : 'Inactive' }}
+                </span>
+              </td>
+              <td class="table-td">
+                <div class="flex gap-2">
+              <button @click="openEdit(c)" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200">
+                <PencilSquareIcon class="w-3.5 h-3.5" /> Edit
+              </button>
+              <button @click="del(c)" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-red-100 text-red-700 hover:bg-red-200">
+                <TrashIcon class="w-3.5 h-3.5" /> Delete
+              </button>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="!categories.data?.length">
+              <td colspan="5" class="table-td text-center text-gray-400 py-8">No categories</td>
+            </tr>
+          </template>
         </tbody>
       </table>
     </div>
@@ -82,11 +98,17 @@ const showModal  = ref(false)
 const editing    = ref(null)
 const saving     = ref(false)
 const error      = ref('')
+const loading    = ref(false)
 const form       = reactive({ name: '', description: '', is_active: true })
 
 async function fetch() {
-  const { data } = await axios.get('/api/categories', { params: { per_page: 100 } })
-  categories.value = data
+  loading.value = true
+  try {
+    const { data } = await axios.get('/api/categories', { params: { per_page: 100 } })
+    categories.value = data
+  } finally {
+    loading.value = false
+  }
 }
 
 function openCreate() { editing.value = null; Object.assign(form, { name: '', description: '', is_active: true }); showModal.value = true }

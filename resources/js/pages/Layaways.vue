@@ -56,9 +56,7 @@
 
     <!-- Table -->
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-      <div v-if="loading" class="flex items-center justify-center h-40 text-gray-400">Loading…</div>
-      <div v-else-if="!layaways.data?.length" class="flex items-center justify-center h-40 text-gray-400">No layaways found.</div>
-      <table v-else class="min-w-full text-sm divide-y divide-gray-200">
+      <table class="min-w-full text-sm divide-y divide-gray-200">
         <thead class="bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wide">
           <tr>
             <th class="px-4 py-3 text-left">Reference</th>
@@ -74,6 +72,30 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
+          <template v-if="loading">
+            <tr v-for="n in 7" :key="n" class="animate-pulse">
+              <td class="px-4 py-3"><div class="h-4 w-24 bg-gray-200 rounded font-mono"></div></td>
+              <td class="px-4 py-3">
+                <div class="h-4 w-24 bg-gray-200 rounded mb-1"></div>
+                <div class="h-3 w-16 bg-gray-200 rounded"></div>
+              </td>
+              <td class="px-4 py-3"><div class="h-4 w-40 bg-gray-200 rounded"></div></td>
+              <td class="px-4 py-3 text-right"><div class="h-4 w-24 bg-gray-200 rounded ml-auto"></div></td>
+              <td class="px-4 py-3 text-right"><div class="h-4 w-24 bg-gray-200 rounded ml-auto"></div></td>
+              <td class="px-4 py-3 text-right"><div class="h-4 w-24 bg-gray-200 rounded ml-auto"></div></td>
+              <td class="px-4 py-3"><div class="w-24 bg-gray-200 rounded-full h-2 mx-auto"></div></td>
+              <td class="px-4 py-3 text-center"><div class="h-5 w-16 bg-gray-200 rounded-full mx-auto"></div></td>
+              <td class="px-4 py-3"><div class="h-4 w-16 bg-gray-200 rounded"></div></td>
+              <td class="px-4 py-3 text-right">
+                <div class="flex items-center justify-end gap-1">
+                  <div class="h-7 w-7 bg-gray-200 rounded"></div>
+                  <div class="h-7 w-7 bg-gray-200 rounded"></div>
+                  <div class="h-7 w-7 bg-gray-200 rounded"></div>
+                </div>
+              </td>
+            </tr>
+          </template>
+          <template v-else>
           <tr v-for="lay in layaways.data" :key="lay.id" class="hover:bg-gray-50">
             <td class="px-4 py-3">
               <div class="font-mono text-xs font-semibold text-amber-700">{{ lay.reference_number }}</div>
@@ -125,6 +147,10 @@
               </div>
             </td>
           </tr>
+          <tr v-if="!layaways.data?.length">
+            <td colspan="10" class="px-4 py-10 text-center text-gray-400 text-sm">No layaways found.</td>
+          </tr>
+          </template>
         </tbody>
       </table>
 

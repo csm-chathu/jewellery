@@ -16,6 +16,24 @@
           <th class="table-th">Actions</th>
         </tr></thead>
         <tbody class="divide-y divide-gray-100">
+          <!-- Skeleton -->
+          <template v-if="loading">
+            <tr v-for="n in 7" :key="n" class="animate-pulse">
+              <td class="table-td"><div class="h-3.5 w-28 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-3.5 w-24 bg-gray-100 rounded"></div></td>
+              <td class="table-td"><div class="h-3.5 w-32 bg-gray-100 rounded"></div></td>
+              <td class="table-td"><div class="h-3.5 w-24 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-3.5 w-6 bg-gray-100 rounded"></div></td>
+              <td class="table-td"><div class="h-5 w-14 bg-gray-200 rounded-full"></div></td>
+              <td class="table-td">
+                <div class="flex gap-2">
+                  <div class="h-6 w-10 bg-gray-200 rounded-md"></div>
+                  <div class="h-6 w-14 bg-gray-200 rounded-md"></div>
+                </div>
+              </td>
+            </tr>
+          </template>
+          <template v-else>
           <tr v-for="s in suppliers.data" :key="s.id" class="hover:bg-gray-50">
             <td class="table-td font-medium">{{ s.name }}</td>
             <td class="table-td text-gray-500">{{ s.company }}</td>
@@ -37,6 +55,7 @@
             </div></td>
           </tr>
           <tr v-if="!suppliers.data?.length"><td colspan="7" class="table-td text-center text-gray-400 py-8">No suppliers</td></tr>
+          </template>
         </tbody>
       </table>
     </div>
@@ -72,6 +91,7 @@ import axios from 'axios'
 import { PlusIcon, PencilSquareIcon, TrashIcon } from '@heroicons/vue/24/outline'
 
 const suppliers = ref({ data: [] })
+const loading   = ref(false)
 const search    = ref(''); const page = ref(1)
 const showModal = ref(false); const editing = ref(null)
 const saving    = ref(false); const error   = ref('')
@@ -81,8 +101,11 @@ let debounceTimer = null
 function debouncedFetch() { clearTimeout(debounceTimer); debounceTimer = setTimeout(() => { page.value=1; fetch() }, 400) }
 
 async function fetch() {
-  const { data } = await axios.get('/api/suppliers', { params: { page: page.value, search: search.value } })
-  suppliers.value = data
+  loading.value = true
+  try {
+    const { data } = await axios.get('/api/suppliers', { params: { page: page.value, search: search.value } })
+    suppliers.value = data
+  } finally { loading.value = false }
 }
 
 function openCreate() { editing.value=null; Object.assign(form,{name:'',company:'',email:'',phone:'',address:'',city:'',country:'',is_active:true,notes:''}); showModal.value=true }

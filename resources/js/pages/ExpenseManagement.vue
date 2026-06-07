@@ -79,38 +79,56 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-100">
-            <tr v-for="exp in expenses" :key="exp.id" class="hover:bg-gray-50">
-              <td class="table-td text-sm">{{ fmtDate(exp.expense_date) }}</td>
-              <td class="table-td">
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                  {{ exp.expense_account?.name || '—' }}
-                </span>
-              </td>
-              <td class="table-td text-sm max-w-xs truncate">{{ exp.description }}</td>
-              <td class="table-td font-semibold text-gray-900">LKR {{ parseFloat(exp.amount).toFixed(2) }}</td>
-              <td class="table-td text-sm">
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize"
-                  :class="paymentBadgeClass(exp.payment_method)">
-                  {{ exp.payment_method?.replace('_', ' ') }}
-                </span>
-              </td>
-              <td class="table-td text-sm">{{ exp.paid_by_user?.name }}</td>
-              <td class="table-td text-right">
-                <div class="flex justify-end gap-1.5">
-                  <button @click="openModal(exp)"
-                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200">
-                    <PencilSquareIcon class="w-3.5 h-3.5" /> Edit
-                  </button>
-                  <button @click="deleteExpense(exp)"
-                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-red-100 text-red-700 hover:bg-red-200">
-                    <TrashIcon class="w-3.5 h-3.5" /> Delete
-                  </button>
-                </div>
-              </td>
-            </tr>
-            <tr v-if="!expenses.length">
-              <td colspan="7" class="table-td text-center text-gray-400 py-8">No expenses found</td>
-            </tr>
+            <template v-if="loading">
+              <tr v-for="n in 7" :key="n" class="animate-pulse">
+                <td class="table-td"><div class="h-3.5 w-16 bg-gray-200 rounded"></div></td>
+                <td class="table-td"><div class="h-5 w-20 bg-gray-200 rounded-full"></div></td>
+                <td class="table-td"><div class="h-3.5 w-40 bg-gray-200 rounded"></div></td>
+                <td class="table-td"><div class="h-3.5 w-24 bg-gray-200 rounded"></div></td>
+                <td class="table-td"><div class="h-5 w-16 bg-gray-200 rounded-full"></div></td>
+                <td class="table-td"><div class="h-3.5 w-20 bg-gray-200 rounded"></div></td>
+                <td class="table-td text-right">
+                  <div class="flex justify-end gap-1.5">
+                    <div class="h-6 w-14 bg-gray-200 rounded-md"></div>
+                    <div class="h-6 w-16 bg-gray-200 rounded-md"></div>
+                  </div>
+                </td>
+              </tr>
+            </template>
+            <template v-else>
+              <tr v-for="exp in expenses" :key="exp.id" class="hover:bg-gray-50">
+                <td class="table-td text-sm">{{ fmtDate(exp.expense_date) }}</td>
+                <td class="table-td">
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    {{ exp.expense_account?.name || '—' }}
+                  </span>
+                </td>
+                <td class="table-td text-sm max-w-xs truncate">{{ exp.description }}</td>
+                <td class="table-td font-semibold text-gray-900">LKR {{ parseFloat(exp.amount).toFixed(2) }}</td>
+                <td class="table-td text-sm">
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize"
+                    :class="paymentBadgeClass(exp.payment_method)">
+                    {{ exp.payment_method?.replace('_', ' ') }}
+                  </span>
+                </td>
+                <td class="table-td text-sm">{{ exp.paid_by_user?.name }}</td>
+                <td class="table-td text-right">
+                  <div class="flex justify-end gap-1.5">
+                    <button @click="openModal(exp)"
+                      class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200">
+                      <PencilSquareIcon class="w-3.5 h-3.5" /> Edit
+                    </button>
+                    <button @click="deleteExpense(exp)"
+                      class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-red-100 text-red-700 hover:bg-red-200">
+                      <TrashIcon class="w-3.5 h-3.5" /> Delete
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="!expenses.length">
+                <td colspan="7" class="table-td text-center text-gray-400 py-8">No expenses found</td>
+              </tr>
+            </template>
           </tbody>
         </table>
       </div>
@@ -197,6 +215,7 @@ const editing = ref(null)
 const saving = ref(false)
 const formError = ref('')
 const summary = ref({ by_category: [], grand_total: 0 })
+const loading = ref(false)
 
 const search = ref('')
 const filters = reactive({ from_date: '', to_date: '', expense_account_id: '', payment_method: '' })
@@ -231,6 +250,7 @@ function paymentBadgeClass(method) {
 }
 
 async function load() {
+  loading.value = true
   try {
     const { data } = await axios.get('/api/expenses', {
       params: { search: search.value, ...filters }
@@ -241,6 +261,8 @@ async function load() {
     summary.value = summaryData
   } catch (e) {
     console.error('Failed to load expenses:', e)
+  } finally {
+    loading.value = false
   }
 }
 

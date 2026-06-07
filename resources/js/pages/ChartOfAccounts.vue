@@ -24,8 +24,20 @@
       </div>
     </div>
 
+    <!-- Skeleton loading card -->
+    <div v-if="loading" class="card p-4 space-y-3">
+      <div v-for="i in 8" :key="i" class="animate-pulse flex items-center gap-4">
+        <div class="h-3 bg-gray-200 rounded w-16"></div>
+        <div class="h-3 bg-gray-200 rounded flex-1"></div>
+        <div class="h-3 bg-gray-200 rounded w-24"></div>
+        <div class="h-3 bg-gray-200 rounded w-14"></div>
+        <div class="h-3 bg-gray-200 rounded w-14"></div>
+        <div class="h-3 bg-gray-200 rounded w-20"></div>
+      </div>
+    </div>
+
     <!-- Accounts grouped by type -->
-    <div v-for="group in groupedAccounts" :key="group.type" class="card p-0 overflow-hidden">
+    <div v-if="!loading" v-for="group in groupedAccounts" :key="group.type" class="card p-0 overflow-hidden">
       <div :class="['px-5 py-3 border-b flex items-center gap-3', group.headerClass]">
         <component :is="group.icon" class="w-5 h-5" />
         <h3 class="font-semibold text-sm uppercase tracking-wider">{{ group.label }}</h3>

@@ -23,6 +23,18 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-100">
+            <template v-if="loading">
+              <tr v-for="i in 6" :key="i" class="animate-pulse">
+                <td class="table-td"><div class="h-3.5 w-16 bg-gray-200 rounded"></div></td>
+                <td class="table-td"><div class="h-3.5 w-24 bg-gray-200 rounded mb-1"></div><div class="h-3 w-16 bg-gray-200 rounded"></div></td>
+                <td class="table-td"><div class="h-3.5 w-20 bg-gray-200 rounded"></div></td>
+                <td class="table-td text-right"><div class="h-3.5 w-20 bg-gray-200 rounded ml-auto"></div></td>
+                <td class="table-td text-right"><div class="h-3.5 w-20 bg-gray-200 rounded ml-auto"></div></td>
+                <td class="table-td"><div class="h-5 w-14 bg-gray-200 rounded-full"></div></td>
+                <td class="table-td"><div class="flex gap-2"><div class="h-6 w-14 bg-gray-200 rounded-md"></div></div></td>
+              </tr>
+            </template>
+            <template v-else>
             <tr v-for="loan in loans.data" :key="loan.id">
               <td class="table-td font-mono text-xs">{{ loan.loan_number }}</td>
               <td class="table-td">
@@ -42,6 +54,7 @@
               </td>
             </tr>
             <tr v-if="!loans.data?.length"><td colspan="7" class="table-td text-center py-8 text-gray-400">No gold loans</td></tr>
+            </template>
           </tbody>
         </table>
       </div>
@@ -194,6 +207,7 @@ const loans = ref({ data: [] })
 const reminders = ref([])
 const customers = ref([])
 const accounts = ref([])
+const loading = ref(false)
 
 const showCreate = ref(false)
 const creating = ref(false)
@@ -257,17 +271,22 @@ function openRepay(loan) {
 }
 
 async function load() {
-  const [loansRes, remindersRes, customersRes, accountsRes] = await Promise.all([
-    axios.get('/api/gold-loans'),
-    axios.get('/api/gold-loans/reminders', { params: { within_days: 10 } }),
-    axios.get('/api/customers/all'),
-    axios.get('/api/accounts/all'),
-  ])
+  loading.value = true
+  try {
+    const [loansRes, remindersRes, customersRes, accountsRes] = await Promise.all([
+      axios.get('/api/gold-loans'),
+      axios.get('/api/gold-loans/reminders', { params: { within_days: 10 } }),
+      axios.get('/api/customers/all'),
+      axios.get('/api/accounts/all'),
+    ])
 
-  loans.value = loansRes.data
-  reminders.value = remindersRes.data.rows
-  customers.value = customersRes.data
-  accounts.value = accountsRes.data
+    loans.value = loansRes.data
+    reminders.value = remindersRes.data.rows
+    customers.value = customersRes.data
+    accounts.value = accountsRes.data
+  } finally {
+    loading.value = false
+  }
 }
 
 async function createLoan() {

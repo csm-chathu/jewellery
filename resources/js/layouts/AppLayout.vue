@@ -193,7 +193,7 @@ const adminNavItems = [
   { to: '/expenses', label: 'Expenses', icon: ReceiptPercentIcon, roles: ['admin', 'manager', 'finance', 'auditor'] },
   { to: '/sms', label: 'SMS Centre', icon: DevicePhoneMobileIcon, roles: ['admin', 'manager'] },
   { to: '/informal-purchases', label: 'Private Gold Book', icon: LockClosedIcon, roles: ['gold_buyer'] },
-  { to: '/custom-made-orders', label: 'Custom Made Orders', icon: PaintBrushIcon, roles: ['gold_buyer', 'admin', 'manager'] },
+  { to: '/custom-made-orders', label: 'Custom Made Orders', icon: PaintBrushIcon, roles: ['gold_buyer'] },
   { to: '/getting-started', label: 'Getting Started', icon: QuestionMarkCircleIcon, roles: ['admin', 'manager'] },
 ]
 

@@ -82,13 +82,29 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-100">
-            <tr v-if="loading">
-              <td colspan="9" class="table-td text-center py-10 text-gray-400">
-                <div class="flex items-center justify-center gap-2">
-                  <ArrowPathIcon class="w-4 h-4 animate-spin" /> Loading…
-                </div>
-              </td>
-            </tr>
+            <template v-if="loading">
+              <tr v-for="n in 7" :key="n" class="animate-pulse">
+                <td class="table-td"><div class="h-4 w-20 bg-gray-200 rounded font-mono"></div></td>
+                <td class="table-td">
+                  <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-full bg-gray-200 shrink-0"></div>
+                    <div class="h-4 w-28 bg-gray-200 rounded"></div>
+                  </div>
+                </td>
+                <td class="table-td"><div class="h-4 w-24 bg-gray-200 rounded"></div></td>
+                <td class="table-td"><div class="h-4 w-20 bg-gray-200 rounded"></div></td>
+                <td class="table-td text-center"><div class="h-5 w-16 bg-gray-200 rounded-full mx-auto"></div></td>
+                <td class="table-td text-right"><div class="h-4 w-28 bg-gray-200 rounded ml-auto"></div></td>
+                <td class="table-td"><div class="h-4 w-16 bg-gray-200 rounded"></div></td>
+                <td class="table-td text-center"><div class="h-5 w-12 bg-gray-200 rounded-full mx-auto"></div></td>
+                <td class="table-td">
+                  <div class="flex gap-2">
+                    <div class="h-6 w-14 bg-gray-200 rounded-md"></div>
+                    <div class="h-6 w-14 bg-gray-200 rounded-md"></div>
+                  </div>
+                </td>
+              </tr>
+            </template>
             <template v-else>
               <tr v-for="emp in employees.data" :key="emp.id"
                 class="hover:bg-gray-50 transition-colors"

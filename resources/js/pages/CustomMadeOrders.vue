@@ -56,6 +56,23 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
+          <template v-if="loading">
+            <tr v-for="i in 7" :key="i" class="animate-pulse">
+              <td class="table-td"><div class="h-3.5 w-16 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-3.5 w-24 bg-gray-200 rounded mb-1"></div><div class="h-3 w-16 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-3.5 w-28 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-3.5 w-12 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-3.5 w-14 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-3.5 w-20 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-3.5 w-20 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-3.5 w-20 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-3.5 w-20 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-3.5 w-16 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-5 w-14 bg-gray-200 rounded-full"></div></td>
+              <td class="table-td"><div class="flex gap-2"><div class="h-6 w-10 bg-gray-200 rounded-md"></div><div class="h-6 w-10 bg-gray-200 rounded-md"></div><div class="h-6 w-10 bg-gray-200 rounded-md"></div></div></td>
+            </tr>
+          </template>
+          <template v-else>
           <tr v-for="r in orders.data" :key="r.id" class="hover:bg-gray-50">
             <td class="table-td font-mono text-xs text-gray-500">{{ r.reference_number }}</td>
             <td class="table-td">
@@ -130,6 +147,7 @@
           <tr v-if="!orders.data?.length">
             <td colspan="12" class="table-td text-center text-gray-400 py-10">No custom made orders found</td>
           </tr>
+          </template>
         </tbody>
       </table>
       <div class="px-4 py-3 border-t flex justify-between text-sm text-gray-600">
@@ -437,6 +455,7 @@ const orders   = ref({ data: [], total: 0, last_page: 1 })
 const customers = ref([])
 const page     = ref(1)
 const filters  = reactive({ search: '', status: '' })
+const loading  = ref(false)
 
 const showForm  = ref(false)
 const editing   = ref(null)
@@ -833,8 +852,13 @@ async function del(r) {
 }
 
 async function load() {
-  const { data } = await axios.get('/api/custom-made-orders', { params: { ...filters, page: page.value } })
-  orders.value = data
+  loading.value = true
+  try {
+    const { data } = await axios.get('/api/custom-made-orders', { params: { ...filters, page: page.value } })
+    orders.value = data
+  } finally {
+    loading.value = false
+  }
 }
 
 onMounted(async () => {

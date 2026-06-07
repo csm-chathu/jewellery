@@ -40,28 +40,41 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
-          <tr v-for="log in logs" :key="log.id" class="hover:bg-gray-50">
-            <td class="table-td text-xs text-gray-500 font-mono whitespace-nowrap">{{ formatTime(log.created_at) }}</td>
-            <td class="table-td text-sm">
-              <span class="font-medium">{{ log.user?.name ?? '—' }}</span>
-            </td>
-            <td class="table-td">
-              <span :class="actionClass(log.action)" class="badge text-xs font-mono">
-                {{ log.action }}
-              </span>
-            </td>
-            <td class="table-td text-sm text-gray-600 max-w-xs truncate">{{ log.description }}</td>
-            <td class="table-td text-xs text-gray-400 font-mono max-w-28 truncate">
-              {{ log.old_values ? JSON.stringify(log.old_values) : '—' }}
-            </td>
-            <td class="table-td text-xs text-gray-700 font-mono max-w-28 truncate">
-              {{ log.new_values ? JSON.stringify(log.new_values) : '—' }}
-            </td>
-            <td class="table-td text-xs text-gray-400 font-mono">{{ log.ip_address ?? '—' }}</td>
-          </tr>
-          <tr v-if="!logs.length">
-            <td colspan="7" class="table-td text-center text-gray-400 py-10">No audit logs found</td>
-          </tr>
+          <template v-if="loading">
+            <tr v-for="n in 8" :key="n" class="animate-pulse">
+              <td class="table-td"><div class="h-3.5 w-24 bg-gray-200 rounded font-mono"></div></td>
+              <td class="table-td"><div class="h-3.5 w-20 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-5 w-16 bg-gray-200 rounded-full"></div></td>
+              <td class="table-td"><div class="h-3.5 w-48 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-3.5 w-16 bg-gray-200 rounded font-mono"></div></td>
+              <td class="table-td"><div class="h-3.5 w-16 bg-gray-200 rounded font-mono"></div></td>
+              <td class="table-td"><div class="h-3.5 w-20 bg-gray-200 rounded font-mono"></div></td>
+            </tr>
+          </template>
+          <template v-else>
+            <tr v-for="log in logs" :key="log.id" class="hover:bg-gray-50">
+              <td class="table-td text-xs text-gray-500 font-mono whitespace-nowrap">{{ formatTime(log.created_at) }}</td>
+              <td class="table-td text-sm">
+                <span class="font-medium">{{ log.user?.name ?? '—' }}</span>
+              </td>
+              <td class="table-td">
+                <span :class="actionClass(log.action)" class="badge text-xs font-mono">
+                  {{ log.action }}
+                </span>
+              </td>
+              <td class="table-td text-sm text-gray-600 max-w-xs truncate">{{ log.description }}</td>
+              <td class="table-td text-xs text-gray-400 font-mono max-w-28 truncate">
+                {{ log.old_values ? JSON.stringify(log.old_values) : '—' }}
+              </td>
+              <td class="table-td text-xs text-gray-700 font-mono max-w-28 truncate">
+                {{ log.new_values ? JSON.stringify(log.new_values) : '—' }}
+              </td>
+              <td class="table-td text-xs text-gray-400 font-mono">{{ log.ip_address ?? '—' }}</td>
+            </tr>
+            <tr v-if="!logs.length">
+              <td colspan="7" class="table-td text-center text-gray-400 py-10">No audit logs found</td>
+            </tr>
+          </template>
         </tbody>
       </table>
     </div>
@@ -85,6 +98,7 @@ import { fmtDateTime } from '../utils/date.js'
 const logs    = ref([])
 const meta    = ref(null)
 const page    = ref(1)
+const loading = ref(false)
 
 const filters = reactive({ action: '', date_from: '', date_to: '' })
 
@@ -97,9 +111,14 @@ const quickActions = [
 ]
 
 async function load() {
-  const { data } = await axios.get('/api/audit-logs', { params: { ...filters, page: page.value, per_page: 50 } })
-  logs.value = data.data
-  meta.value = data.meta
+  loading.value = true
+  try {
+    const { data } = await axios.get('/api/audit-logs', { params: { ...filters, page: page.value, per_page: 50 } })
+    logs.value = data.data
+    meta.value = data.meta
+  } finally {
+    loading.value = false
+  }
 }
 
 function clearFilters() { filters.action = ''; filters.date_from = ''; filters.date_to = ''; page.value = 1; load() }

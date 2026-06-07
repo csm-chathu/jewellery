@@ -50,6 +50,34 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-100">
+            <!-- Skeleton -->
+            <template v-if="loading">
+              <tr v-for="n in 8" :key="n" class="animate-pulse">
+                <td class="table-td"><div class="h-4 w-4 bg-gray-200 rounded"></div></td>
+                <td class="table-td"><div class="h-3.5 w-16 bg-gray-200 rounded font-mono"></div></td>
+                <td class="table-td"><div class="h-3.5 w-20 bg-gray-100 rounded"></div></td>
+                <td class="table-td">
+                  <div class="flex items-center gap-2">
+                    <div class="w-9 h-9 rounded-md bg-gray-200 shrink-0"></div>
+                    <div class="h-3.5 w-28 bg-gray-200 rounded"></div>
+                  </div>
+                </td>
+                <td class="table-td"><div class="h-3.5 w-20 bg-gray-100 rounded"></div></td>
+                <td class="table-td"><div class="h-3.5 w-16 bg-gray-100 rounded"></div></td>
+                <td class="table-td"><div class="h-3.5 w-10 bg-gray-100 rounded"></div></td>
+                <td class="table-td"><div class="h-5 w-10 bg-gray-200 rounded-full"></div></td>
+                <td class="table-td"><div class="h-3.5 w-20 bg-gray-100 rounded"></div></td>
+                <td class="table-td"><div class="h-5 w-14 bg-gray-200 rounded-full"></div></td>
+                <td class="table-td">
+                  <div class="flex gap-2">
+                    <div class="h-6 w-14 bg-gray-200 rounded-md"></div>
+                    <div class="h-6 w-10 bg-gray-200 rounded-md"></div>
+                    <div class="h-6 w-14 bg-gray-200 rounded-md"></div>
+                  </div>
+                </td>
+              </tr>
+            </template>
+            <template v-else>
             <tr v-for="p in products.data" :key="p.id" class="hover:bg-gray-50" :class="selected.has(p.id) ? 'bg-emerald-50' : ''">
               <td class="table-td">
                 <input type="checkbox" :checked="selected.has(p.id)" @change="toggleOne(p)" class="rounded text-gold-600" />
@@ -106,6 +134,7 @@
             <tr v-if="!products.data?.length">
               <td colspan="11" class="table-td text-center text-gray-400 py-8">No products found</td>
             </tr>
+            </template>
           </tbody>
         </table>
       </div>
@@ -176,13 +205,18 @@ function debouncedFetch() {
   debounceTimer = setTimeout(() => { page.value = 1; fetchProducts() }, 400)
 }
 
+const loading = ref(false)
+
 async function fetchProducts() {
+  loading.value = true
+  try {
   const params = { page: page.value, search: search.value, category_id: categoryFilter.value }
   if (lowStockOnly.value) params.low_stock = 1
   const { data } = await axios.get('/api/products', { params })
   products.value = data
   // keep map updated so selected products retain their data
   data.data?.forEach(p => { productMap.value[p.id] = p })
+  } finally { loading.value = false }
 }
 
 async function fetchRefs() {

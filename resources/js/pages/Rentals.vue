@@ -42,6 +42,18 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
+          <template v-if="loading">
+            <tr v-for="i in 7" :key="i" class="animate-pulse">
+              <td class="table-td"><div class="h-3.5 w-16 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-3.5 w-20 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-3.5 w-28 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-3.5 w-20 bg-gray-200 rounded"></div></td>
+              <td class="table-td text-right"><div class="h-3.5 w-20 bg-gray-200 rounded ml-auto"></div></td>
+              <td class="table-td"><div class="h-5 w-14 bg-gray-200 rounded-full"></div></td>
+              <td class="table-td"><div class="flex gap-2"><div class="h-6 w-16 bg-gray-200 rounded-md"></div></div></td>
+            </tr>
+          </template>
+          <template v-else>
           <tr v-for="r in rents.data" :key="r.id">
             <td class="table-td font-mono text-xs">{{ r.rent_number }}</td>
             <td class="table-td">{{ r.month }}</td>
@@ -57,6 +69,7 @@
             </td>
           </tr>
           <tr v-if="!rents.data?.length"><td colspan="7" class="table-td text-center text-gray-400 py-8">No rent records</td></tr>
+          </template>
         </tbody>
       </table>
     </div>
@@ -121,6 +134,7 @@ const reminders = ref([])
 const accounts = ref([])
 const showCreate = ref(false)
 const payTarget = ref(null)
+const loading = ref(false)
 
 const createForm = ref({
   month: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
@@ -133,14 +147,19 @@ const payForm = ref({ payment_date: today(), payment_method: 'bank_transfer', pa
 const assetAccounts = computed(() => accounts.value.filter(a => a.type === 'asset'))
 
 async function load() {
-  const [r, rem, acc] = await Promise.all([
-    axios.get('/api/rent-payments'),
-    axios.get('/api/rent-payments/reminders', { params: { within_days: 10 } }),
-    axios.get('/api/accounts/all'),
-  ])
-  rents.value = r.data
-  reminders.value = rem.data.rows
-  accounts.value = acc.data
+  loading.value = true
+  try {
+    const [r, rem, acc] = await Promise.all([
+      axios.get('/api/rent-payments'),
+      axios.get('/api/rent-payments/reminders', { params: { within_days: 10 } }),
+      axios.get('/api/accounts/all'),
+    ])
+    rents.value = r.data
+    reminders.value = rem.data.rows
+    accounts.value = acc.data
+  } finally {
+    loading.value = false
+  }
 }
 
 async function createRent() {

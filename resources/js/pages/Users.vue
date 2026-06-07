@@ -46,43 +46,66 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
-          <tr v-for="u in users" :key="u.id" class="hover:bg-gray-50">
-            <td class="table-td font-medium">{{ u.name }}</td>
-            <td class="table-td text-gray-500 text-sm">{{ u.email }}</td>
-            <td class="table-td">
-              <span :class="roleBadgeClass(u.role)" class="badge">
-                {{ roleLabel(u.role) }}
-              </span>
-            </td>
-            <td class="table-td text-sm text-gray-600">{{ u.branch?.name ?? '—' }}</td>
-            <td class="table-td">
-              <div class="flex gap-1 flex-wrap">
-                <span v-if="u.can_override_gold_rate" class="badge bg-gold-100 text-gold-700 text-xs">Rate Override</span>
-                <span v-if="u.can_delete_transactions" class="badge bg-red-100 text-red-700 text-xs">Delete Txn</span>
-                <span v-if="!u.can_override_gold_rate && !u.can_delete_transactions && u.role !== 'admin'" class="text-xs text-gray-400">Standard</span>
-              </div>
-            </td>
-            <td class="table-td">
-              <span :class="u.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'" class="badge">
-                {{ u.is_active ? 'Active' : 'Inactive' }}
-              </span>
-            </td>
-            <td class="table-td text-right">
-              <div class="flex justify-end gap-1.5">
-                <button @click="openModal(u)"
-                  class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200">
-                  <PencilSquareIcon class="w-3.5 h-3.5" /> Edit
-                </button>
-                <button v-if="u.id !== authUser?.id" @click="deleteUser(u)"
-                  class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-red-100 text-red-700 hover:bg-red-200">
-                  <TrashIcon class="w-3.5 h-3.5" /> Delete
-                </button>
-              </div>
-            </td>
-          </tr>
-          <tr v-if="!users.length">
-            <td colspan="7" class="table-td text-center text-gray-400 py-8">No users found</td>
-          </tr>
+          <template v-if="loading">
+            <tr v-for="n in 6" :key="n" class="animate-pulse">
+              <td class="table-td"><div class="h-3.5 w-28 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-3.5 w-40 bg-gray-200 rounded"></div></td>
+              <td class="table-td"><div class="h-5 w-16 bg-gray-200 rounded-full"></div></td>
+              <td class="table-td"><div class="h-3.5 w-20 bg-gray-200 rounded"></div></td>
+              <td class="table-td">
+                <div class="flex gap-1">
+                  <div class="h-5 w-16 bg-gray-200 rounded-full"></div>
+                  <div class="h-5 w-16 bg-gray-200 rounded-full"></div>
+                </div>
+              </td>
+              <td class="table-td"><div class="h-5 w-14 bg-gray-200 rounded-full"></div></td>
+              <td class="table-td text-right">
+                <div class="flex justify-end gap-1.5">
+                  <div class="h-6 w-14 bg-gray-200 rounded-md"></div>
+                  <div class="h-6 w-16 bg-gray-200 rounded-md"></div>
+                </div>
+              </td>
+            </tr>
+          </template>
+          <template v-else>
+            <tr v-for="u in users" :key="u.id" class="hover:bg-gray-50">
+              <td class="table-td font-medium">{{ u.name }}</td>
+              <td class="table-td text-gray-500 text-sm">{{ u.email }}</td>
+              <td class="table-td">
+                <span :class="roleBadgeClass(u.role)" class="badge">
+                  {{ roleLabel(u.role) }}
+                </span>
+              </td>
+              <td class="table-td text-sm text-gray-600">{{ u.branch?.name ?? '—' }}</td>
+              <td class="table-td">
+                <div class="flex gap-1 flex-wrap">
+                  <span v-if="u.can_override_gold_rate" class="badge bg-gold-100 text-gold-700 text-xs">Rate Override</span>
+                  <span v-if="u.can_delete_transactions" class="badge bg-red-100 text-red-700 text-xs">Delete Txn</span>
+                  <span v-if="!u.can_override_gold_rate && !u.can_delete_transactions && u.role !== 'admin'" class="text-xs text-gray-400">Standard</span>
+                </div>
+              </td>
+              <td class="table-td">
+                <span :class="u.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'" class="badge">
+                  {{ u.is_active ? 'Active' : 'Inactive' }}
+                </span>
+              </td>
+              <td class="table-td text-right">
+                <div class="flex justify-end gap-1.5">
+                  <button @click="openModal(u)"
+                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200">
+                    <PencilSquareIcon class="w-3.5 h-3.5" /> Edit
+                  </button>
+                  <button v-if="u.id !== authUser?.id" @click="deleteUser(u)"
+                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-red-100 text-red-700 hover:bg-red-200">
+                    <TrashIcon class="w-3.5 h-3.5" /> Delete
+                  </button>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="!users.length">
+              <td colspan="7" class="table-td text-center text-gray-400 py-8">No users found</td>
+            </tr>
+          </template>
         </tbody>
       </table>
     </div>
@@ -189,6 +212,7 @@ const formError   = ref('')
 const search      = ref('')
 const filterRole   = ref('')
 const filterBranch = ref('')
+const loading      = ref(false)
 
 const form = reactive({
   name: '', email: '', password: '', role: 'branch', branch_id: null,
@@ -196,10 +220,15 @@ const form = reactive({
 })
 
 async function load() {
-  const { data } = await axios.get('/api/users', { params: {
-    search: search.value, role: filterRole.value, branch_id: filterBranch.value
-  }})
-  users.value = data.data
+  loading.value = true
+  try {
+    const { data } = await axios.get('/api/users', { params: {
+      search: search.value, role: filterRole.value, branch_id: filterBranch.value
+    }})
+    users.value = data.data
+  } finally {
+    loading.value = false
+  }
 }
 
 function openModal(user) {

@@ -37,26 +37,33 @@
 
     <!-- Table -->
     <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-      <div v-if="loading" class="flex items-center justify-center py-16 text-gray-400">
-        <div class="animate-spin w-6 h-6 border-2 border-gold-500 border-t-transparent rounded-full mr-2"></div>
-        Loading transfers…
-      </div>
-
-      <template v-else-if="transfers.length">
-        <table class="w-full text-sm">
-          <thead class="bg-gray-50 border-b border-gray-200">
-            <tr>
-              <th class="text-left px-4 py-3 font-semibold text-gray-600">Ref #</th>
-              <th class="text-left px-4 py-3 font-semibold text-gray-600">Date</th>
-              <th class="text-left px-4 py-3 font-semibold text-gray-600">From</th>
-              <th class="text-left px-4 py-3 font-semibold text-gray-600">To</th>
-              <th class="text-right px-4 py-3 font-semibold text-gray-600">Amount</th>
-              <th class="text-left px-4 py-3 font-semibold text-gray-600">Note</th>
-              <th class="text-left px-4 py-3 font-semibold text-gray-600">By</th>
-              <th class="px-4 py-3"></th>
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 border-b border-gray-200">
+          <tr>
+            <th class="text-left px-4 py-3 font-semibold text-gray-600">Ref #</th>
+            <th class="text-left px-4 py-3 font-semibold text-gray-600">Date</th>
+            <th class="text-left px-4 py-3 font-semibold text-gray-600">From</th>
+            <th class="text-left px-4 py-3 font-semibold text-gray-600">To</th>
+            <th class="text-right px-4 py-3 font-semibold text-gray-600">Amount</th>
+            <th class="text-left px-4 py-3 font-semibold text-gray-600">Note</th>
+            <th class="text-left px-4 py-3 font-semibold text-gray-600">By</th>
+            <th class="px-4 py-3"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+          <template v-if="loading">
+            <tr v-for="n in 7" :key="n" class="animate-pulse">
+              <td class="px-4 py-3"><div class="h-4 w-20 bg-gray-200 rounded font-mono"></div></td>
+              <td class="px-4 py-3"><div class="h-4 w-20 bg-gray-200 rounded"></div></td>
+              <td class="px-4 py-3"><div class="h-5 w-24 bg-gray-200 rounded-full"></div></td>
+              <td class="px-4 py-3"><div class="h-5 w-24 bg-gray-200 rounded-full"></div></td>
+              <td class="px-4 py-3 text-right"><div class="h-4 w-24 bg-gray-200 rounded ml-auto"></div></td>
+              <td class="px-4 py-3"><div class="h-4 w-40 bg-gray-200 rounded"></div></td>
+              <td class="px-4 py-3"><div class="h-4 w-16 bg-gray-200 rounded"></div></td>
+              <td class="px-4 py-3 text-right"><div class="h-6 w-8 bg-gray-200 rounded-md ml-auto"></div></td>
             </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-100">
+          </template>
+          <template v-else>
             <tr v-for="t in transfers" :key="t.id" class="hover:bg-gray-50 transition-colors">
               <td class="px-4 py-3 font-mono text-xs text-gray-500">{{ t.entry_number }}</td>
               <td class="px-4 py-3 text-gray-700">{{ fmtDate(t.entry_date) }}</td>
@@ -83,30 +90,33 @@
                 </button>
               </td>
             </tr>
-          </tbody>
-        </table>
+            <tr v-if="!transfers.length">
+              <td colspan="8" class="px-4 py-16 text-center">
+                <div class="flex flex-col items-center text-gray-400">
+                  <ArrowsRightLeftIcon class="w-10 h-10 mb-3 opacity-40" />
+                  <p class="text-sm">No transfers yet.</p>
+                  <p class="text-xs mt-1">Click "New Transfer" to move money between accounts.</p>
+                </div>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
 
-        <!-- Pagination -->
-        <div v-if="pagination.last_page > 1"
-          class="flex items-center justify-between px-4 py-3 border-t border-gray-100 text-sm text-gray-500">
-          <span>Page {{ pagination.current_page }} of {{ pagination.last_page }}</span>
-          <div class="flex gap-2">
-            <button @click="goPage(pagination.current_page - 1)" :disabled="pagination.current_page === 1"
-              class="px-3 py-1 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-              Prev
-            </button>
-            <button @click="goPage(pagination.current_page + 1)" :disabled="pagination.current_page === pagination.last_page"
-              class="px-3 py-1 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-              Next
-            </button>
-          </div>
+      <!-- Pagination -->
+      <div v-if="pagination.last_page > 1"
+        class="flex items-center justify-between px-4 py-3 border-t border-gray-100 text-sm text-gray-500">
+        <span>Page {{ pagination.current_page }} of {{ pagination.last_page }}</span>
+        <div class="flex gap-2">
+          <button @click="goPage(pagination.current_page - 1)" :disabled="pagination.current_page === 1"
+            class="px-3 py-1 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+            Prev
+          </button>
+          <button @click="goPage(pagination.current_page + 1)" :disabled="pagination.current_page === pagination.last_page"
+            class="px-3 py-1 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+            Next
+          </button>
         </div>
-      </template>
-
-      <div v-else class="flex flex-col items-center justify-center py-16 text-gray-400">
-        <ArrowsRightLeftIcon class="w-10 h-10 mb-3 opacity-40" />
-        <p class="text-sm">No transfers yet.</p>
-        <p class="text-xs mt-1">Click "New Transfer" to move money between accounts.</p>
       </div>
     </div>
   </div>
