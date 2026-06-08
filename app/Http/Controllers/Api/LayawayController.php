@@ -183,8 +183,8 @@ class LayawayController extends Controller
 
     public function convertToSale(Request $request, Layaway $layaway)
     {
-        if ($layaway->status !== 'completed') {
-            return response()->json(['message' => 'Only fully paid layaways can be converted to a sale.'], 422);
+        if ($layaway->status === 'cancelled') {
+            return response()->json(['message' => 'Cannot convert a cancelled layaway.'], 422);
         }
 
         if ($layaway->sale_id) {
@@ -195,13 +195,36 @@ class LayawayController extends Controller
             'payment_method' => 'required|in:cash,bank_transfer,cheque,card',
             'collected_at'   => 'nullable|date',
             'notes'          => 'nullable|string|max:500',
+            'cash_collected' => 'nullable|numeric|min:0',
         ]);
 
         DB::beginTransaction();
         try {
             $collectedAt = !empty($data['collected_at']) ? $data['collected_at'] : now()->toDateString();
 
+            // ── Record any remaining balance paid in cash at handover ───────
+            $cashCollected = (float) ($data['cash_collected'] ?? 0);
+            if ($cashCollected > 0) {
+                if ($cashCollected > $layaway->balance_amount) {
+                    return response()->json([
+                        'message' => 'Cash collected exceeds outstanding balance of LKR ' . number_format($layaway->balance_amount, 2),
+                    ], 422);
+                }
+                $this->recordPayment($layaway, [
+                    'amount'         => $cashCollected,
+                    'payment_method' => $data['payment_method'],
+                    'payment_date'   => $collectedAt,
+                    'notes'          => 'Balance collected at handover',
+                    'send_sms'       => false,
+                ]);
+                $layaway->refresh();
+            }
+
             // ── Create Sale record ──────────────────────────────────────────
+            // Use paid_amount as the actual sale value (covers partial-pay handover cases)
+            $saleAmount = (float) $layaway->paid_amount;
+            $discount   = max(0, (float) $layaway->total_amount - $saleAmount);
+
             $invoiceSeq    = Sale::whereDate('created_at', today())->count() + 1;
             $invoiceNumber = 'INV-' . now()->format('Ymd') . '-' . str_pad($invoiceSeq, 4, '0', STR_PAD_LEFT);
 
@@ -211,10 +234,10 @@ class LayawayController extends Controller
                 'customer_id'     => $layaway->customer_id,
                 'user_id'         => auth()->id(),
                 'subtotal'        => $layaway->total_amount,
-                'discount'        => 0,
+                'discount'        => $discount,
                 'tax'             => 0,
                 'tax_rate'        => 0,
-                'total'           => $layaway->total_amount,
+                'total'           => $saleAmount,
                 'gold_value_total'      => 0,
                 'gemstone_value_total'  => 0,
                 'making_charges_total'  => 0,
@@ -224,7 +247,7 @@ class LayawayController extends Controller
                 'sale_type'       => 'instant',
                 'delivery_status' => 'delivered',
                 'delivered_at'    => $collectedAt,
-                'amount_paid'     => $layaway->total_amount,
+                'amount_paid'     => $saleAmount,
                 'notes'           => 'Converted from layaway ' . $layaway->reference_number . ($data['notes'] ? '. ' . $data['notes'] : ''),
                 'sold_at'         => $collectedAt,
             ]);
@@ -238,8 +261,8 @@ class LayawayController extends Controller
                         'product_id'     => $product->id,
                         'quantity'       => 1,
                         'unit_price'     => $layaway->total_amount,
-                        'discount'       => 0,
-                        'total'          => $layaway->total_amount,
+                        'discount'       => $discount,
+                        'total'          => $saleAmount,
                         'gold_value'     => 0,
                         'gemstone_value' => 0,
                         'making_charge'  => 0,
@@ -273,11 +296,11 @@ class LayawayController extends Controller
                 'status'         => 'posted',
             ]);
 
-            // DR Customer Deposit (clear liability)
+            // DR Customer Deposit (clear liability — only what was actually deposited)
             JournalEntryLine::create([
                 'journal_entry_id' => $entry->id,
                 'account_id'       => $depositAccount->id,
-                'debit'            => $layaway->total_amount,
+                'debit'            => $saleAmount,
                 'credit'           => 0,
                 'description'      => "Layaway deposit cleared — {$layaway->reference_number}",
             ]);
@@ -287,7 +310,7 @@ class LayawayController extends Controller
                 'journal_entry_id' => $entry->id,
                 'account_id'       => $revenueAccount->id,
                 'debit'            => 0,
-                'credit'           => $layaway->total_amount,
+                'credit'           => $saleAmount,
                 'description'      => "Sales revenue recognised — {$invoiceNumber}",
             ]);
 

@@ -130,10 +130,12 @@
                 <button v-if="lay.status === 'active'" @click="openPayment(lay)" class="p-1.5 text-green-600 hover:bg-green-50 rounded" title="Record Payment">
                   <BanknotesIcon class="h-4 w-4" />
                 </button>
-                <!-- Issue Invoice: completed and not yet converted -->
-                <button v-if="lay.status === 'completed' && !lay.sale_id" @click="openConvert(lay)" class="p-1.5 text-purple-600 hover:bg-purple-50 rounded" title="Issue Invoice / Hand Over">
+                <!-- Hand over: active or completed, not yet converted — handled in Sales page -->
+                <router-link v-if="(lay.status === 'active' || lay.status === 'completed') && !lay.sale_id"
+                  :to="`/sales/new?layaway_id=${lay.id}`"
+                  class="p-1.5 text-purple-600 hover:bg-purple-50 rounded" title="Hand Over / Issue Invoice">
                   <DocumentCheckIcon class="h-4 w-4" />
-                </button>
+                </router-link>
                 <!-- Print invoice if already converted -->
                 <button v-if="lay.sale_id" @click="printLayawayInvoice(lay)" class="p-1.5 text-gray-600 hover:bg-gray-50 rounded" title="Print Invoice">
                   <PrinterIcon class="h-4 w-4" />
@@ -303,10 +305,13 @@
             <div class="flex items-center justify-between mb-3">
               <h3 class="font-semibold text-gray-900">Payment History</h3>
               <div class="flex gap-2">
-                <button v-if="selectedLayaway.status === 'completed' && !selectedLayaway.sale_id" @click="openConvert(selectedLayaway)" class="flex items-center gap-1 text-sm px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                <router-link v-if="(selectedLayaway.status === 'active' || selectedLayaway.status === 'completed') && !selectedLayaway.sale_id"
+                  :to="`/sales/new?layaway_id=${selectedLayaway.id}`"
+                  @click="showDetail = false"
+                  class="flex items-center gap-1 text-sm px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
                   <DocumentCheckIcon class="h-4 w-4" />
-                  Issue Invoice
-                </button>
+                  Hand Over / Issue Invoice
+                </router-link>
                 <button v-if="selectedLayaway.status === 'active'" @click="openPayment(selectedLayaway)" class="flex items-center gap-1 text-sm px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700">
                   <PlusIcon class="h-4 w-4" />
                   Record Payment
@@ -521,78 +526,6 @@
       </div>
     </teleport>
 
-    <!-- ─── Convert to Sale / Issue Invoice Modal ─── -->
-    <teleport to="body">
-      <div v-if="showConvert && convertTarget" class="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg">
-          <div class="flex items-center justify-between p-5 border-b border-gray-200">
-            <div>
-              <h2 class="text-lg font-bold text-gray-900">Issue Invoice &amp; Hand Over</h2>
-              <p class="text-sm text-gray-500 mt-0.5">Convert completed layaway to a sale record</p>
-            </div>
-            <button @click="showConvert = false" class="text-gray-400 hover:text-gray-600"><XMarkIcon class="h-5 w-5" /></button>
-          </div>
-
-          <div class="p-5 space-y-4">
-            <!-- Summary -->
-            <div class="bg-purple-50 border border-purple-200 rounded-xl p-4 space-y-2">
-              <div class="flex justify-between text-sm">
-                <span class="text-purple-700 font-medium">Layaway</span>
-                <span class="font-mono font-semibold text-purple-900">{{ convertTarget.reference_number }}</span>
-              </div>
-              <div class="flex justify-between text-sm">
-                <span class="text-purple-700">Customer</span>
-                <span class="font-medium text-purple-900">{{ convertTarget.customer?.name }}</span>
-              </div>
-              <div class="flex justify-between text-sm">
-                <span class="text-purple-700">Item</span>
-                <span class="font-medium text-purple-900">{{ convertTarget.item_description }}</span>
-              </div>
-              <div class="border-t border-purple-200 pt-2 mt-2 flex justify-between">
-                <span class="text-purple-700 font-semibold">Total Amount</span>
-                <span class="text-lg font-bold text-purple-900">{{ fmtCurrency(convertTarget.total_amount) }}</span>
-              </div>
-            </div>
-
-            <!-- GL note -->
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800">
-              <strong>GL effect:</strong> Customer Deposit (2200) Dr. → Sales Revenue (4000) Cr. for {{ fmtCurrency(convertTarget.total_amount) }}
-              <br>A new invoice number will be auto-generated and the item stock will be decremented.
-            </div>
-
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Payment Method <span class="text-red-500">*</span></label>
-                <select v-model="convertForm.payment_method" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-purple-500 focus:border-purple-500">
-                  <option value="cash">Cash</option>
-                  <option value="bank_transfer">Bank Transfer</option>
-                  <option value="cheque">Cheque</option>
-                  <option value="card">Card</option>
-                </select>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Collection Date <span class="text-red-500">*</span></label>
-                <input v-model="convertForm.collected_at" type="date" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-purple-500 focus:border-purple-500" />
-              </div>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-              <input v-model="convertForm.notes" type="text" placeholder="Optional handover notes" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-purple-500 focus:border-purple-500" />
-            </div>
-
-            <div v-if="convertError" class="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">{{ convertError }}</div>
-          </div>
-
-          <div class="flex items-center justify-between p-5 border-t border-gray-200">
-            <button @click="showConvert = false" class="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-            <button @click="submitConvert" :disabled="converting" class="flex items-center gap-2 px-5 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 font-medium">
-              <DocumentCheckIcon class="h-4 w-4" />
-              {{ converting ? 'Processing…' : 'Issue Invoice & Hand Over' }}
-            </button>
-          </div>
-        </div>
-      </div>
-    </teleport>
   </div>
 </template>
 
@@ -641,12 +574,6 @@ const paying        = ref(false)
 const payError      = ref(null)
 const payForm       = reactive({ amount: '', payment_method: 'cash', payment_date: today(), notes: '', send_sms: false })
 
-// Convert modal
-const showConvert   = ref(false)
-const convertTarget = ref(null)
-const converting    = ref(false)
-const convertError  = ref(null)
-const convertForm   = reactive({ payment_method: 'cash', collected_at: today(), notes: '' })
 
 // Cancel modal
 const showCancel    = ref(false)
@@ -770,36 +697,6 @@ async function submitPayment() {
   }
 }
 
-// ── Convert to Sale ────────────────────────────────────────────────────────
-function openConvert(lay) {
-  convertTarget.value = lay
-  convertError.value  = null
-  Object.assign(convertForm, { payment_method: 'cash', collected_at: today(), notes: '' })
-  showConvert.value   = true
-}
-
-async function submitConvert() {
-  convertError.value = null
-  converting.value   = true
-  try {
-    const { data } = await axios.post(`/api/layaways/${convertTarget.value.id}/convert-to-sale`, { ...convertForm })
-    showConvert.value = false
-
-    // Update detail modal if open
-    if (showDetail.value && selectedLayaway.value?.id === convertTarget.value.id) {
-      selectedLayaway.value = data.layaway
-    }
-
-    loadLayaways()
-
-    // Auto-print the full layaway invoice
-    printLayawayInvoiceFromData(data.layaway, data.sale)
-  } catch (e) {
-    convertError.value = e.response?.data?.message ?? 'Failed to issue invoice.'
-  } finally {
-    converting.value = false
-  }
-}
 
 // ── Cancel ─────────────────────────────────────────────────────────────────
 function openCancel(lay) {
@@ -1010,13 +907,13 @@ ${payment.notes ? `<div class="sep"></div><div class="row"><span>Note:</span><sp
 // ── Print: Full Layaway Invoice (A5) ──────────────────────────────────────
 function printLayawayInvoice(lay) {
   if (!lay.payments) {
-    axios.get(`/api/layaways/${lay.id}`).then(({ data }) => printLayawayInvoiceFromData(data, data.sale))
+    axios.get(`/api/layaways/${lay.id}`).then(({ data }) => _printInvoiceHtml(data, data.sale))
   } else {
-    printLayawayInvoiceFromData(lay, lay.sale)
+    _printInvoiceHtml(lay, lay.sale)
   }
 }
 
-function printLayawayInvoiceFromData(layaway, sale) {
+function _printInvoiceHtml(layaway, sale) {
   const shop     = branding.value.shop_name || 'Jewellery Shop'
   const logoHtml = branding.value.logo_url
     ? `<img src="${branding.value.logo_url}" alt="logo" style="height:70px;max-width:220px;object-fit:contain">`

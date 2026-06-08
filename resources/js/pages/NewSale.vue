@@ -253,7 +253,7 @@
           </div>
 
           <!-- Existing customer selector -->
-          <select v-if="!showNewCustomer" v-model="form.customer_id" class="form-input">
+          <select v-if="!showNewCustomer" v-model="form.customer_id" class="form-input" :disabled="fromLayaway">
             <option value="">Walk-in / No customer</option>
             <option v-for="c in customers" :key="c.id" :value="c.id">
               {{ c.name }}{{ c.phone ? ` · ${c.phone}` : '' }}
@@ -472,7 +472,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import axios from 'axios'
 import {
   ArrowLeftIcon, PlusIcon, XMarkIcon, SparklesIcon,
@@ -482,6 +482,7 @@ import {
 } from '@heroicons/vue/24/outline'
 
 const router        = useRouter()
+const route         = useRoute()
 const products      = ref([])
 const customers     = ref([])
 const taxes         = ref([])
@@ -494,6 +495,9 @@ const showNewCustomer  = ref(false)
 const savingCustomer   = ref(false)
 const newCustomerError = ref('')
 const newCustomer      = reactive({ name: '', phone: '', nic: '', address: '' })
+
+// Whether page was opened from the Layaways page (locks customer selector)
+const fromLayaway = ref(false)
 
 // Barcode scanner
 const barcodeInput = ref('')
@@ -801,6 +805,23 @@ onMounted(async () => {
   taxes.value     = t.data.filter(x => x.is_active)
   const rates = Array.isArray(gr.data) ? gr.data : []
   goldRateMap.value = Object.fromEntries(rates.map(r => [r.carat?.label?.toLowerCase(), r]).filter(([k]) => k))
+
+  // Auto-apply layaway credit when navigated from Layaways page via ?layaway_id=X
+  if (route.query.layaway_id) {
+    try {
+      const { data } = await axios.get(`/api/layaways/${route.query.layaway_id}`)
+      if ((data.status === 'completed' || data.status === 'active') && !data.sale_id) {
+        fromLayaway.value    = true
+        form.customer_id     = data.customer_id
+        // Wait for the customer watch to load their layaways, then apply the credit
+        await axios.get('/api/layaways', { params: { customer_id: data.customer_id, status: 'active', per_page: 50 } })
+          .then(res => { customerLayaways.value = res.data.data ?? [] })
+          .catch(() => {})
+        applyLayawayCredit(data)
+      }
+    } catch { /* ignore — just show normal form */ }
+  }
 })
+
 </script>
 
