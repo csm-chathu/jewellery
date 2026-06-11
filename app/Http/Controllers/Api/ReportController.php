@@ -631,6 +631,103 @@ class ReportController extends Controller
         ]);
     }
 
+    /** Cash Book: all DR/CR movements through cash & bank accounts */
+    public function cashbook(Request $request)
+    {
+        $user = $request->user();
+        $from = $request->date_from ?? now()->startOfMonth()->toDateString();
+        $to   = $request->date_to   ?? now()->toDateString();
+
+        $cashAccountIds = DB::table('accounts')
+            ->whereIn('code', ['1000', '1010'])
+            ->when(!$user->isAdmin(), fn($q) => $q->where(fn($q2) => $q2->whereNull('branch_id')->orWhere('branch_id', $user->branch_id)))
+            ->pluck('id');
+
+        // Find journal entry IDs that have at least one cash movement
+        $cashEntryIds = DB::table('journal_entry_lines as jel')
+            ->join('journal_entries as je', 'je.id', '=', 'jel.journal_entry_id')
+            ->whereIn('jel.account_id', $cashAccountIds)
+            ->where('je.status', 'posted')
+            ->whereNull('je.deleted_at')
+            ->whereBetween('je.entry_date', [$from, $to])
+            ->when(!$user->isAdmin(), fn($q) => $q->where(fn($q2) =>
+                $q2->whereNull('je.branch_id')->orWhere('je.branch_id', $user->branch_id)
+            ))
+            ->pluck('jel.journal_entry_id')
+            ->unique();
+
+        // Fetch ALL lines for those entries (full double-entry view)
+        $allLines = DB::table('journal_entries as je')
+            ->join('journal_entry_lines as jel', 'jel.journal_entry_id', '=', 'je.id')
+            ->join('accounts as a', 'a.id', '=', 'jel.account_id')
+            ->leftJoin('users as u', 'u.id', '=', 'je.created_by')
+            ->whereIn('je.id', $cashEntryIds)
+            ->select([
+                'je.id as journal_entry_id',
+                'je.entry_date as date',
+                'je.entry_number',
+                'je.description',
+                'je.reference_type',
+                'je.reference_id',
+                'jel.id as line_id',
+                'jel.account_id',
+                'jel.debit',
+                'jel.credit',
+                'jel.description as line_description',
+                'a.name as account_name',
+                'a.code as account_code',
+                'u.name as created_by',
+            ])
+            ->orderBy('je.entry_date')
+            ->orderBy('je.id')
+            ->orderBy('jel.id')
+            ->get();
+
+        $cashIds = $cashAccountIds->toArray();
+        $balance = 0;
+
+        $rows = $allLines->groupBy('journal_entry_id')->map(function ($lines) use ($cashIds, &$balance) {
+            $first      = $lines->first();
+            $cashLines  = $lines->filter(fn($l) => in_array($l->account_id, $cashIds));
+            $cashDebit  = round($cashLines->sum('debit'), 2);
+            $cashCredit = round($cashLines->sum('credit'), 2);
+            $balance   += $cashDebit - $cashCredit;
+
+            return [
+                'journal_entry_id' => $first->journal_entry_id,
+                'date'             => $first->date,
+                'entry_number'     => $first->entry_number,
+                'description'      => $first->description,
+                'reference_type'   => $first->reference_type,
+                'reference_id'     => $first->reference_id,
+                'cash_debit'       => $cashDebit,
+                'cash_credit'      => $cashCredit,
+                'balance'          => round($balance, 2),
+                'created_by'       => $first->created_by,
+                'lines'            => $lines->map(fn($l) => [
+                    'account_code'     => $l->account_code,
+                    'account_name'     => $l->account_name,
+                    'is_cash'          => in_array($l->account_id, $cashIds),
+                    'debit'            => (float) $l->debit,
+                    'credit'           => (float) $l->credit,
+                    'line_description' => $l->line_description,
+                ])->values(),
+            ];
+        })->values();
+
+        $totalDebit  = $rows->sum('cash_debit');
+        $totalCredit = $rows->sum('cash_credit');
+
+        return response()->json([
+            'from'         => $from,
+            'to'           => $to,
+            'rows'         => $rows,
+            'total_debit'  => round($totalDebit, 2),
+            'total_credit' => round($totalCredit, 2),
+            'net'          => round($totalDebit - $totalCredit, 2),
+        ]);
+    }
+
     /** Category Stock Value Report: total weight & gold value per category */
     public function categoryStockValue(Request $request)
     {

@@ -133,6 +133,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/reports/stock-ledger',       [ReportController::class, 'stockLedger']);
     Route::get('/reports/category-stock',     [ReportController::class, 'categoryStockValue']);
     Route::get('/reports/revenue-check',      [ReportController::class, 'revenueCheck']);
+    Route::get('/reports/cashbook',           [ReportController::class, 'cashbook']);
 
     // Audit log
     Route::get('/audit-logs', [AuditLogController::class, 'index']);

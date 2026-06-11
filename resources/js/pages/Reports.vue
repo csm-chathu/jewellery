@@ -465,6 +465,108 @@
         </div>
       </template>
 
+      <!-- ══════════ CASH BOOK ══════════ -->
+      <template v-else-if="active === 'cashbook'">
+        <div class="grid grid-cols-3 gap-3">
+          <StatTile label="Total Inflow (DR)"  :value="lkr(data.total_debit)"  color="green" />
+          <StatTile label="Total Outflow (CR)" :value="lkr(data.total_credit)" color="red" />
+          <StatTile label="Net Cash Movement"
+            :value="(data.net >= 0 ? '' : '-') + lkr(Math.abs(data.net))"
+            :color="data.net >= 0 ? 'green' : 'red'" plain />
+        </div>
+        <div ref="cashbookRef" :class="['overflow-hidden', isFullscreen ? 'fixed inset-0 z-[999] bg-white flex flex-col' : 'card p-0 overflow-x-auto']">
+          <!-- Fullscreen toolbar -->
+          <div v-if="isFullscreen" class="flex items-center justify-between px-4 py-2 bg-gray-800 text-white shrink-0">
+            <span class="font-semibold text-sm">Cash Book &mdash; {{ dateFrom }} to {{ dateTo }}</span>
+            <button @click="toggleFullscreen" class="text-xs px-3 py-1.5 bg-gray-600 hover:bg-gray-500 rounded flex items-center gap-1.5">
+              ✕ Exit Full Screen
+            </button>
+          </div>
+          <div v-else class="flex justify-end px-4 pt-3 pb-2">
+            <button @click="toggleFullscreen" class="text-sm px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg flex items-center gap-2 border border-gray-300">
+              ⛶ Full Screen
+            </button>
+          </div>
+          <div :class="isFullscreen ? 'flex-1 overflow-auto' : 'overflow-x-auto'">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-800 text-white">
+              <tr>
+                <th class="table-th text-left whitespace-nowrap">Date</th>
+                <th class="table-th text-left whitespace-nowrap">Entry #</th>
+                <th class="table-th text-left">Account</th>
+                <th class="table-th text-left">Description</th>
+                <th class="table-th text-right whitespace-nowrap">DR (LKR)</th>
+                <th class="table-th text-right whitespace-nowrap">CR (LKR)</th>
+                <th class="table-th text-right whitespace-nowrap">Balance (LKR)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template v-if="!data.rows.length">
+                <tr><td colspan="7" class="table-td text-center text-gray-400 py-8">No cash transactions for this period</td></tr>
+              </template>
+              <template v-for="entry in data.rows" :key="entry.journal_entry_id">
+                <!-- Entry header row -->
+                <tr class="bg-blue-50 border-t-2 border-blue-200">
+                  <td class="table-td font-semibold whitespace-nowrap text-gray-700">{{ fmt(entry.date) }}</td>
+                  <td class="table-td font-mono text-xs text-blue-700 whitespace-nowrap">{{ entry.entry_number }}</td>
+                  <td class="table-td" colspan="2">
+                    <div class="flex items-center gap-2">
+                      <span class="font-semibold text-gray-800">{{ entry.description }}</span>
+                      <span v-if="entry.reference_type" class="text-xs text-gray-400 whitespace-nowrap">
+                        {{ entry.reference_type }} #{{ entry.reference_id }}
+                      </span>
+                      <button @click="openCashbookEntry(entry.journal_entry_id)"
+                        class="shrink-0 text-xs px-1.5 py-0.5 bg-white text-blue-600 hover:bg-blue-100 rounded border border-blue-300">
+                        View
+                      </button>
+                    </div>
+                  </td>
+                  <td class="table-td text-right font-mono font-bold text-green-700">
+                    {{ entry.cash_debit > 0 ? lkr(entry.cash_debit) : '—' }}
+                  </td>
+                  <td class="table-td text-right font-mono font-bold text-red-600">
+                    {{ entry.cash_credit > 0 ? lkr(entry.cash_credit) : '—' }}
+                  </td>
+                  <td class="table-td text-right font-mono font-bold"
+                    :class="entry.balance >= 0 ? 'text-gray-800' : 'text-red-600'">
+                    {{ lkr(entry.balance) }}
+                  </td>
+                </tr>
+                <!-- Double-entry lines -->
+                <tr v-for="(line, li) in entry.lines" :key="li" class="hover:bg-gray-50 border-b border-gray-100">
+                  <td class="table-td py-1.5" colspan="2"></td>
+                  <td class="table-td py-1.5 pl-6 whitespace-nowrap">
+                    <span class="font-mono text-xs text-gray-400 mr-1">{{ line.account_code }}</span>
+                    <span :class="line.is_cash ? 'font-semibold text-blue-700' : 'text-gray-700'">
+                      {{ line.account_name }}
+                    </span>
+                  </td>
+                  <td class="table-td py-1.5 text-xs text-gray-500">{{ line.line_description ?? '—' }}</td>
+                  <td class="table-td py-1.5 text-right font-mono text-green-700">
+                    {{ line.debit > 0 ? lkr(line.debit) : '—' }}
+                  </td>
+                  <td class="table-td py-1.5 text-right font-mono text-red-600">
+                    {{ line.credit > 0 ? lkr(line.credit) : '—' }}
+                  </td>
+                  <td class="table-td py-1.5"></td>
+                </tr>
+              </template>
+              <!-- Total row -->
+              <tr v-if="data.rows.length" class="bg-gray-800 text-white font-bold border-t-2">
+                <td colspan="4" class="table-td">TOTAL</td>
+                <td class="table-td text-right font-mono text-green-300">{{ lkr(data.total_debit) }}</td>
+                <td class="table-td text-right font-mono text-red-300">{{ lkr(data.total_credit) }}</td>
+                <td class="table-td text-right font-mono"
+                  :class="data.net >= 0 ? 'text-green-300' : 'text-red-300'">
+                  {{ lkr(data.net) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          </div>
+        </div>
+      </template>
+
       <!-- ══════════ TAX SETTINGS ══════════ -->
       <template v-else-if="active === 'tax'">
         <div class="flex justify-end">
@@ -522,6 +624,71 @@
 
     </div>
   </div>
+
+  <!-- ══════════ Cashbook Entry Modal ══════════ -->
+  <teleport to="body">
+    <div v-if="showEntryModal" class="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50 p-4">
+      <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+        <!-- Header -->
+        <div class="flex items-center justify-between px-6 py-4 border-b shrink-0">
+          <div>
+            <p class="font-semibold text-gray-800">{{ entryDetail?.entry_number }}</p>
+            <p class="text-xs text-gray-400 mt-0.5">{{ fmt(entryDetail?.entry_date) }} · {{ entryDetail?.status }}</p>
+          </div>
+          <button @click="showEntryModal = false" class="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
+        </div>
+        <!-- Body -->
+        <div v-if="entryLoading" class="flex-1 flex items-center justify-center text-gray-400 py-12">Loading…</div>
+        <div v-else-if="entryDetail" class="flex-1 overflow-y-auto p-6 space-y-4">
+          <!-- Description & reference -->
+          <div>
+            <p class="text-sm font-medium text-gray-700">{{ entryDetail.description }}</p>
+            <p v-if="entryDetail.reference_type" class="text-xs text-gray-400 mt-0.5">
+              {{ entryDetail.reference_type }} #{{ entryDetail.reference_id }}
+            </p>
+          </div>
+          <!-- Lines table -->
+          <table class="w-full text-sm border-collapse">
+            <thead>
+              <tr class="bg-gray-50 border-b border-t">
+                <th class="text-left px-3 py-2 font-semibold text-gray-600">Account</th>
+                <th class="text-left px-3 py-2 font-semibold text-gray-600">Description</th>
+                <th class="text-right px-3 py-2 font-semibold text-gray-600">DR (LKR)</th>
+                <th class="text-right px-3 py-2 font-semibold text-gray-600">CR (LKR)</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+              <tr v-for="line in entryDetail.lines" :key="line.id" class="hover:bg-gray-50">
+                <td class="px-3 py-2">
+                  <span class="font-mono text-xs text-gray-400 mr-1">{{ line.account.code }}</span>
+                  <span class="font-medium">{{ line.account.name }}</span>
+                </td>
+                <td class="px-3 py-2 text-gray-500 text-xs">{{ line.description ?? '—' }}</td>
+                <td class="px-3 py-2 text-right font-mono font-semibold text-green-700">
+                  {{ line.debit > 0 ? lkr(line.debit) : '—' }}
+                </td>
+                <td class="px-3 py-2 text-right font-mono font-semibold text-red-600">
+                  {{ line.credit > 0 ? lkr(line.credit) : '—' }}
+                </td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr class="bg-gray-800 text-white font-bold">
+                <td colspan="2" class="px-3 py-2">TOTAL</td>
+                <td class="px-3 py-2 text-right font-mono text-green-300">
+                  {{ lkr(entryDetail.lines?.reduce((s, l) => s + (+l.debit), 0)) }}
+                </td>
+                <td class="px-3 py-2 text-right font-mono text-red-300">
+                  {{ lkr(entryDetail.lines?.reduce((s, l) => s + (+l.credit), 0)) }}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+          <p class="text-xs text-gray-400">Created by {{ entryDetail.created_by?.name ?? '—' }}</p>
+        </div>
+      </div>
+    </div>
+  </teleport>
 </template>
 
 <script setup>
@@ -585,6 +752,7 @@ const reportList = [
   { key: 'pnl',            label: 'Rate P&L',            icon: '📊', hasDateFilter: false, endpoint: '/api/reports/rate-pnl' },
   { key: 'category-stock', label: 'Category Stock Value', icon: '🏷️', hasDateFilter: false, endpoint: '/api/reports/category-stock' },
   { key: 'revenue',        label: 'Revenue Check',       icon: '💰', hasDateFilter: true,  endpoint: '/api/reports/revenue-check' },
+  { key: 'cashbook',        label: 'Cash Book',           icon: '💵', hasDateFilter: true,  endpoint: '/api/reports/cashbook' },
   { key: 'tax',            label: 'Tax Settings',        icon: '🧾', hasDateFilter: false, endpoint: null },
 ]
 
@@ -641,6 +809,8 @@ function toggleCat(id) {
 async function switchReport(key) {
   active.value = key
   data.value   = null
+  isFullscreen.value = false
+  document.body.style.overflow = ''
   if (key === 'tax') { loadTaxes(); return }
   await generate()
 }
@@ -694,6 +864,35 @@ function doPrint() {
     <script>setTimeout(()=>window.print(),300)<\/script>
   </body></html>`)
   win.document.close()
+}
+
+// ── Cashbook fullscreen ───────────────────────────────────────────────────────
+
+const cashbookRef  = ref(null)
+const isFullscreen = ref(false)
+
+function toggleFullscreen() {
+  isFullscreen.value = !isFullscreen.value
+  // Prevent body scroll when fullscreen
+  document.body.style.overflow = isFullscreen.value ? 'hidden' : ''
+}
+
+// ── Cashbook entry modal ─────────────────────────────────────────────────────
+
+const showEntryModal = ref(false)
+const entryDetail    = ref(null)
+const entryLoading   = ref(false)
+
+async function openCashbookEntry(journalEntryId) {
+  showEntryModal.value = true
+  entryDetail.value    = null
+  entryLoading.value   = true
+  try {
+    const { data: d } = await axios.get(`/api/journal-entries/${journalEntryId}`)
+    entryDetail.value = d
+  } catch { /* ignore */ } finally {
+    entryLoading.value = false
+  }
 }
 
 // ── Tax settings (inline CRUD) ───────────────────────────────────────────────
