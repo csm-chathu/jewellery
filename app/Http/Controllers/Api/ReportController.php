@@ -678,15 +678,17 @@ class ReportController extends Controller
                 'a.code as account_code',
                 'u.name as created_by',
             ])
-            ->orderBy('je.entry_date')
-            ->orderBy('je.id')
+            ->orderByDesc('je.entry_date')
+            ->orderByDesc('je.id')
             ->orderBy('jel.id')
             ->get();
 
         $cashIds = $cashAccountIds->toArray();
-        $balance = 0;
 
-        $rows = $allLines->groupBy('journal_entry_id')->map(function ($lines) use ($cashIds, &$balance) {
+        // Calculate running balance ascending, then reverse for desc display
+        $grouped = $allLines->groupBy('journal_entry_id');
+        $balance = 0;
+        $rows = $grouped->reverse()->map(function ($lines) use ($cashIds, &$balance) {
             $first      = $lines->first();
             $cashLines  = $lines->filter(fn($l) => in_array($l->account_id, $cashIds));
             $cashDebit  = round($cashLines->sum('debit'), 2);
@@ -713,7 +715,7 @@ class ReportController extends Controller
                     'line_description' => $l->line_description,
                 ])->values(),
             ];
-        })->values();
+        })->reverse()->values();
 
         $totalDebit  = $rows->sum('cash_debit');
         $totalCredit = $rows->sum('cash_credit');
