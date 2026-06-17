@@ -685,6 +685,19 @@ class ReportController extends Controller
 
         $cashIds = $cashAccountIds->toArray();
 
+        // Opening balance: all posted cash movements strictly before $from
+        $openingBalance = round(DB::table('journal_entry_lines as jel')
+            ->join('journal_entries as je', 'je.id', '=', 'jel.journal_entry_id')
+            ->whereIn('jel.account_id', $cashAccountIds)
+            ->where('je.status', 'posted')
+            ->whereNull('je.deleted_at')
+            ->where('je.entry_date', '<', $from)
+            ->when(!$user->isAdmin(), fn($q) => $q->where(fn($q2) =>
+                $q2->whereNull('je.branch_id')->orWhere('je.branch_id', $user->branch_id)
+            ))
+            ->selectRaw('SUM(jel.debit) - SUM(jel.credit) as bal')
+            ->value('bal') ?? 0, 2);
+
         // Calculate running balance ascending, then reverse for desc display
         $grouped = $allLines->groupBy('journal_entry_id');
         $balance = 0;
@@ -721,12 +734,14 @@ class ReportController extends Controller
         $totalCredit = $rows->sum('cash_credit');
 
         return response()->json([
-            'from'         => $from,
-            'to'           => $to,
-            'rows'         => $rows,
-            'total_debit'  => round($totalDebit, 2),
-            'total_credit' => round($totalCredit, 2),
-            'net'          => round($totalDebit - $totalCredit, 2),
+            'from'            => $from,
+            'to'              => $to,
+            'rows'            => $rows,
+            'total_debit'     => round($totalDebit, 2),
+            'total_credit'    => round($totalCredit, 2),
+            'net'             => round($totalDebit - $totalCredit, 2),
+            'opening_balance' => $openingBalance,
+            'closing_balance' => round($openingBalance + $totalDebit - $totalCredit, 2),
         ]);
     }
 
