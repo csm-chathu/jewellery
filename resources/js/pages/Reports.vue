@@ -230,7 +230,7 @@
           <div class="divide-y divide-gray-100">
             <div v-for="cat in data.by_category" :key="cat.category"
               class="flex items-center justify-between px-4 py-2.5 hover:bg-gray-50">
-              <span class="text-sm text-gray-700 capitalize">{{ cat.category.replace('_',' ') }}</span>
+              <span class="text-sm text-gray-700 capitalize">{{ (cat.category || '').replace('_',' ') }}</span>
               <div class="text-right">
                 <span class="text-sm font-semibold text-red-600">LKR {{ lkr(cat.total) }}</span>
                 <span class="text-xs text-gray-400 ml-2">({{ cat.count }} entries)</span>
@@ -467,103 +467,61 @@
 
       <!-- ══════════ CASH BOOK ══════════ -->
       <template v-else-if="active === 'cashbook'">
-        <div class="grid grid-cols-3 gap-3">
-          <StatTile label="Total Inflow (DR)"  :value="lkr(data.total_debit)"  color="green" />
-          <StatTile label="Total Outflow (CR)" :value="lkr(data.total_credit)" color="red" />
-          <StatTile label="Net Cash Movement"
-            :value="(data.net >= 0 ? '' : '-') + lkr(Math.abs(data.net))"
-            :color="data.net >= 0 ? 'green' : 'red'" plain />
-        </div>
-        <div ref="cashbookRef" :class="['overflow-hidden', isFullscreen ? 'fixed inset-0 z-[999] bg-white flex flex-col' : 'card p-0 overflow-x-auto']">
-          <!-- Fullscreen toolbar -->
-          <div v-if="isFullscreen" class="flex items-center justify-between px-4 py-2 bg-gray-800 text-white shrink-0">
-            <span class="font-semibold text-sm">Cash Book &mdash; {{ dateFrom }} to {{ dateTo }}</span>
-            <button @click="toggleFullscreen" class="text-xs px-3 py-1.5 bg-gray-600 hover:bg-gray-500 rounded flex items-center gap-1.5">
-              ✕ Exit Full Screen
-            </button>
-          </div>
-          <div v-else class="flex justify-end px-4 pt-3 pb-2">
-            <button @click="toggleFullscreen" class="text-sm px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg flex items-center gap-2 border border-gray-300">
-              ⛶ Full Screen
-            </button>
-          </div>
-          <div :class="isFullscreen ? 'flex-1 overflow-auto' : 'overflow-x-auto'">
+        <div class="card p-0 overflow-x-auto">
           <table class="w-full text-sm">
-            <thead class="bg-gray-800 text-white">
+            <thead class="bg-gray-100 border-b border-gray-200">
               <tr>
-                <th class="table-th text-left whitespace-nowrap">Date</th>
-                <th class="table-th text-left whitespace-nowrap">Entry #</th>
-                <th class="table-th text-left">Account</th>
-                <th class="table-th text-left">Description</th>
-                <th class="table-th text-right whitespace-nowrap">DR (LKR)</th>
-                <th class="table-th text-right whitespace-nowrap">CR (LKR)</th>
-                <th class="table-th text-right whitespace-nowrap">Balance (LKR)</th>
+                <th class="table-th text-left whitespace-nowrap text-gray-600">Date</th>
+                <th class="table-th text-left text-gray-600">Description</th>
+                <th class="table-th text-right whitespace-nowrap text-green-700">Cash In (DR)</th>
+                <th class="table-th text-right whitespace-nowrap text-red-600">Cash Out (CR)</th>
+                <th class="table-th text-center text-gray-600">Detail</th>
               </tr>
             </thead>
             <tbody>
               <template v-if="!data.rows.length">
-                <tr><td colspan="7" class="table-td text-center text-gray-400 py-8">No cash transactions for this period</td></tr>
+                <tr><td colspan="5" class="table-td text-center text-gray-400 py-8">No cash transactions for this period</td></tr>
               </template>
-              <template v-for="entry in data.rows" :key="entry.journal_entry_id">
-                <!-- Entry header row -->
-                <tr class="bg-blue-50 border-t-2 border-blue-200">
-                  <td class="table-td font-semibold whitespace-nowrap text-gray-700">{{ fmt(entry.date) }}</td>
-                  <td class="table-td font-mono text-xs text-blue-700 whitespace-nowrap">{{ entry.entry_number }}</td>
-                  <td class="table-td" colspan="2">
-                    <div class="flex items-center gap-2">
-                      <span class="font-semibold text-gray-800">{{ entry.description }}</span>
-                      <span v-if="entry.reference_type" class="text-xs text-gray-400 whitespace-nowrap">
-                        {{ entry.reference_type }} #{{ entry.reference_id }}
-                      </span>
-                      <button @click="openCashbookEntry(entry.journal_entry_id)"
-                        class="shrink-0 text-xs px-1.5 py-0.5 bg-white text-blue-600 hover:bg-blue-100 rounded border border-blue-300">
-                        View
-                      </button>
-                    </div>
-                  </td>
-                  <td class="table-td text-right font-mono font-bold text-green-700">
-                    {{ entry.cash_debit > 0 ? lkr(entry.cash_debit) : '—' }}
-                  </td>
-                  <td class="table-td text-right font-mono font-bold text-red-600">
-                    {{ entry.cash_credit > 0 ? lkr(entry.cash_credit) : '—' }}
-                  </td>
-                  <td class="table-td text-right font-mono font-bold"
-                    :class="entry.balance >= 0 ? 'text-gray-800' : 'text-red-600'">
-                    {{ lkr(entry.balance) }}
-                  </td>
-                </tr>
-                <!-- Double-entry lines -->
-                <tr v-for="(line, li) in entry.lines" :key="li" class="hover:bg-gray-50 border-b border-gray-100">
-                  <td class="table-td py-1.5" colspan="2"></td>
-                  <td class="table-td py-1.5 pl-6 whitespace-nowrap">
-                    <span class="font-mono text-xs text-gray-400 mr-1">{{ line.account_code }}</span>
-                    <span :class="line.is_cash ? 'font-semibold text-blue-700' : 'text-gray-700'">
-                      {{ line.account_name }}
-                    </span>
-                  </td>
-                  <td class="table-td py-1.5 text-xs text-gray-500">{{ line.line_description ?? '—' }}</td>
-                  <td class="table-td py-1.5 text-right font-mono text-green-700">
-                    {{ line.debit > 0 ? lkr(line.debit) : '—' }}
-                  </td>
-                  <td class="table-td py-1.5 text-right font-mono text-red-600">
-                    {{ line.credit > 0 ? lkr(line.credit) : '—' }}
-                  </td>
-                  <td class="table-td py-1.5"></td>
-                </tr>
-              </template>
-              <!-- Total row -->
-              <tr v-if="data.rows.length" class="bg-gray-800 text-white font-bold border-t-2">
-                <td colspan="4" class="table-td">TOTAL</td>
-                <td class="table-td text-right font-mono text-green-300">{{ lkr(data.total_debit) }}</td>
-                <td class="table-td text-right font-mono text-red-300">{{ lkr(data.total_credit) }}</td>
-                <td class="table-td text-right font-mono"
-                  :class="data.net >= 0 ? 'text-green-300' : 'text-red-300'">
-                  {{ lkr(data.net) }}
+              <tr v-for="entry in data.rows" :key="entry.journal_entry_id"
+                class="border-b border-gray-100 hover:bg-gray-50">
+                <td class="table-td whitespace-nowrap text-gray-600 text-xs">{{ fmt(entry.date) }}</td>
+                <td class="table-td">
+                  <span class="font-medium text-gray-800">{{ entry.description }}</span>
+                  <span v-if="entry.reference_type" class="ml-2 text-xs text-gray-400">
+                    {{ entry.reference_type }} #{{ entry.reference_id }}
+                  </span>
+                </td>
+                <td class="table-td text-right font-mono font-semibold text-green-700">
+                  {{ entry.cash_debit > 0 ? lkr(entry.cash_debit) : '' }}
+                </td>
+                <td class="table-td text-right font-mono font-semibold text-red-600">
+                  {{ entry.cash_credit > 0 ? lkr(entry.cash_credit) : '' }}
+                </td>
+                <td class="table-td text-center">
+                  <button @click="openCashbookEntry(entry.journal_entry_id)"
+                    class="text-xs px-2.5 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded border border-blue-200 font-medium">
+                    View
+                  </button>
                 </td>
               </tr>
             </tbody>
+            <tfoot v-if="data.rows.length">
+              <tr class="bg-gray-50 border-t-2 border-gray-300">
+                <td colspan="2" class="table-td font-semibold text-gray-700">Total</td>
+                <td class="table-td text-right font-mono font-bold text-green-700">{{ lkr(data.total_debit) }}</td>
+                <td class="table-td text-right font-mono font-bold text-red-600">{{ lkr(data.total_credit) }}</td>
+                <td></td>
+              </tr>
+              <tr class="bg-gray-800">
+                <td colspan="2" class="table-td font-semibold text-white">Net Cash Movement</td>
+                <td colspan="2" class="table-td text-right font-mono font-bold text-lg"
+                  :class="data.net >= 0 ? 'text-green-300' : 'text-red-300'">
+                  {{ (data.net >= 0 ? '' : '-') + lkr(Math.abs(data.net)) }}
+                </td>
+                <td></td>
+              </tr>
+            </tfoot>
           </table>
-          </div>
         </div>
       </template>
 
@@ -809,8 +767,6 @@ function toggleCat(id) {
 async function switchReport(key) {
   active.value = key
   data.value   = null
-  isFullscreen.value = false
-  document.body.style.overflow = ''
   if (key === 'tax') { loadTaxes(); return }
   await generate()
 }
@@ -864,17 +820,6 @@ function doPrint() {
     <script>setTimeout(()=>window.print(),300)<\/script>
   </body></html>`)
   win.document.close()
-}
-
-// ── Cashbook fullscreen ───────────────────────────────────────────────────────
-
-const cashbookRef  = ref(null)
-const isFullscreen = ref(false)
-
-function toggleFullscreen() {
-  isFullscreen.value = !isFullscreen.value
-  // Prevent body scroll when fullscreen
-  document.body.style.overflow = isFullscreen.value ? 'hidden' : ''
 }
 
 // ── Cashbook entry modal ─────────────────────────────────────────────────────
