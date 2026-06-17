@@ -180,7 +180,7 @@
                 </td>
                 <td class="table-td text-right">
                   <span class="font-bold text-amber-700">LKR {{ Number(s.official_total ?? s.total).toLocaleString() }}</span>
-                  <p v-if="s.official_total != null && s.official_total !== s.total" class="text-xs text-gray-400 mt-0.5">
+                  <p v-if="!isAuditor && s.official_total != null && s.official_total !== s.total" class="text-xs text-gray-400 mt-0.5">
                     Billed: {{ Number(s.total).toLocaleString() }}
                   </p>
                 </td>
@@ -376,6 +376,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
+import { useAuthStore } from '@/stores/auth'
 import {
   PlusIcon, TrashIcon, EyeIcon, MagnifyingGlassIcon,
   ReceiptPercentIcon, BanknotesIcon, CheckCircleIcon, PrinterIcon,
@@ -385,6 +386,8 @@ import {
 import { fmtDate } from '../utils/date.js'
 
 const router       = useRouter()
+const auth         = useAuthStore()
+const isAuditor    = computed(() => auth.user?.role === 'auditor')
 const sales        = ref({ data: [] })
 const search       = ref('')
 const page         = ref(1)

@@ -475,6 +475,7 @@
                 <th class="table-th text-left text-gray-600">Description</th>
                 <th class="table-th text-right whitespace-nowrap text-green-700">Cash In (DR)</th>
                 <th class="table-th text-right whitespace-nowrap text-red-600">Cash Out (CR)</th>
+                <th class="table-th text-right whitespace-nowrap text-gray-600">Balance</th>
                 <th class="table-th text-center text-gray-600">Detail</th>
               </tr>
             </thead>
@@ -483,16 +484,17 @@
               <tr class="bg-amber-50 border-b-2 border-amber-200">
                 <td class="table-td whitespace-nowrap text-amber-800 font-semibold text-xs">{{ fmt(data.from) }}</td>
                 <td class="table-td font-semibold text-amber-800">Opening Balance</td>
+                <td class="table-td"></td>
+                <td class="table-td"></td>
                 <td class="table-td text-right font-mono font-bold"
                   :class="data.opening_balance >= 0 ? 'text-green-700' : 'text-red-600'">
                   {{ lkr(Math.abs(data.opening_balance)) }}
                   <span class="text-xs font-normal ml-1">{{ data.opening_balance >= 0 ? 'DR' : 'CR' }}</span>
                 </td>
                 <td class="table-td"></td>
-                <td class="table-td"></td>
               </tr>
               <template v-if="!data.rows.length">
-                <tr><td colspan="5" class="table-td text-center text-gray-400 py-8">No cash transactions for this period</td></tr>
+                <tr><td colspan="6" class="table-td text-center text-gray-400 py-8">No cash transactions for this period</td></tr>
               </template>
               <tr v-for="entry in data.rows" :key="entry.journal_entry_id"
                 class="border-b border-gray-100 hover:bg-gray-50">
@@ -509,6 +511,10 @@
                 <td class="table-td text-right font-mono font-semibold text-red-600">
                   {{ entry.cash_credit > 0 ? lkr(entry.cash_credit) : '' }}
                 </td>
+                <td class="table-td text-right font-mono text-gray-700">
+                  {{ (() => { const b = data.opening_balance + entry.balance; return (b >= 0 ? '' : '-') + lkr(Math.abs(b)) })() }}
+                  <span class="text-xs text-gray-400 ml-1">{{ (data.opening_balance + entry.balance) >= 0 ? 'DR' : 'CR' }}</span>
+                </td>
                 <td class="table-td text-center">
                   <button @click="openCashbookEntry(entry.journal_entry_id)"
                     class="text-xs px-2.5 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded border border-blue-200 font-medium">
@@ -522,11 +528,12 @@
                 <td colspan="2" class="table-td font-semibold text-gray-700">Period Total</td>
                 <td class="table-td text-right font-mono font-bold text-green-700">{{ lkr(data.total_debit) }}</td>
                 <td class="table-td text-right font-mono font-bold text-red-600">{{ lkr(data.total_credit) }}</td>
-                <td></td>
+                <td colspan="2"></td>
               </tr>
               <tr class="bg-gray-800">
                 <td colspan="2" class="table-td font-semibold text-white">Closing Balance</td>
-                <td colspan="2" class="table-td text-right font-mono font-bold text-lg"
+                <td colspan="2"></td>
+                <td class="table-td text-right font-mono font-bold text-lg"
                   :class="data.closing_balance >= 0 ? 'text-green-300' : 'text-red-300'">
                   {{ (data.closing_balance >= 0 ? '' : '-') + lkr(Math.abs(data.closing_balance)) }}
                   <span class="text-sm font-normal ml-1">{{ data.closing_balance >= 0 ? 'DR' : 'CR' }}</span>
