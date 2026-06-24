@@ -131,7 +131,7 @@
               <div style="display:flex; align-items:baseline;">
                 <span style="flex:1; font-weight:bold; word-break:break-word; padding-right:4px;">{{ item.product?.name ?? 'Unknown' }}</span>
                 <span style="width:28px; text-align:center;">{{ item.quantity }}</span>
-                <span style="width:54px; text-align:right;">{{ lkr(item.display_price ?? item.unit_price) }}</span>
+                <span style="width:54px; text-align:right;">{{ lkr(isAuditor ? item.unit_price : (item.display_price ?? item.unit_price)) }}</span>
                 <span style="width:58px; text-align:right; font-weight:bold;">{{ lkr(item.total) }}</span>
               </div>
               <div style="color:#555; font-size:9px; padding-left:2px; line-height:1.3;">
@@ -147,9 +147,6 @@
               </div>
               <div v-if="Number(item.discount) > 0" style="font-size:9px; color:#555; padding-left:2px;">
                 Item Disc: -{{ lkr(item.discount) }}
-              </div>
-              <div v-if="isAuditor && item.product?.purchase_price" style="font-size:9px; color:#b45309; padding-left:2px; font-weight:bold;">
-                Cost: {{ lkr(item.product.purchase_price) }}
               </div>
             </div>
           </div>
@@ -268,7 +265,6 @@
                 <th style="text-align:left;">Item / Description</th>
                 <th style="text-align:center; width:40px;">Qty</th>
                 <th style="text-align:right; width:90px;">Unit Price</th>
-                <th v-if="isAuditor" style="text-align:right; width:90px; color:#fbbf24;">Cost Price</th>
                 <th style="text-align:right; width:80px;">Discount</th>
                 <th style="text-align:right; width:100px;">Total</th>
               </tr>
@@ -290,10 +286,7 @@
                   </div>
                 </td>
                 <td style="text-align:center;">{{ item.quantity }}</td>
-                <td style="text-align:right;">{{ lkr(item.display_price ?? item.unit_price) }}</td>
-                <td v-if="isAuditor" style="text-align:right; color:#b45309; font-weight:700;">
-                  {{ item.product?.purchase_price ? lkr(item.product.purchase_price) : '—' }}
-                </td>
+                <td style="text-align:right;">{{ lkr(isAuditor ? item.unit_price : (item.display_price ?? item.unit_price)) }}</td>
                 <td style="text-align:right; color:#dc2626;">
                   <span v-if="Number(item.discount) > 0">- {{ lkr(item.discount) }}</span>
                   <span v-else style="color:#ccc;">—</span>
