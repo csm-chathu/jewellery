@@ -26,7 +26,7 @@ class SaleController extends Controller
     {
         $user = request()->user();
         $sales = Sale::with(['customer:id,name', 'user:id,name', 'journalEntry:id,entry_number', 'items.product:id,name,weight,category_id', 'items.product.category:id,name'])
-            ->when(!$user->isAdmin(), fn($q) => $q->where('branch_id', $user->branch_id))
+            ->when(!$user->isAdmin() && $user->role !== 'auditor', fn($q) => $q->where('branch_id', $user->branch_id))
             ->when(request('search'), fn($q, $s) => $q->where('invoice_number', 'like', "%$s%"))
             ->when(request('customer_id'), fn($q, $c) => $q->where('customer_id', $c))
             ->when(request('status'), fn($q, $s) => $q->where('payment_status', $s))
@@ -457,7 +457,7 @@ class SaleController extends Controller
     private function authorizeBranch(?int $branchId): void
     {
         $user = request()->user();
-        if (!$user->isAdmin() && $user->branch_id !== $branchId) {
+        if (!$user->isAdmin() && $user->role !== 'auditor' && $user->branch_id !== $branchId) {
             abort(403, 'Forbidden for this branch.');
         }
     }
