@@ -169,7 +169,7 @@
           <hr class="receipt-divider-double" />
 
           <div style="display:flex; justify-content:space-between; font-size:14px; font-weight:bold; margin:4px 0;">
-            <span>TOTAL</span><span>LKR {{ lkr(sale.total) }}</span>
+            <span>TOTAL</span><span>LKR {{ lkr(isAuditor ? sale.official_total : sale.total) }}</span>
           </div>
 
           <hr class="receipt-divider" />
@@ -314,7 +314,7 @@
                 <span>Tax ({{ sale.tax_rate }}%)</span><span>+ LKR {{ lkr(sale.tax) }}</span>
               </div>
               <div class="inv-total-line inv-grand-total">
-                <span>TOTAL</span><span>LKR {{ lkr(sale.total) }}</span>
+                <span>TOTAL</span><span>LKR {{ lkr(isAuditor ? sale.official_total : sale.total) }}</span>
               </div>
               <div class="inv-total-line">
                 <span>Amount Paid</span><span>LKR {{ lkr(sale.amount_paid) }}</span>
