@@ -176,12 +176,12 @@
 
           <div style="font-size:11px;">
             <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
-              <span>Paid</span><span>LKR {{ lkr(sale.amount_paid) }}</span>
+              <span>Paid</span><span>LKR {{ lkr(isAuditor ? sale.official_total : sale.amount_paid) }}</span>
             </div>
-            <div v-if="Number(sale.amount_paid) > Number(sale.total)" style="display:flex; justify-content:space-between; font-weight:bold;">
+            <div v-if="!isAuditor && Number(sale.amount_paid) > Number(sale.total)" style="display:flex; justify-content:space-between; font-weight:bold;">
               <span>Change</span><span>LKR {{ lkr(Number(sale.amount_paid) - Number(sale.total)) }}</span>
             </div>
-            <div v-if="Number(sale.amount_paid) < Number(sale.total)" style="display:flex; justify-content:space-between; font-weight:bold;">
+            <div v-if="!isAuditor && Number(sale.amount_paid) < Number(sale.total)" style="display:flex; justify-content:space-between; font-weight:bold;">
               <span>Balance Due</span><span>LKR {{ lkr(Number(sale.total) - Number(sale.amount_paid)) }}</span>
             </div>
           </div>
@@ -317,12 +317,12 @@
                 <span>TOTAL</span><span>LKR {{ lkr(isAuditor ? sale.official_total : sale.total) }}</span>
               </div>
               <div class="inv-total-line">
-                <span>Amount Paid</span><span>LKR {{ lkr(sale.amount_paid) }}</span>
+                <span>Amount Paid</span><span>LKR {{ lkr(isAuditor ? sale.official_total : sale.amount_paid) }}</span>
               </div>
-              <div v-if="Number(sale.amount_paid) > Number(sale.total)" class="inv-total-line" style="color:#16a34a; font-weight:700;">
+              <div v-if="!isAuditor && Number(sale.amount_paid) > Number(sale.total)" class="inv-total-line" style="color:#16a34a; font-weight:700;">
                 <span>Change</span><span>LKR {{ lkr(Number(sale.amount_paid) - Number(sale.total)) }}</span>
               </div>
-              <div v-if="Number(sale.amount_paid) < Number(sale.total)" class="inv-total-line" style="color:#dc2626; font-weight:700;">
+              <div v-if="!isAuditor && Number(sale.amount_paid) < Number(sale.total)" class="inv-total-line" style="color:#dc2626; font-weight:700;">
                 <span>Balance Due</span><span>LKR {{ lkr(Number(sale.total) - Number(sale.amount_paid)) }}</span>
               </div>
             </div>
