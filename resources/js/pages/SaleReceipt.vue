@@ -132,7 +132,7 @@
                 <span style="flex:1; font-weight:bold; word-break:break-word; padding-right:4px;">{{ item.product?.name ?? 'Unknown' }}</span>
                 <span style="width:28px; text-align:center;">{{ item.quantity }}</span>
                 <span style="width:54px; text-align:right;">{{ lkr(isAuditor ? item.unit_price : (item.display_price ?? item.unit_price)) }}</span>
-                <span style="width:58px; text-align:right; font-weight:bold;">{{ lkr(item.total) }}</span>
+                <span style="width:58px; text-align:right; font-weight:bold;">{{ lkr(isAuditor ? item.unit_price * item.quantity : item.total) }}</span>
               </div>
               <div style="color:#555; font-size:9px; padding-left:2px; line-height:1.3;">
                 <span v-if="item.product?.sku">SKU:{{ item.product.sku }}  </span>
@@ -291,7 +291,7 @@
                   <span v-if="Number(item.discount) > 0">- {{ lkr(item.discount) }}</span>
                   <span v-else style="color:#ccc;">—</span>
                 </td>
-                <td style="text-align:right; font-weight:700;">LKR {{ lkr(item.total) }}</td>
+                <td style="text-align:right; font-weight:700;">LKR {{ lkr(isAuditor ? item.unit_price * item.quantity : item.total) }}</td>
               </tr>
             </tbody>
           </table>
