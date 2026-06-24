@@ -174,8 +174,8 @@ const navItems = [
   { to: '/categories', label: 'Categories', icon: TagIcon,           roles: ALL_STANDARD },
   { to: '/customers',  label: 'Customers',  icon: UsersIcon,         roles: ALL_STANDARD },
   { to: '/suppliers',  label: 'Suppliers',  icon: TruckIcon,         roles: ALL_STANDARD },
-  { to: '/sales',      label: 'Sales',      icon: ShoppingCartIcon, roles: ALL_STANDARD },
-  { to: '/purchases',  label: 'Purchases',  icon: ArchiveBoxIcon,   roles: ALL_STANDARD },
+  { to: '/sales',      label: 'Sales',      icon: ShoppingCartIcon, roles: [...ALL_STANDARD, 'auditor'] },
+  { to: '/purchases',  label: 'Purchases',  icon: ArchiveBoxIcon,   roles: [...ALL_STANDARD, 'auditor'] },
 ]
 
 const adminNavItems = [

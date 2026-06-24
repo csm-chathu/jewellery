@@ -148,6 +148,9 @@
               <div v-if="Number(item.discount) > 0" style="font-size:9px; color:#555; padding-left:2px;">
                 Item Disc: -{{ lkr(item.discount) }}
               </div>
+              <div v-if="isAuditor && item.product?.purchase_price" style="font-size:9px; color:#b45309; padding-left:2px; font-weight:bold;">
+                Cost: {{ lkr(item.product.purchase_price) }}
+              </div>
             </div>
           </div>
 
@@ -265,6 +268,7 @@
                 <th style="text-align:left;">Item / Description</th>
                 <th style="text-align:center; width:40px;">Qty</th>
                 <th style="text-align:right; width:90px;">Unit Price</th>
+                <th v-if="isAuditor" style="text-align:right; width:90px; color:#fbbf24;">Cost Price</th>
                 <th style="text-align:right; width:80px;">Discount</th>
                 <th style="text-align:right; width:100px;">Total</th>
               </tr>
@@ -287,6 +291,9 @@
                 </td>
                 <td style="text-align:center;">{{ item.quantity }}</td>
                 <td style="text-align:right;">{{ lkr(item.display_price ?? item.unit_price) }}</td>
+                <td v-if="isAuditor" style="text-align:right; color:#b45309; font-weight:700;">
+                  {{ item.product?.purchase_price ? lkr(item.product.purchase_price) : '—' }}
+                </td>
                 <td style="text-align:right; color:#dc2626;">
                   <span v-if="Number(item.discount) > 0">- {{ lkr(item.discount) }}</span>
                   <span v-else style="color:#ccc;">—</span>
@@ -446,6 +453,10 @@ import axios from 'axios'
 import { ArrowLeftIcon, PrinterIcon, ArrowPathIcon, DocumentTextIcon, CheckCircleIcon } from '@heroicons/vue/24/outline'
 import { fmtDate } from '../utils/date.js'
 import QRCode from 'qrcode'
+import { useAuthStore } from '../stores/auth.js'
+
+const auth      = useAuthStore()
+const isAuditor = computed(() => auth.user?.role === 'auditor')
 
 const route           = useRoute()
 const sale            = ref(null)
