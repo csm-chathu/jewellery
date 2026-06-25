@@ -105,7 +105,6 @@
             {{ auth.user?.name?.charAt(0) }}
           </div>
           <div class="flex-1 min-w-0">
-            <p class="text-sm font-medium text-white truncate">{{ auth.user?.name }}</p>
             <p class="text-xs text-gray-400 truncate">{{ auth.user?.email }}</p>
           </div>
           <button @click="doLogout" title="Logout"
@@ -170,31 +169,31 @@ const ALL_STANDARD = ['admin', 'manager', 'accountant', 'hr', 'finance', 'cashie
 
 const navItems = [
   { to: '/',           label: 'Dashboard',  icon: HomeIcon,         roles: [...ALL_STANDARD, 'auditor'] },
-  { to: '/products',   label: 'Products',   icon: CubeIcon,         roles: ALL_STANDARD },
-  { to: '/categories', label: 'Categories', icon: TagIcon,           roles: ALL_STANDARD },
-  { to: '/customers',  label: 'Customers',  icon: UsersIcon,         roles: ALL_STANDARD },
-  { to: '/suppliers',  label: 'Suppliers',  icon: TruckIcon,         roles: ALL_STANDARD },
+  { to: '/products',   label: 'Products',   icon: CubeIcon,         roles: [...ALL_STANDARD, 'auditor'] },
+  { to: '/categories', label: 'Categories', icon: TagIcon,           roles: [...ALL_STANDARD, 'auditor'] },
+  { to: '/customers',  label: 'Customers',  icon: UsersIcon,         roles: [...ALL_STANDARD, 'auditor'] },
+  { to: '/suppliers',  label: 'Suppliers',  icon: TruckIcon,         roles: [...ALL_STANDARD, 'auditor'] },
   { to: '/sales',      label: 'Sales',      icon: ShoppingCartIcon, roles: [...ALL_STANDARD, 'auditor'] },
   { to: '/purchases',  label: 'Purchases',  icon: ArchiveBoxIcon,   roles: [...ALL_STANDARD, 'auditor'] },
 ]
 
 const adminNavItems = [
-  { to: '/gold-rates', label: 'Gold Rates', icon: SparklesIcon, roles: ['admin', 'manager'] },
-  { to: '/buy-back', label: 'Buy-Back', icon: CurrencyDollarIcon, roles: ['admin', 'manager', 'cashier', 'branch'] },
-  { to: '/scrap', label: 'Scrap Gold', icon: FireIcon, roles: ['admin', 'manager'] },
-  { to: '/rework-orders', label: 'Rework / Jobs', icon: WrenchScrewdriverIcon, roles: ['admin', 'manager', 'cashier', 'branch'] },
-  { to: '/layaways', label: 'Layaways', icon: SquaresPlusIcon, roles: ['admin', 'manager', 'cashier', 'branch'] },
+  { to: '/gold-rates', label: 'Gold Rates', icon: SparklesIcon, roles: ['admin', 'manager', 'auditor'] },
+  { to: '/buy-back', label: 'Buy-Back', icon: CurrencyDollarIcon, roles: ['admin', 'manager', 'cashier', 'branch', 'auditor'] },
+  { to: '/scrap', label: 'Scrap Gold', icon: FireIcon, roles: ['admin', 'manager', 'auditor'] },
+  { to: '/rework-orders', label: 'Rework / Jobs', icon: WrenchScrewdriverIcon, roles: ['admin', 'manager', 'cashier', 'branch', 'auditor'] },
+  { to: '/layaways', label: 'Layaways', icon: SquaresPlusIcon, roles: ['admin', 'manager', 'cashier', 'branch', 'auditor'] },
   { to: '/reports', label: 'Reports', icon: ChartBarIcon, roles: ['admin', 'manager', 'accountant', 'auditor'] },
   { to: '/stock-ledger',   label: 'Stock Ledger',       icon: ClipboardDocumentListIcon, roles: ['admin', 'manager', 'auditor'] },
-  { to: '/day-end', label: 'Day End', icon: ClipboardDocumentCheckIcon, roles: ['admin', 'manager', 'cashier', 'branch'] },
+  { to: '/day-end', label: 'Day End', icon: ClipboardDocumentCheckIcon, roles: ['admin', 'manager', 'cashier', 'branch', 'auditor'] },
   { to: '/audit-log', label: 'Audit Log', icon: ClipboardDocumentListIcon, roles: ['admin', 'auditor'] },
   { to: '/users', label: 'Users', icon: UserGroupIcon, roles: ['admin'] },
-  { to: '/shop-settings', label: 'Shop Settings', icon: Cog6ToothIcon, roles: ['admin', 'manager'] },
+  { to: '/shop-settings', label: 'Shop Settings', icon: Cog6ToothIcon, roles: ['admin', 'manager', 'auditor'] },
   { to: '/expenses', label: 'Expenses', icon: ReceiptPercentIcon, roles: ['admin', 'manager', 'finance', 'auditor'] },
-  { to: '/sms', label: 'SMS Centre', icon: DevicePhoneMobileIcon, roles: ['admin', 'manager'] },
+  { to: '/sms', label: 'SMS Centre', icon: DevicePhoneMobileIcon, roles: ['admin', 'manager', 'auditor'] },
   { to: '/informal-purchases', label: 'Private Gold Book', icon: LockClosedIcon, roles: ['gold_buyer'] },
   { to: '/custom-made-orders', label: 'Custom Made Orders', icon: PaintBrushIcon, roles: ['gold_buyer'] },
-  { to: '/getting-started', label: 'Getting Started', icon: QuestionMarkCircleIcon, roles: ['admin', 'manager'] },
+  { to: '/getting-started', label: 'Getting Started', icon: QuestionMarkCircleIcon, roles: ['admin', 'manager', 'auditor'] },
 ]
 
 const hrNavItems = [
