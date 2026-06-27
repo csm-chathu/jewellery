@@ -152,7 +152,7 @@ import {
   ScaleIcon, BookOpenIcon, DocumentTextIcon, PresentationChartBarIcon,
   BanknotesIcon, BuildingLibraryIcon, HomeModernIcon,
   ReceiptPercentIcon, Cog6ToothIcon, DevicePhoneMobileIcon, LockClosedIcon,
-  WrenchScrewdriverIcon, PaintBrushIcon,
+  WrenchScrewdriverIcon, PaintBrushIcon, ScissorsIcon, TableCellsIcon,
   SquaresPlusIcon, QuestionMarkCircleIcon, ArrowsRightLeftIcon,
   BookmarkIcon, ArrowDownOnSquareIcon, ArrowUpOnSquareIcon, AdjustmentsHorizontalIcon,
 } from '@heroicons/vue/24/outline'
@@ -193,6 +193,12 @@ const adminNavItems = [
   { to: '/sms', label: 'SMS Centre', icon: DevicePhoneMobileIcon, roles: ['admin', 'manager', 'auditor'] },
   { to: '/informal-purchases', label: 'Private Gold Book', icon: LockClosedIcon, roles: ['gold_buyer'] },
   { to: '/custom-made-orders', label: 'Custom Made Orders', icon: PaintBrushIcon, roles: ['gold_buyer'] },
+  { to: '/repair-articles',   label: 'Repair Article List', icon: ScissorsIcon,    roles: ['gold_buyer'] },
+  { to: '/sl-article-sales',     label: 'S.L Article Sales',   icon: TableCellsIcon,    roles: ['gold_buyer'] },
+  { to: '/gold-balance-summary', label: 'Gold Balance Summary', icon: ScaleIcon,          roles: ['gold_buyer'] },
+  { to: '/gold-loan-ledger',    label: 'Udaya Loan Summary',   icon: DocumentTextIcon,   roles: ['gold_buyer'] },
+  { to: '/gold-list-udaya',    label: 'Gold List Udaya',      icon: ClipboardDocumentListIcon, roles: ['gold_buyer'] },
+  { to: '/cash-balance-table', label: 'Cash Balance Table',  icon: BanknotesIcon,             roles: ['gold_buyer'] },
   { to: '/getting-started', label: 'Getting Started', icon: QuestionMarkCircleIcon, roles: ['admin', 'manager', 'auditor'] },
 ]
 

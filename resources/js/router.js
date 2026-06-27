@@ -55,6 +55,12 @@ const routes = [
             { path: 'informal-purchases', name: 'informal-purchases', component: () => import('@/pages/InformalPurchases.vue') },
             // Custom Made Orders (private gold book)
             { path: 'custom-made-orders', name: 'custom-made-orders', component: () => import('@/pages/CustomMadeOrders.vue') },
+            { path: 'repair-articles', name: 'repair-articles', component: () => import('@/pages/RepairArticleList.vue') },
+            { path: 'sl-article-sales', name: 'sl-article-sales', component: () => import('@/pages/SlArticleSales.vue') },
+            { path: 'gold-balance-summary', name: 'gold-balance-summary', component: () => import('@/pages/GoldBalanceSummary.vue') },
+            { path: 'gold-loan-ledger', name: 'gold-loan-ledger', component: () => import('@/pages/GoldLoanLedger.vue') },
+            { path: 'gold-list-udaya', name: 'gold-list-udaya', component: () => import('@/pages/GoldListUdaya.vue') },
+            { path: 'cash-balance-table', name: 'cash-balance-table', component: () => import('@/pages/CashBalanceTable.vue') },
             // Getting Started / Onboarding
             { path: 'getting-started', name: 'getting-started', component: () => import('@/pages/GettingStarted.vue') },
             // Account Transfers

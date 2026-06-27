@@ -39,6 +39,12 @@ use App\Http\Controllers\Api\SalaryAdvanceController;
 use App\Http\Controllers\Api\LayawayController;
 use App\Http\Controllers\Api\ReworkOrderController;
 use App\Http\Controllers\Api\CustomMadeOrderController;
+use App\Http\Controllers\Api\RepairArticleController;
+use App\Http\Controllers\Api\SlArticleSaleController;
+use App\Http\Controllers\Api\GoldBalanceEntryController;
+use App\Http\Controllers\Api\GoldLoanLedgerController;
+use App\Http\Controllers\Api\GoldListUdayaController;
+use App\Http\Controllers\Api\CashBalanceEntryController;
 use App\Http\Controllers\Api\SmsController;
 use App\Http\Controllers\Auth\AuthController;
 use Illuminate\Http\Request;
@@ -265,6 +271,42 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/custom-made-orders/{customMadeOrder}/issue',     [CustomMadeOrderController::class, 'issue']);
     Route::delete('/custom-made-orders/{customMadeOrder}',         [CustomMadeOrderController::class, 'destroy']);
     Route::get('/custom-made-orders/options/customers',            [CustomMadeOrderController::class, 'customers']);
+
+    // Repair Article List
+    Route::get('/repair-articles',                    [RepairArticleController::class, 'index']);
+    Route::post('/repair-articles',                   [RepairArticleController::class, 'store']);
+    Route::put('/repair-articles/{repairArticle}',    [RepairArticleController::class, 'update']);
+    Route::delete('/repair-articles/{repairArticle}', [RepairArticleController::class, 'destroy']);
+
+    // SL Article Sales (Private Gold Book)
+    Route::get('/sl-article-sales',                     [SlArticleSaleController::class, 'index']);
+    Route::post('/sl-article-sales',                    [SlArticleSaleController::class, 'store']);
+    Route::put('/sl-article-sales/{slArticleSale}',     [SlArticleSaleController::class, 'update']);
+    Route::delete('/sl-article-sales/{slArticleSale}',  [SlArticleSaleController::class, 'destroy']);
+
+    // Gold Balance / Summary
+    Route::get('/gold-balance-entries',                          [GoldBalanceEntryController::class, 'index']);
+    Route::post('/gold-balance-entries',                         [GoldBalanceEntryController::class, 'store']);
+    Route::put('/gold-balance-entries/{goldBalanceEntry}',       [GoldBalanceEntryController::class, 'update']);
+    Route::delete('/gold-balance-entries/{goldBalanceEntry}',    [GoldBalanceEntryController::class, 'destroy']);
+
+    // Udaya Loan Ledger
+    Route::get('/gold-loan-ledger',                          [GoldLoanLedgerController::class, 'index']);
+    Route::post('/gold-loan-ledger',                         [GoldLoanLedgerController::class, 'store']);
+    Route::put('/gold-loan-ledger/{goldLoanLedger}',         [GoldLoanLedgerController::class, 'update']);
+    Route::delete('/gold-loan-ledger/{goldLoanLedger}',      [GoldLoanLedgerController::class, 'destroy']);
+
+    // Gold List To Udaya Boss
+    Route::get('/gold-list-udaya',                       [GoldListUdayaController::class, 'index']);
+    Route::post('/gold-list-udaya',                      [GoldListUdayaController::class, 'store']);
+    Route::put('/gold-list-udaya/{goldListUdaya}',       [GoldListUdayaController::class, 'update']);
+    Route::delete('/gold-list-udaya/{goldListUdaya}',    [GoldListUdayaController::class, 'destroy']);
+
+    // Cash Balance Table
+    Route::get('/cash-balance-entries',                         [CashBalanceEntryController::class, 'index']);
+    Route::post('/cash-balance-entries',                        [CashBalanceEntryController::class, 'store']);
+    Route::put('/cash-balance-entries/{cashBalanceEntry}',      [CashBalanceEntryController::class, 'update']);
+    Route::delete('/cash-balance-entries/{cashBalanceEntry}',   [CashBalanceEntryController::class, 'destroy']);
 
     // Rework / Job Orders
     Route::get('/rework-orders',                          [ReworkOrderController::class, 'index']);
