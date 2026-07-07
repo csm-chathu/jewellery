@@ -125,6 +125,10 @@
                   <button @click="openEdit(p)" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200">
                     <PencilSquareIcon class="w-3.5 h-3.5" /> Edit
                   </button>
+                  <button @click="openWriteOff(p)" :disabled="p.stock_quantity < 1"
+                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-amber-100 text-amber-700 hover:bg-amber-200 disabled:opacity-40 disabled:cursor-not-allowed">
+                    <ExclamationTriangleIcon class="w-3.5 h-3.5" /> Damage
+                  </button>
                   <button @click="deleteProduct(p)" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-red-100 text-red-700 hover:bg-red-200">
                     <TrashIcon class="w-3.5 h-3.5" /> Delete
                   </button>
@@ -151,13 +155,96 @@
     <!-- Modal -->
     <ProductModal v-if="showModal" :product="editing" :categories="categories" :suppliers="suppliers"
       @close="showModal = false" @saved="onSaved" />
+
+    <!-- Write-Off (Damage) Modal -->
+    <Teleport to="body">
+      <div v-if="writeOffTarget" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg">
+          <div class="flex items-center justify-between p-5 border-b">
+            <div>
+              <h2 class="text-lg font-bold text-gray-900">Record Stock Write-Off</h2>
+              <p class="text-sm text-gray-500 mt-0.5">
+                {{ writeOffTarget.name }} &nbsp;·&nbsp;
+                Current stock: <strong>{{ writeOffTarget.stock_quantity }}</strong>
+              </p>
+            </div>
+            <button @click="writeOffTarget = null" class="text-gray-400 hover:text-gray-600">
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
+
+          <form @submit.prevent="submitWriteOff" class="p-5 space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="form-label">Quantity *</label>
+                <input v-model.number="writeOffForm.quantity" type="number" min="1"
+                  :max="writeOffTarget.stock_quantity" required class="form-input" />
+              </div>
+              <div>
+                <label class="form-label">Reason *</label>
+                <select v-model="writeOffForm.reason" required class="form-input">
+                  <option value="damaged">Damaged</option>
+                  <option value="lost">Lost</option>
+                  <option value="stolen">Stolen</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label class="form-label">Estimated Value (LKR) *</label>
+              <input v-model.number="writeOffForm.estimated_value" type="number" step="0.01" min="0"
+                required class="form-input" />
+              <p class="text-xs text-gray-400 mt-1">Auto-filled from purchase price × quantity. Adjust if needed.</p>
+            </div>
+
+            <div>
+              <label class="form-label">Loss / Expense Account (DR) *</label>
+              <select v-model="writeOffForm.debit_account_id" required class="form-input">
+                <option value="">— Select account —</option>
+                <option v-for="a in allAccounts" :key="a.id" :value="a.id">
+                  {{ a.code }} — {{ a.name }}
+                </option>
+              </select>
+            </div>
+
+            <div>
+              <label class="form-label">Inventory / Asset Account (CR) *</label>
+              <select v-model="writeOffForm.credit_account_id" required class="form-input">
+                <option value="">— Select account —</option>
+                <option v-for="a in allAccounts" :key="a.id" :value="a.id">
+                  {{ a.code }} — {{ a.name }}
+                </option>
+              </select>
+            </div>
+
+            <div>
+              <label class="form-label">Notes</label>
+              <textarea v-model="writeOffForm.notes" rows="2" class="form-input"
+                placeholder="Optional details about the damage…"></textarea>
+            </div>
+
+            <p v-if="writeOffError" class="text-sm text-red-600">{{ writeOffError }}</p>
+
+            <div class="flex justify-end gap-3 pt-1">
+              <button type="button" @click="writeOffTarget = null" class="btn-secondary">Cancel</button>
+              <button type="submit" :disabled="writeOffSaving"
+                class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-60">
+                <ExclamationTriangleIcon class="w-4 h-4" />
+                {{ writeOffSaving ? 'Saving…' : 'Record Write-Off' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import axios from 'axios'
-import { PencilSquareIcon, PlusIcon, PrinterIcon, TrashIcon } from '@heroicons/vue/24/outline'
+import { PencilSquareIcon, PlusIcon, PrinterIcon, TrashIcon, ExclamationTriangleIcon } from '@heroicons/vue/24/outline'
 import JsBarcode from 'jsbarcode'
 import ProductModal from '@/components/ProductModal.vue'
 
@@ -175,6 +262,16 @@ const selected       = ref(new Set())
 
 // maps product id → product object so we can build labels for selected items
 const productMap     = ref({})
+
+// Write-off (damage) state
+const writeOffTarget = ref(null)
+const writeOffSaving = ref(false)
+const writeOffError  = ref('')
+const allAccounts    = ref([])
+const writeOffForm   = reactive({
+  quantity: 1, reason: 'damaged', estimated_value: '',
+  debit_account_id: '', credit_account_id: '', notes: '',
+})
 
 const allPageSelected = computed(() => {
   const ids = products.value.data?.map(p => p.id) ?? []
@@ -220,9 +317,46 @@ async function fetchProducts() {
 }
 
 async function fetchRefs() {
-  const [c, s] = await Promise.all([axios.get('/api/categories/all'), axios.get('/api/suppliers/all')])
+  const [c, s, a] = await Promise.all([
+    axios.get('/api/categories/all'),
+    axios.get('/api/suppliers/all'),
+    axios.get('/api/accounts/all'),
+  ])
   categories.value = c.data
   suppliers.value  = s.data
+  allAccounts.value = a.data
+}
+
+function openWriteOff(p) {
+  writeOffTarget.value = p
+  Object.assign(writeOffForm, {
+    quantity: 1, reason: 'damaged', notes: '',
+    estimated_value: p.purchase_price ? +p.purchase_price : '',
+    debit_account_id: '', credit_account_id: '',
+  })
+  writeOffError.value = ''
+}
+
+watch(() => writeOffForm.quantity, q => {
+  const p = writeOffTarget.value
+  if (p?.purchase_price && q >= 1) {
+    writeOffForm.estimated_value = +(p.purchase_price * q).toFixed(2)
+  }
+})
+
+async function submitWriteOff() {
+  writeOffSaving.value = true; writeOffError.value = ''
+  try {
+    await axios.post(`/api/products/${writeOffTarget.value.id}/write-off`, writeOffForm)
+    writeOffTarget.value = null
+    fetchProducts()
+  } catch (e) {
+    writeOffError.value = e.response?.data?.message
+      ?? Object.values(e.response?.data?.errors ?? {})[0]?.[0]
+      ?? 'Failed to record write-off.'
+  } finally {
+    writeOffSaving.value = false
+  }
 }
 
 function openCreate() { editing.value = null; showModal.value = true }

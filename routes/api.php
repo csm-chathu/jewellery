@@ -44,6 +44,7 @@ use App\Http\Controllers\Api\SlArticleSaleController;
 use App\Http\Controllers\Api\GoldBalanceEntryController;
 use App\Http\Controllers\Api\GoldLoanLedgerController;
 use App\Http\Controllers\Api\GoldListUdayaController;
+use App\Http\Controllers\Api\StockWriteOffController;
 use App\Http\Controllers\Api\CashBalanceEntryController;
 use App\Http\Controllers\Api\SmsController;
 use App\Http\Controllers\Auth\AuthController;
@@ -72,6 +73,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('categories', CategoryController::class);
     Route::apiResource('suppliers',  SupplierController::class);
     Route::apiResource('products',   ProductController::class);
+    Route::post('/products/{product}/write-off', [StockWriteOffController::class, 'store']);
     Route::apiResource('customers',  CustomerController::class);
     Route::apiResource('sales',      SaleController::class)->except(['update']);
     Route::post('/sales/{sale}/settle-booking', [SaleController::class, 'settleBooking']);
