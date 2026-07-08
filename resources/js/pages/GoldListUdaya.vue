@@ -57,6 +57,7 @@
             <th class="px-3 py-3 text-left border border-gray-700">Description</th>
             <th class="px-3 py-3 text-right border border-gray-700">Weight</th>
             <th class="px-3 py-3 text-right border border-gray-700">Stock Weight</th>
+            <th class="px-3 py-3 text-right border border-gray-700">Net Weight</th>
             <th class="px-3 py-3 text-right border border-gray-700">Price</th>
             <th class="px-3 py-3 text-right border border-gray-700">Rate</th>
             <th class="px-3 py-3 text-center border border-gray-700">Avg Karat</th>
@@ -66,10 +67,10 @@
         </thead>
         <tbody>
           <tr v-if="loading">
-            <td colspan="10" class="text-center py-8 text-gray-400">Loading…</td>
+            <td colspan="11" class="text-center py-8 text-gray-400">Loading…</td>
           </tr>
           <tr v-else-if="!rows.length">
-            <td colspan="10" class="text-center py-8 text-gray-400">No records found.</td>
+            <td colspan="11" class="text-center py-8 text-gray-400">No records found.</td>
           </tr>
           <template v-else v-for="(row, idx) in rows" :key="row.id">
             <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
@@ -78,6 +79,7 @@
               <td class="px-3 py-2 border border-gray-200 text-gray-600">{{ row.description ?? '—' }}</td>
               <td class="px-3 py-2 border border-gray-200 text-right">{{ row.weight ?? '—' }}</td>
               <td class="px-3 py-2 border border-gray-200 text-right">{{ row.stock_weight ?? '—' }}</td>
+              <td class="px-3 py-2 border border-gray-200 text-right">{{ r3((row.weight ?? 0) - (row.stock_weight ?? 0)) }}</td>
               <td class="px-3 py-2 border border-gray-200 text-right">{{ row.price ? fmt(row.price) : '—' }}</td>
               <td class="px-3 py-2 border border-gray-200 text-right text-amber-700">{{ row.rate ? r4(row.rate) : '—' }}</td>
               <td class="px-3 py-2 border border-gray-200 text-center">{{ row.average_karat ?? '—' }}</td>
@@ -109,6 +111,7 @@
               <td class="px-3 py-2 border border-blue-700 text-right">
                 {{ r3(batchTotal(idx, 'weight') - batchTotal(idx, 'stock_weight')) }}
               </td>
+              <td class="px-3 py-2 border border-blue-700"></td>
               <td class="px-3 py-2 border border-blue-700 text-right">
                 {{ batchRate(idx) }}
               </td>
@@ -125,6 +128,7 @@
             <td class="px-3 py-3 border border-gray-700 text-right">{{ r3(grandTotals.weight) }}</td>
             <td class="px-3 py-3 border border-gray-700 text-right">{{ r3(grandTotals.stockWeight) }}</td>
             <td class="px-3 py-3 border border-gray-700 text-right">{{ r3(grandTotals.giveWeight) }}</td>
+            <td class="px-3 py-3 border border-gray-700 text-right">{{ fmt(grandTotals.price) }}</td>
             <td class="px-3 py-3 border border-gray-700 text-right text-amber-300">{{ r4(grandTotals.rate) }}</td>
             <td class="px-3 py-3 border border-gray-700" colspan="3"></td>
           </tr>
@@ -243,18 +247,18 @@ function batchTotal(idx, field) {
   return rows.value.slice(start, idx + 1).reduce((s, r) => s + (r[field] ?? 0), 0)
 }
 function batchRate(idx) {
-  const w  = batchTotal(idx, 'weight')
-  const sw = batchTotal(idx, 'stock_weight')
-  const gw = w - sw
-  return w > 0 ? r4(gw / w * 8) : '—'
+  const w = batchTotal(idx, 'weight')
+  const p = batchTotal(idx, 'price')
+  return w > 0 ? r4(p / w * 8) : '—'
 }
 
 const grandTotals = computed(() => {
   const weight      = rows.value.reduce((s, r) => s + (r.weight      ?? 0), 0)
   const stockWeight = rows.value.reduce((s, r) => s + (r.stock_weight ?? 0), 0)
+  const price       = rows.value.reduce((s, r) => s + (r.price       ?? 0), 0)
   const giveWeight  = weight - stockWeight
-  const rate        = weight > 0 ? giveWeight / weight * 8 : 0
-  return { weight, stockWeight, giveWeight, rate }
+  const rate        = weight > 0 ? r4(price / weight * 8) : 0
+  return { weight, stockWeight, giveWeight, price, rate }
 })
 
 function calcRate() {
