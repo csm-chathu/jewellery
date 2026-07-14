@@ -115,7 +115,9 @@
               <td class="px-3 py-2 border border-blue-700 text-right">
                 {{ batchRate(idx) }}
               </td>
-              <td class="px-3 py-2 border border-blue-700" colspan="3"></td>
+              <td class="px-3 py-2 border border-blue-700"></td>
+              <td class="px-3 py-2 border border-blue-700 text-right">{{ r3(batchTotal(idx, 'moose_pay')) }}</td>
+              <td class="px-3 py-2 border border-blue-700"></td>
             </tr>
           </template>
         </tbody>
