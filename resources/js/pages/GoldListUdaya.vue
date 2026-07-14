@@ -132,7 +132,9 @@
             <td class="px-3 py-3 border border-gray-700 text-right">{{ r3(grandTotals.giveWeight) }}</td>
             <td class="px-3 py-3 border border-gray-700 text-right">{{ fmt(grandTotals.price) }}</td>
             <td class="px-3 py-3 border border-gray-700 text-right text-amber-300">{{ r4(grandTotals.rate) }}</td>
-            <td class="px-3 py-3 border border-gray-700" colspan="3"></td>
+            <td class="px-3 py-3 border border-gray-700"></td>
+            <td class="px-3 py-3 border border-gray-700 text-right">{{ r3(grandTotals.moosePay) }}</td>
+            <td class="px-3 py-3 border border-gray-700"></td>
           </tr>
         </tfoot>
       </table>
@@ -258,9 +260,10 @@ const grandTotals = computed(() => {
   const weight      = rows.value.reduce((s, r) => s + (r.weight      ?? 0), 0)
   const stockWeight = rows.value.reduce((s, r) => s + (r.stock_weight ?? 0), 0)
   const price       = rows.value.reduce((s, r) => s + (r.price       ?? 0), 0)
+  const moosePay    = rows.value.reduce((s, r) => s + (r.moose_pay   ?? 0), 0)
   const giveWeight  = weight - stockWeight
   const rate        = weight > 0 ? r4(price / weight * 8) : 0
-  return { weight, stockWeight, giveWeight, price, rate }
+  return { weight, stockWeight, giveWeight, price, rate, moosePay }
 })
 
 function calcRate() {
