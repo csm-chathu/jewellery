@@ -129,6 +129,35 @@ class SalaryPaymentController extends Controller
         return response()->json(['message' => 'Payment deleted.']);
     }
 
+    public function forceDestroy(SalaryPayment $salaryPayment)
+    {
+        if (!auth()->user()->canDeleteTransactions()) {
+            return response()->json(['message' => 'You do not have permission to force-delete salary payments.'], 403);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Restore any advances that were deducted via this payment
+            SalaryAdvance::where('salary_payment_id', $salaryPayment->id)
+                ->update(['status' => 'pending', 'salary_payment_id' => null]);
+
+            // Remove linked GL journal entry
+            if ($salaryPayment->journal_entry_id) {
+                JournalEntryLine::where('journal_entry_id', $salaryPayment->journal_entry_id)->delete();
+                JournalEntry::where('id', $salaryPayment->journal_entry_id)->delete();
+            }
+
+            AuditLog::record('salary_force_deleted', "Salary payment {$salaryPayment->payment_number} force-deleted by admin", $salaryPayment);
+            $salaryPayment->delete();
+
+            DB::commit();
+            return response()->json(['message' => 'Payment deleted and GL entries reversed.']);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Failed to delete: ' . $e->getMessage()], 500);
+        }
+    }
+
     /** Summary totals per employee for a date range — used for payroll report */
     public function summary(Request $request)
     {

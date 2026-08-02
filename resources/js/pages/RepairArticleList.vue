@@ -74,6 +74,12 @@
                 <button @click="openModal(row)" class="p-1.5 text-blue-600 hover:bg-blue-50 rounded" title="Edit">
                   <PencilIcon class="w-4 h-4" />
                 </button>
+                <button @click="printAdvanceInvoice(row)" class="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded" title="Print Advance Invoice">
+                  <PrinterIcon class="w-4 h-4" />
+                </button>
+                <button v-if="row.given" @click="printCompletionInvoice(row)" class="p-1.5 text-blue-600 hover:bg-blue-50 rounded" title="Print Completion Invoice">
+                  <PrinterIcon class="w-4 h-4" />
+                </button>
                 <button @click="confirmDelete(row)" class="p-1.5 text-red-500 hover:bg-red-50 rounded" title="Delete">
                   <TrashIcon class="w-4 h-4" />
                 </button>
@@ -206,7 +212,9 @@ function fmtDate(val) {
   return val.slice(0, 10).replace(/-/g, '.')
 }
 import axios from 'axios'
-import { PlusIcon, PencilIcon, TrashIcon, XMarkIcon } from '@heroicons/vue/24/outline'
+import { PlusIcon, PencilIcon, TrashIcon, XMarkIcon, PrinterIcon } from '@heroicons/vue/24/outline'
+
+const shopSettings = ref({})
 
 const rows       = ref([])
 const loading    = ref(false)
@@ -295,6 +303,74 @@ async function save() {
   }
 }
 
+function printCompletionInvoice(row) {
+  const shop    = shopSettings.value
+  const today   = new Date().toLocaleDateString('en-LK', { day: '2-digit', month: 'short', year: 'numeric' })
+  const d       = (v) => v ? new Date(v).toLocaleDateString('en-LK', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
+  const advance = row.advance || 0
+  const balance = (row.price || 0) - advance
+
+  openPrint(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Repair Invoice — ${row.bill_number ?? row.id}</title>
+  <style>${repairInvoiceCss()}</style></head><body>
+  <div class="hdr">
+    <div style="display:flex;align-items:flex-start;gap:10px">
+      ${shop.logo_url ? `<img src="${shop.logo_url}" class="logo">` : ''}
+      <div>
+        <div class="shop-name">${shop.shop_name || ''}</div>
+        ${shop.address   ? `<div class="shop-sub" style="white-space:pre-line">${shop.address}</div>` : ''}
+        ${shop.phone     ? `<div class="shop-sub">Tel: ${shop.phone}</div>` : ''}
+        ${shop.br_number ? `<div class="shop-sub">BR No: ${shop.br_number}</div>` : ''}
+      </div>
+    </div>
+    <div class="meta-r">
+      <div class="inv-title" style="color:#1d4ed8">REPAIR INVOICE</div>
+      <div style="font-size:10px;color:#888;margin-bottom:4px">Completion Receipt</div>
+      <table class="meta-table">
+        ${row.bill_number ? `<tr><td>Bill No</td><td><strong>${row.bill_number}</strong></td></tr>` : ''}
+        <tr><td>Received</td><td>${d(row.received_date)}</td></tr>
+        <tr><td>Collected</td><td>${today}</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="cust">
+    <strong>Customer:</strong> ${row.customer_name || 'Walk-in'}
+    ${row.telephone ? ` &nbsp;|&nbsp; Tel: ${row.telephone}` : ''}
+  </div>
+  <table class="items">
+    <thead><tr>
+      <th style="text-align:left">Article</th>
+      <th style="text-align:left">Damage / Work Done</th>
+      <th style="text-align:right;width:70px">Weight (g)</th>
+      <th style="text-align:right;width:80px">Add Wt (g)</th>
+    </tr></thead>
+    <tbody>
+      <tr>
+        <td style="font-weight:700">${row.article}</td>
+        <td>${row.damage || '—'}</td>
+        <td style="text-align:right">${row.weight || '—'}</td>
+        <td style="text-align:right">${row.add_weight || '—'}</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="totals">
+    <div class="totals-box">
+      <div class="tline"><span>Total Repair Charge</span><span>${fmtLkr(row.price)}</span></div>
+      <div class="tline"><span>Advance Paid</span><span>(${fmtLkr(advance)})</span></div>
+      <div class="grand" style="color:#1d4ed8"><span>Balance Collected</span><span>${fmtLkr(balance)}</span></div>
+    </div>
+  </div>
+  ${row.notes ? `<div style="margin-top:10px;font-size:10px;color:#555"><strong>Notes:</strong> ${row.notes}</div>` : ''}
+  <div class="sigs">
+    <div class="sig">Customer Signature</div>
+    <div class="sig">Authorised By</div>
+  </div>
+  <div class="footer">
+    <div style="font-weight:600">Thank you for choosing us!</div>
+    ${shop.shop_name ? `<div style="font-size:10px;color:#888;margin-top:2px">${shop.shop_name}</div>` : ''}
+  </div>
+  </body></html>`)
+}
+
 function confirmDelete(row) { deleteTarget.value = row }
 
 async function doDelete() {
@@ -308,5 +384,120 @@ async function doDelete() {
   }
 }
 
-onMounted(() => fetch())
+onMounted(async () => {
+  fetch()
+  const { data } = await axios.get('/api/shop-branding').catch(() => ({ data: {} }))
+  shopSettings.value = data ?? {}
+})
+
+function fmtLkr(val) {
+  return 'LKR ' + Number(val || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function openPrint(html) {
+  const win = window.open('', '_blank', 'width=800,height=900')
+  win.document.write(html)
+  win.document.close()
+  win.addEventListener('load', () => { win.focus(); win.print() })
+}
+
+function repairInvoiceCss() {
+  return `
+    @media print { @page { size: A5; margin: 10mm 12mm; } }
+    * { box-sizing: border-box; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #111; margin: 0; padding: 12px 16px; }
+    .hdr { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:12px; padding-bottom:10px; border-bottom:2px solid #1a1a1a; }
+    .logo { max-height:52px; max-width:80px; object-fit:contain; }
+    .shop-name { font-size:15px; font-weight:800; letter-spacing:0.5px; text-transform:uppercase; margin-bottom:2px; }
+    .shop-sub { font-size:10px; color:#555; line-height:1.5; }
+    .meta-r { text-align:right; min-width:140px; }
+    .inv-title { font-size:17px; font-weight:900; letter-spacing:2px; margin-bottom:6px; }
+    .meta-table { font-size:10px; border-collapse:collapse; margin-left:auto; }
+    .meta-table td { padding:1px 4px; }
+    .meta-table td:first-child { color:#888; text-align:right; }
+    .meta-table td:last-child { font-size:11px; text-align:left; }
+    .cust { font-size:11px; background:#f9f9f9; border:1px solid #e5e7eb; padding:6px 10px; border-radius:4px; margin-bottom:10px; }
+    table.items { width:100%; border-collapse:collapse; font-size:11px; margin-bottom:10px; }
+    table.items thead tr { background:#1a1a1a; color:#fff; }
+    table.items th { padding:5px 6px; font-size:10px; font-weight:700; letter-spacing:0.3px; }
+    table.items tbody tr { border-bottom:1px solid #e5e7eb; }
+    table.items td { padding:5px 6px; vertical-align:top; }
+    .totals { display:flex; justify-content:flex-end; margin-top:8px; }
+    .totals-box { min-width:220px; }
+    .tline { display:flex; justify-content:space-between; font-size:11px; padding:3px 0; border-bottom:1px dashed #e5e7eb; }
+    .grand { display:flex; justify-content:space-between; font-size:14px; font-weight:800; border-top:2px solid #1a1a1a; border-bottom:2px solid #1a1a1a; padding:4px 0; margin:2px 0; }
+    .footer { text-align:center; margin-top:16px; padding-top:10px; border-top:1px dashed #ccc; font-size:11px; }
+    .sigs { display:flex; justify-content:space-between; margin-top:32px; }
+    .sig { border-top:1px solid #374151; width:160px; text-align:center; padding-top:4px; font-size:10px; color:#6b7280; }
+  `
+}
+
+function printAdvanceInvoice(row) {
+  const shop  = shopSettings.value
+  const today = new Date().toLocaleDateString('en-LK', { day: '2-digit', month: 'short', year: 'numeric' })
+  const d     = (v) => v ? new Date(v).toLocaleDateString('en-LK', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
+  const balance = (row.price || 0) - (row.advance || 0)
+
+  openPrint(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Advance Invoice — ${row.bill_number ?? row.id}</title>
+  <style>${repairInvoiceCss()}</style></head><body>
+  <div class="hdr">
+    <div style="display:flex;align-items:flex-start;gap:10px">
+      ${shop.logo_url ? `<img src="${shop.logo_url}" class="logo">` : ''}
+      <div>
+        <div class="shop-name">${shop.shop_name || ''}</div>
+        ${shop.address ? `<div class="shop-sub" style="white-space:pre-line">${shop.address}</div>` : ''}
+        ${shop.phone   ? `<div class="shop-sub">Tel: ${shop.phone}</div>` : ''}
+        ${shop.br_number ? `<div class="shop-sub">BR No: ${shop.br_number}</div>` : ''}
+      </div>
+    </div>
+    <div class="meta-r">
+      <div class="inv-title" style="color:#059669">ADVANCE RECEIPT</div>
+      <div style="font-size:10px;color:#888;margin-bottom:4px">Repair Article</div>
+      <table class="meta-table">
+        ${row.bill_number ? `<tr><td>Bill No</td><td><strong>${row.bill_number}</strong></td></tr>` : ''}
+        <tr><td>Received</td><td>${d(row.received_date)}</td></tr>
+        ${row.give_date  ? `<tr><td>Expected</td><td>${d(row.give_date)}</td></tr>` : ''}
+        <tr><td>Printed</td><td>${today}</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="cust">
+    <strong>Customer:</strong> ${row.customer_name || 'Walk-in'}
+    ${row.telephone ? ` &nbsp;|&nbsp; Tel: ${row.telephone}` : ''}
+  </div>
+  <table class="items">
+    <thead><tr>
+      <th style="text-align:left">Article</th>
+      <th style="text-align:left">Damage / Work</th>
+      <th style="text-align:right;width:70px">Weight (g)</th>
+      <th style="text-align:right;width:80px">Add Wt (g)</th>
+    </tr></thead>
+    <tbody>
+      <tr>
+        <td style="font-weight:700">${row.article}</td>
+        <td>${row.damage || '—'}</td>
+        <td style="text-align:right">${row.weight || '—'}</td>
+        <td style="text-align:right">${row.add_weight || '—'}</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="totals">
+    <div class="totals-box">
+      ${row.price ? `<div class="tline"><span>Estimated Price</span><span>${fmtLkr(row.price)}</span></div>` : ''}
+      <div class="grand" style="color:#059669"><span>Advance Received</span><span>${fmtLkr(row.advance)}</span></div>
+      ${row.price ? `<div class="tline" style="color:#dc2626;font-weight:700"><span>Balance Due</span><span>${fmtLkr(balance)}</span></div>` : ''}
+    </div>
+  </div>
+  ${row.notes ? `<div style="margin-top:10px;font-size:10px;color:#555"><strong>Notes:</strong> ${row.notes}</div>` : ''}
+  <div class="sigs">
+    <div class="sig">Customer Signature</div>
+    <div class="sig">Authorised By</div>
+  </div>
+  <div class="footer">
+    <div style="font-weight:600">Thank you! We'll notify you when your item is ready.</div>
+    <div style="font-size:10px;color:#888;margin-top:2px">Balance payable on collection of the completed item.</div>
+    ${shop.shop_name ? `<div style="font-size:10px;color:#888;margin-top:2px">${shop.shop_name}</div>` : ''}
+  </div>
+  </body></html>`)
+}
 </script>

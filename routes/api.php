@@ -201,10 +201,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/employees/{employee}',   [EmployeeController::class, 'update']);
     Route::delete('/employees/{employee}',[EmployeeController::class, 'destroy']);
 
-    Route::get('/salary-payments',                     [SalaryPaymentController::class, 'index']);
-    Route::post('/salary-payments',                    [SalaryPaymentController::class, 'store']);
-    Route::delete('/salary-payments/{salaryPayment}',  [SalaryPaymentController::class, 'destroy']);
-    Route::get('/salary-payments/summary',             [SalaryPaymentController::class, 'summary']);
+    Route::get('/salary-payments',                              [SalaryPaymentController::class, 'index']);
+    Route::post('/salary-payments',                             [SalaryPaymentController::class, 'store']);
+    Route::delete('/salary-payments/{salaryPayment}',           [SalaryPaymentController::class, 'destroy']);
+    Route::delete('/salary-payments/{salaryPayment}/force',     [SalaryPaymentController::class, 'forceDestroy']);
+    Route::get('/salary-payments/summary',                      [SalaryPaymentController::class, 'summary']);
 
     // Salary Advances
     Route::get('/salary-advances',                              [SalaryAdvanceController::class, 'index']);

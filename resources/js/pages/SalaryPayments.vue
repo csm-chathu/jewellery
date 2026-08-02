@@ -145,6 +145,11 @@
                         class="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-red-100 text-red-700 hover:bg-red-200">
                         <TrashIcon class="w-3.5 h-3.5" />
                       </button>
+                      <button v-if="p.status === 'paid' && canForceDelete" @click="forceDeletePayment(p)"
+                        title="Admin: force delete (reverses GL)"
+                        class="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-red-600 text-white hover:bg-red-700">
+                        <TrashIcon class="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -624,12 +629,15 @@ import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import { fmtDate as _fmtDate } from '../utils/date.js'
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 import {
   BanknotesIcon, TrashIcon, XMarkIcon, ArrowPathIcon,
   DocumentTextIcon, PrinterIcon, BuildingLibraryIcon,
 } from '@heroicons/vue/24/outline'
 
 const router = useRouter()
+const auth   = useAuthStore()
+const canForceDelete = computed(() => auth.user?.can_delete_transactions || auth.user?.role === 'admin')
 
 const payments       = ref({ data: [] })
 const allEmployees   = ref([])
@@ -831,6 +839,14 @@ async function deletePayment(p) {
     await axios.delete(`/api/salary-payments/${p.id}`)
     fetchPayments()
   } catch (e) { alert(e.response?.data?.message ?? 'Cannot delete.') }
+}
+
+async function forceDeletePayment(p) {
+  if (!confirm(`ADMIN: Force-delete ${p.payment_number}? This will reverse the GL journal entry and cannot be undone.`)) return
+  try {
+    await axios.delete(`/api/salary-payments/${p.id}/force`)
+    fetchPayments()
+  } catch (e) { alert(e.response?.data?.message ?? 'Force delete failed.') }
 }
 
 function goToGL(p) { router.push('/general-ledger') }
