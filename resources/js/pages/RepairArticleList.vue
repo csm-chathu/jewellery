@@ -403,32 +403,32 @@ function openPrint(html) {
 
 function repairInvoiceCss() {
   return `
-    @media print { @page { size: A5; margin: 10mm 12mm; } }
+    @media print { @page { size: A5; margin: 8mm 10mm; } }
     * { box-sizing: border-box; }
-    body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #111; margin: 0; padding: 12px 16px; }
-    .hdr { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:12px; padding-bottom:10px; border-bottom:2px solid #1a1a1a; }
-    .logo { max-height:52px; max-width:80px; object-fit:contain; }
-    .shop-name { font-size:15px; font-weight:800; letter-spacing:0.5px; text-transform:uppercase; margin-bottom:2px; }
-    .shop-sub { font-size:10px; color:#555; line-height:1.5; }
-    .meta-r { text-align:right; min-width:140px; }
-    .inv-title { font-size:17px; font-weight:900; letter-spacing:2px; margin-bottom:6px; }
-    .meta-table { font-size:10px; border-collapse:collapse; margin-left:auto; }
-    .meta-table td { padding:1px 4px; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 8.5px; color: #111; margin: 0; padding: 8px 12px; }
+    .hdr { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:8px; padding-bottom:7px; border-bottom:1.5px solid #1a1a1a; }
+    .logo { max-height:40px; max-width:60px; object-fit:contain; }
+    .shop-name { font-size:11px; font-weight:800; letter-spacing:0.5px; text-transform:uppercase; margin-bottom:1px; }
+    .shop-sub { font-size:7.5px; color:#555; line-height:1.4; }
+    .meta-r { text-align:right; min-width:120px; }
+    .inv-title { font-size:12px; font-weight:900; letter-spacing:1.5px; margin-bottom:4px; }
+    .meta-table { font-size:7.5px; border-collapse:collapse; margin-left:auto; }
+    .meta-table td { padding:1px 3px; }
     .meta-table td:first-child { color:#888; text-align:right; }
-    .meta-table td:last-child { font-size:11px; text-align:left; }
-    .cust { font-size:11px; background:#f9f9f9; border:1px solid #e5e7eb; padding:6px 10px; border-radius:4px; margin-bottom:10px; }
-    table.items { width:100%; border-collapse:collapse; font-size:11px; margin-bottom:10px; }
+    .meta-table td:last-child { font-size:8px; text-align:left; }
+    .cust { font-size:8.5px; background:#f9f9f9; border:1px solid #e5e7eb; padding:4px 8px; border-radius:3px; margin-bottom:7px; }
+    table.items { width:100%; border-collapse:collapse; font-size:8.5px; margin-bottom:7px; }
     table.items thead tr { background:#1a1a1a; color:#fff; }
-    table.items th { padding:5px 6px; font-size:10px; font-weight:700; letter-spacing:0.3px; }
+    table.items th { padding:3px 5px; font-size:7.5px; font-weight:700; letter-spacing:0.3px; }
     table.items tbody tr { border-bottom:1px solid #e5e7eb; }
-    table.items td { padding:5px 6px; vertical-align:top; }
-    .totals { display:flex; justify-content:flex-end; margin-top:8px; }
-    .totals-box { min-width:220px; }
-    .tline { display:flex; justify-content:space-between; font-size:11px; padding:3px 0; border-bottom:1px dashed #e5e7eb; }
-    .grand { display:flex; justify-content:space-between; font-size:14px; font-weight:800; border-top:2px solid #1a1a1a; border-bottom:2px solid #1a1a1a; padding:4px 0; margin:2px 0; }
-    .footer { text-align:center; margin-top:16px; padding-top:10px; border-top:1px dashed #ccc; font-size:11px; }
-    .sigs { display:flex; justify-content:space-between; margin-top:32px; }
-    .sig { border-top:1px solid #374151; width:160px; text-align:center; padding-top:4px; font-size:10px; color:#6b7280; }
+    table.items td { padding:3px 5px; vertical-align:top; }
+    .totals { display:flex; justify-content:flex-end; margin-top:6px; }
+    .totals-box { min-width:190px; }
+    .tline { display:flex; justify-content:space-between; font-size:8.5px; padding:2px 0; border-bottom:1px dashed #e5e7eb; }
+    .grand { display:flex; justify-content:space-between; font-size:11px; font-weight:800; border-top:1.5px solid #1a1a1a; border-bottom:1.5px solid #1a1a1a; padding:3px 0; margin:2px 0; }
+    .footer { text-align:center; margin-top:12px; padding-top:7px; border-top:1px dashed #ccc; font-size:8px; }
+    .sigs { display:flex; justify-content:space-between; margin-top:24px; }
+    .sig { border-top:1px solid #374151; width:130px; text-align:center; padding-top:3px; font-size:7.5px; color:#6b7280; }
   `
 }
 
