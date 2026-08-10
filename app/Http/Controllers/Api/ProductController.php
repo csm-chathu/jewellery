@@ -22,6 +22,8 @@ class ProductController extends Controller
             }))
             ->when(request('category_id'), fn($q, $c) => $q->where('category_id', $c))
             ->when(request('low_stock'), fn($q) => $q->whereColumn('stock_quantity', '<=', 'min_stock_level'))
+            ->when(request('from'), fn($q, $v) => $q->whereDate('created_at', '>=', $v))
+            ->when(request('to'),   fn($q, $v) => $q->whereDate('created_at', '<=', $v))
             ->latest()
             ->paginate(request('per_page', 20));
         return response()->json($products);

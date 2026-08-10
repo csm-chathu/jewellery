@@ -58,7 +58,7 @@ class PurchaseController extends Controller
 
             $purchase = Purchase::create([
                 'branch_id'       => $request->user()->branch_id,
-                'purchase_number' => 'PO-' . now()->format('Ymd') . '-' . str_pad(Purchase::whereDate('created_at', today())->count() + 1, 4, '0', STR_PAD_LEFT),
+                'purchase_number' => 'PO-' . now()->format('Ymd') . '-' . str_pad(Purchase::withTrashed()->whereDate('created_at', today())->count() + 1, 4, '0', STR_PAD_LEFT),
                 'supplier_id'     => $data['supplier_id'],
                 'user_id'         => $request->user()->id,
                 'subtotal'        => $subtotal,
@@ -194,8 +194,39 @@ class PurchaseController extends Controller
     public function destroy(Purchase $purchase)
     {
         $this->authorizeBranch($purchase->branch_id);
-        $purchase->delete();
-        return response()->json(['message' => 'Purchase deleted']);
+
+        $purchase->load('items.product');
+        $user = request()->user();
+        if ($purchase->status === 'received' && !$user->canDeleteTransactions()) {
+            return response()->json(['message' => 'Received purchases can only be deleted by an admin or a user with delete permission.'], 403);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Reverse stock for received purchases
+            if ($purchase->status === 'received') {
+                foreach ($purchase->items as $item) {
+                    $item->product?->decrement('stock_quantity', $item->quantity);
+                }
+            }
+
+            // Remove GL journal entry
+            if ($purchase->journal_entry_id) {
+                JournalEntryLine::where('journal_entry_id', $purchase->journal_entry_id)->delete();
+                JournalEntry::where('id', $purchase->journal_entry_id)->forceDelete();
+            }
+
+            // Remove purchase items then hard-delete the purchase
+            PurchaseItem::where('purchase_id', $purchase->id)->delete();
+            AuditLog::record('purchase_deleted', "Purchase {$purchase->purchase_number} deleted with all related data", $purchase);
+            $purchase->forceDelete();
+
+            DB::commit();
+            return response()->json(['message' => 'Purchase and all related data deleted.']);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Delete failed: ' . $e->getMessage()], 500);
+        }
     }
 
     private function authorizeBranch(?int $branchId): void

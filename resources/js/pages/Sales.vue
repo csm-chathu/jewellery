@@ -85,7 +85,6 @@
               <th class="table-th w-28">Date</th>
               <th class="table-th w-24">Type</th>
               <th class="table-th w-36 text-right">Total</th>
-              <th class="table-th w-32">Payment</th>
               <th class="table-th w-24">Delivery</th>
               <th class="table-th w-24">Status</th>
               <th class="table-th w-28 text-center">Actions</th>
@@ -125,8 +124,6 @@
                 <td class="table-td"><div class="h-5 w-16 bg-gray-200 rounded-full"></div></td>
                 <!-- Total -->
                 <td class="table-td text-right"><div class="h-4 w-24 bg-gray-200 rounded ml-auto"></div></td>
-                <!-- Payment method -->
-                <td class="table-td"><div class="h-5 w-20 bg-gray-200 rounded-full"></div></td>
                 <!-- Delivery -->
                 <td class="table-td"><div class="h-5 w-16 bg-gray-200 rounded-full"></div></td>
                 <!-- Status -->
@@ -183,10 +180,8 @@
                   <p v-if="!isAuditor && s.official_total != null && s.official_total !== s.total" class="text-xs text-gray-400 mt-0.5">
                     Billed: {{ Number(s.total).toLocaleString() }}
                   </p>
-                </td>
-                <td class="table-td">
                   <span :class="methodClass(s.payment_method)"
-                    class="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full capitalize">
+                    class="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full capitalize mt-1">
                     {{ s.payment_method?.replace('_', ' ') }}
                   </span>
                 </td>
@@ -407,7 +402,11 @@ const settleError  = ref('')
 const settling     = ref(false)
 
 let timer = null
-function debouncedFetch() { clearTimeout(timer); timer = setTimeout(() => { page.value = 1; fetchData() }, 400) }
+function debouncedFetch() {
+  clearTimeout(timer)
+  if (search.value.length > 0 && search.value.length < 3) return
+  timer = setTimeout(() => { page.value = 1; fetchData() }, 400)
+}
 
 async function fetchData() {
   loading.value = true

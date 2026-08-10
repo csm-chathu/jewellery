@@ -808,8 +808,7 @@ class ReportController extends Controller
             'item_count'   => $categories->sum('item_count'),
             'piece_count'  => $categories->sum('piece_count'),
             'total_weight' => round($categories->sum('total_weight'), 3),
-            'gold_value'   => $categories->every(fn($c) => $c['gold_value'] !== null)
-                ? round($categories->sum('gold_value'), 2) : null,
+            'gold_value'   => round($categories->whereNotNull('gold_value')->sum('gold_value'), 2),
             'cost_value'   => round($categories->sum('cost_value'), 2),
             'sell_value'   => round($categories->sum('sell_value'), 2),
         ];

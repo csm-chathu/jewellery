@@ -32,6 +32,7 @@ const routes = [
             { path: 'sms',           name: 'sms',           component: () => import('@/pages/SmsCenter.vue') },
             { path: 'reports',       name: 'reports',       component: () => import('@/pages/Reports.vue') },
             { path: 'stock-ledger',      name: 'stock-ledger',      component: () => import('@/pages/StockLedger.vue') },
+            { path: 'category-stock',    name: 'category-stock',    component: () => import('@/pages/CategoryStockReport.vue') },
             { path: 'day-end',       name: 'day-end',       component: () => import('@/pages/DayEnd.vue') },
             { path: 'audit-log',     name: 'audit-log',     component: () => import('@/pages/AuditLog.vue') },
             // Accounting

@@ -12,6 +12,10 @@
           <input type="checkbox" v-model="lowStockOnly" @change="fetchProducts" class="rounded text-gold-600" />
           Low stock only
         </label>
+        <input v-model="dateFrom" type="date" class="form-input w-36" title="From date" @change="page = 1; fetchProducts()" />
+        <input v-model="dateTo"   type="date" class="form-input w-36" title="To date"   @change="page = 1; fetchProducts()" />
+        <button v-if="dateFrom || dateTo" @click="dateFrom = ''; dateTo = ''; page = 1; fetchProducts()"
+          class="text-xs text-gray-500 hover:text-red-500">✕ Clear</button>
       </div>
       <div class="flex items-center gap-2">
         <button
@@ -98,7 +102,10 @@
                   >
                     IMG
                   </div>
-                  <span class="font-medium">{{ p.name }}</span>
+                  <div>
+                    <div class="font-medium">{{ p.name }}</div>
+                    <div class="text-[10px] text-gray-400 mt-0.5">{{ p.created_at ? new Date(p.created_at).toLocaleDateString('en-LK', { day:'2-digit', month:'short', year:'numeric' }) : '' }}</div>
+                  </div>
                 </div>
               </td>
               <td class="table-td text-gray-500">{{ p.category?.name }}</td>
@@ -254,6 +261,8 @@ const suppliers      = ref([])
 const search         = ref('')
 const categoryFilter = ref('')
 const lowStockOnly   = ref(false)
+const dateFrom       = ref('')
+const dateTo         = ref('')
 const page           = ref(1)
 const showModal      = ref(false)
 const editing        = ref(null)
@@ -309,6 +318,8 @@ async function fetchProducts() {
   try {
   const params = { page: page.value, search: search.value, category_id: categoryFilter.value }
   if (lowStockOnly.value) params.low_stock = 1
+  if (dateFrom.value) params.from = dateFrom.value
+  if (dateTo.value)   params.to   = dateTo.value
   const { data } = await axios.get('/api/products', { params })
   products.value = data
   // keep map updated so selected products retain their data

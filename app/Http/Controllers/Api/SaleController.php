@@ -25,9 +25,13 @@ class SaleController extends Controller
     public function index()
     {
         $user = request()->user();
-        $sales = Sale::with(['customer:id,name', 'user:id,name', 'journalEntry:id,entry_number', 'items.product:id,name,weight,category_id', 'items.product.category:id,name'])
+        $sales = Sale::with(['customer:id,name,phone', 'user:id,name', 'journalEntry:id,entry_number', 'items.product:id,name,weight,category_id', 'items.product.category:id,name'])
             ->when(!$user->isAdmin() && $user->role !== 'auditor', fn($q) => $q->where('branch_id', $user->branch_id))
-            ->when(request('search'), fn($q, $s) => $q->where('invoice_number', 'like', "%$s%"))
+            ->when(request('search'), fn($q, $s) => $q->where(function ($inner) use ($s) {
+                $inner->where('invoice_number', 'like', "%$s%")
+                      ->orWhereHas('customer', fn($cq) => $cq->where('name', 'like', "%$s%")
+                                                              ->orWhere('phone', 'like', "%$s%"));
+            }))
             ->when(request('customer_id'), fn($q, $c) => $q->where('customer_id', $c))
             ->when(request('status'), fn($q, $s) => $q->where('payment_status', $s))
             ->when(request('sale_type'), fn($q, $s) => $q->where('sale_type', $s))
