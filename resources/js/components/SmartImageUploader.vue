@@ -288,6 +288,26 @@ function applyEditor() {
   }, 'image/jpeg', editor.quality / 100)
 }
 
+function compressImage(file, maxWidth = 1200, quality = 0.82) {
+  return new Promise((resolve) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      const scale = Math.min(1, maxWidth / img.width)
+      const w = Math.round(img.width * scale)
+      const h = Math.round(img.height * scale)
+      const canvas = document.createElement('canvas')
+      canvas.width = w
+      canvas.height = h
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+      canvas.toBlob((blob) => resolve(blob || file), 'image/jpeg', quality)
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file) }
+    img.src = url
+  })
+}
+
 async function uploadItem(item) {
   if (item.status === 'uploading') return
 
@@ -295,6 +315,10 @@ async function uploadItem(item) {
   error.value = ''
 
   try {
+    if (!item.processedBlob && item.file) {
+      item.processedBlob = await compressImage(item.file)
+    }
+
     const source = item.processedBlob || item.file
     const uploaded = await uploadToCloudinary(source, {
       folder: props.folder,
