@@ -16,6 +16,6 @@ return [
     // 'yourdomain.com'    => 'your_database_name',
     'localhost'            => 'jewellery_db',
     '127.0.0.1'           => 'jewellery_db',
-    'ran-athwel.lumac.lk' => 'lmucunal_jewellery_ran_athweta',
+    'ran-athwel-jewellery.lumac.cc' => 'ran_athwel',
     'jewellery.lumac.lk' => 'lmucunal_jewellery',
 ];
