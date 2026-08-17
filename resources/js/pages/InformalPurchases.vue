@@ -124,14 +124,15 @@
               <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-green-300">Cash In</th>
               <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-red-300">Cash Out</th>
               <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider">Balance</th>
+              <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider w-20">Actions</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-100">
             <tr v-if="loadingCb" class="text-center">
-              <td colspan="7" class="py-8 text-gray-400">Loading…</td>
+              <td colspan="8" class="py-8 text-gray-400">Loading…</td>
             </tr>
             <tr v-else-if="!cashbookEntries.length">
-              <td colspan="7" class="py-8 text-center text-gray-400">No entries found</td>
+              <td colspan="8" class="py-8 text-center text-gray-400">No entries found</td>
             </tr>
             <tr v-for="e in cashbookEntries" :key="`${e.kind}-${e.id}`"
               class="hover:bg-gray-50"
@@ -186,11 +187,20 @@
                 :class="e.balance >= 0 ? 'text-blue-700' : 'text-orange-700'">
                 LKR {{ lkr(e.balance) }}
               </td>
+              <td class="px-4 py-2.5 text-center">
+                <template v-if="e.kind !== 'custom_order'">
+                  <button @click="deleteEntry(e)"
+                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-red-50 hover:bg-red-100 text-red-500 text-xs font-medium border border-red-200">
+                    <TrashIcon class="w-3 h-3" /> Del
+                  </button>
+                </template>
+                <template v-else>—</template>
+              </td>
             </tr>
           </tbody>
           <tfoot v-if="cashbookEntries.length" class="bg-gray-100 border-t-2 border-gray-300">
             <tr>
-              <td colspan="4" class="px-4 py-2.5 text-xs font-bold text-gray-600 uppercase">Totals</td>
+              <td colspan="5" class="px-4 py-2.5 text-xs font-bold text-gray-600 uppercase">Totals</td>
               <td class="px-4 py-2.5 text-right font-bold text-green-700">LKR {{ lkr(summary.total_in) }}</td>
               <td class="px-4 py-2.5 text-right font-bold text-red-700">LKR {{ lkr(summary.total_out) }}</td>
               <td class="px-4 py-2.5 text-right font-bold"
@@ -411,6 +421,228 @@
         </table>
       </div>
     </template>
+
+    <!-- ════════════════════════════════════════
+         GOLD LOANS TAB
+    ════════════════════════════════════════ -->
+    <template v-if="activeTab === 'gold-loans'">
+      <div class="card flex gap-3 flex-wrap items-end">
+        <input v-model="glSearch" type="text" placeholder="Search borrower / loan #" class="form-input w-56" @input="loadGoldLoans" />
+        <select v-model="glStatus" class="form-input w-36" @change="loadGoldLoans">
+          <option value="">All Status</option>
+          <option value="active">Active</option>
+          <option value="closed">Closed</option>
+          <option value="overdue">Overdue</option>
+        </select>
+        <button @click="glSearch=''; glStatus=''; loadGoldLoans()" class="btn-secondary text-sm">Clear</button>
+        <button @click="openGlModal(null)" class="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium text-sm shadow-sm">
+          <PlusIcon class="w-4 h-4" /> New Loan
+        </button>
+      </div>
+
+      <div class="card p-0 overflow-hidden">
+        <div v-if="loadingGl" class="text-center py-10 text-gray-400">Loading…</div>
+        <table v-else class="w-full text-sm">
+          <thead class="bg-gray-800 text-white text-xs uppercase">
+            <tr>
+              <th class="px-4 py-3 text-left">Loan #</th>
+              <th class="px-4 py-3 text-left">Borrower</th>
+              <th class="px-4 py-3 text-left">Pledge</th>
+              <th class="px-4 py-3 text-right">Loan Amt</th>
+              <th class="px-4 py-3 text-right">Outstanding</th>
+              <th class="px-4 py-3 text-left">Date</th>
+              <th class="px-4 py-3 text-center">Status</th>
+              <th class="px-4 py-3 text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            <tr v-if="!goldLoans.length">
+              <td colspan="8" class="text-center py-10 text-gray-400">No loans found</td>
+            </tr>
+            <template v-for="loan in goldLoans" :key="loan.id">
+              <tr class="hover:bg-gray-50 cursor-pointer" @click="toggleGlExpand(loan.id)">
+                <td class="px-4 py-2.5 font-mono text-xs text-gray-500">{{ loan.loan_number }}</td>
+                <td class="px-4 py-2.5">
+                  <div class="font-medium text-gray-800">{{ loan.borrower_name }}</div>
+                  <div class="text-xs text-gray-400">{{ loan.borrower_phone }}</div>
+                </td>
+                <td class="px-4 py-2.5 text-xs text-gray-600">
+                  {{ loan.pledge_description || '—' }}
+                  <span v-if="loan.declared_karat" class="ml-1 bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full text-xs">{{ loan.declared_karat }}</span>
+                </td>
+                <td class="px-4 py-2.5 text-right font-medium">LKR {{ lkr(loan.loan_amount) }}</td>
+                <td class="px-4 py-2.5 text-right font-bold" :class="loan.outstanding_principal > 0 ? 'text-red-600' : 'text-green-600'">
+                  LKR {{ lkr(loan.outstanding_principal) }}
+                </td>
+                <td class="px-4 py-2.5 text-xs text-gray-500">{{ fmtDate(loan.disbursed_date) }}</td>
+                <td class="px-4 py-2.5 text-center">
+                  <span class="px-2 py-0.5 rounded-full text-xs font-medium capitalize"
+                    :class="{
+                      'bg-green-100 text-green-700': loan.status === 'active',
+                      'bg-gray-100 text-gray-600':   loan.status === 'closed',
+                      'bg-red-100 text-red-700':     loan.status === 'overdue',
+                    }">{{ loan.status }}</span>
+                </td>
+                <td class="px-4 py-2.5 text-center">
+                  <div class="flex items-center justify-center gap-1">
+                    <button v-if="loan.status === 'active'" @click.stop="openRepayModal(loan)"
+                      class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-green-50 hover:bg-green-100 text-green-600 text-xs font-medium border border-green-200">
+                      Repay
+                    </button>
+                    <button @click.stop="deleteGl(loan)"
+                      class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-red-50 hover:bg-red-100 text-red-500 text-xs font-medium border border-red-200">
+                      <TrashIcon class="w-3 h-3" /> Del
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <!-- Repayments expanded row -->
+              <tr v-if="glExpanded.has(loan.id)" class="bg-amber-50/40">
+                <td colspan="8" class="px-8 py-3">
+                  <p class="text-xs font-semibold text-gray-600 mb-2">Repayments</p>
+                  <div v-if="!loan.repayments?.length" class="text-xs text-gray-400">No repayments yet</div>
+                  <table v-else class="w-full text-xs">
+                    <thead><tr class="text-gray-500">
+                      <th class="text-left py-1">Date</th>
+                      <th class="text-right py-1">Principal</th>
+                      <th class="text-right py-1">Interest</th>
+                      <th class="text-right py-1">Total</th>
+                      <th class="text-right py-1">Notes</th>
+                      <th class="text-center py-1">Del</th>
+                    </tr></thead>
+                    <tbody>
+                      <tr v-for="r in loan.repayments" :key="r.id" class="border-t border-amber-100">
+                        <td class="py-1">{{ fmtDate(r.payment_date) }}</td>
+                        <td class="text-right py-1">LKR {{ lkr(r.principal_paid) }}</td>
+                        <td class="text-right py-1">LKR {{ lkr(r.interest_paid) }}</td>
+                        <td class="text-right py-1 font-semibold">LKR {{ lkr(r.total_paid) }}</td>
+                        <td class="text-right py-1 text-gray-500">{{ r.notes || '—' }}</td>
+                        <td class="text-center py-1">
+                          <button @click="deleteRepayment(loan, r)"
+                            class="text-red-400 hover:text-red-600"><TrashIcon class="w-3 h-3 inline" /></button>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </template>
+
+    <!-- ══════════════════════════════════════
+         GOLD LOAN MODAL
+    ══════════════════════════════════════ -->
+    <teleport to="body">
+      <div v-if="glModal" class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-lg">
+          <div class="flex items-center justify-between px-6 py-4 border-b">
+            <h3 class="font-semibold text-gray-800">New Gold Loan</h3>
+            <button @click="glModal = false" class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+          </div>
+          <form @submit.prevent="saveGl" class="p-6 space-y-4">
+            <div class="grid grid-cols-2 gap-3">
+              <div class="col-span-2">
+                <label class="form-label">Borrower Name *</label>
+                <input v-model="glForm.borrower_name" type="text" required class="form-input" />
+              </div>
+              <div>
+                <label class="form-label">NIC</label>
+                <input v-model="glForm.borrower_nic" type="text" class="form-input" />
+              </div>
+              <div>
+                <label class="form-label">Phone</label>
+                <input v-model="glForm.borrower_phone" type="text" class="form-input" />
+              </div>
+              <div class="col-span-2">
+                <label class="form-label">Pledge Description</label>
+                <input v-model="glForm.pledge_description" type="text" class="form-input" placeholder="e.g. 22K gold chain 10g" />
+              </div>
+              <div>
+                <label class="form-label">Karat</label>
+                <select v-model="glForm.declared_karat" class="form-input">
+                  <option value="">—</option>
+                  <option>24K</option><option>22K</option><option>21K</option><option>18K</option>
+                </select>
+              </div>
+              <div>
+                <label class="form-label">Net Weight (g)</label>
+                <input v-model="glForm.net_weight" type="number" step="0.001" min="0" class="form-input" />
+              </div>
+              <div>
+                <label class="form-label">Loan Amount (LKR) *</label>
+                <input v-model="glForm.loan_amount" type="number" min="0.01" step="0.01" required class="form-input" />
+              </div>
+              <div>
+                <label class="form-label">Interest Rate (% / month)</label>
+                <input v-model="glForm.interest_rate_monthly" type="number" min="0" step="0.1" class="form-input" />
+              </div>
+              <div>
+                <label class="form-label">Disbursed Date *</label>
+                <input v-model="glForm.disbursed_date" type="date" required class="form-input" />
+              </div>
+              <div>
+                <label class="form-label">Maturity Date</label>
+                <input v-model="glForm.maturity_date" type="date" class="form-input" />
+              </div>
+              <div class="col-span-2">
+                <label class="form-label">Notes</label>
+                <textarea v-model="glForm.notes" rows="2" class="form-input"></textarea>
+              </div>
+            </div>
+            <p v-if="glError" class="text-red-500 text-sm">{{ glError }}</p>
+            <div class="flex justify-end gap-3">
+              <button type="button" @click="glModal = false" class="btn-secondary">Cancel</button>
+              <button type="submit" :disabled="glSaving" class="btn-primary">{{ glSaving ? 'Saving…' : 'Save Loan' }}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </teleport>
+
+    <!-- ══════════════════════════════════════
+         REPAYMENT MODAL
+    ══════════════════════════════════════ -->
+    <teleport to="body">
+      <div v-if="repayModal" class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-md">
+          <div class="flex items-center justify-between px-6 py-4 border-b">
+            <h3 class="font-semibold text-gray-800">Record Repayment — {{ repayLoan?.loan_number }}</h3>
+            <button @click="repayModal = false" class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+          </div>
+          <form @submit.prevent="saveRepay" class="p-6 space-y-4">
+            <div>
+              <label class="form-label">Outstanding: <span class="font-bold text-red-600">LKR {{ lkr(repayLoan?.outstanding_principal) }}</span></label>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="col-span-2">
+                <label class="form-label">Payment Date *</label>
+                <input v-model="repayForm.payment_date" type="date" required class="form-input" />
+              </div>
+              <div>
+                <label class="form-label">Principal Paid (LKR) *</label>
+                <input v-model="repayForm.principal_paid" type="number" min="0" step="0.01" required class="form-input" />
+              </div>
+              <div>
+                <label class="form-label">Interest Paid (LKR)</label>
+                <input v-model="repayForm.interest_paid" type="number" min="0" step="0.01" class="form-input" />
+              </div>
+              <div class="col-span-2">
+                <label class="form-label">Notes</label>
+                <input v-model="repayForm.notes" type="text" class="form-input" />
+              </div>
+            </div>
+            <p v-if="repayError" class="text-red-500 text-sm">{{ repayError }}</p>
+            <div class="flex justify-end gap-3">
+              <button type="button" @click="repayModal = false" class="btn-secondary">Cancel</button>
+              <button type="submit" :disabled="repaySaving" class="btn-primary">{{ repaySaving ? 'Saving…' : 'Save Repayment' }}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </teleport>
 
     <!-- ══════════════════════════════════════
          PURCHASE MODAL
@@ -953,7 +1185,7 @@
             <h3 class="font-semibold text-gray-800 flex items-center gap-2">
               <span class="w-3 h-3 rounded-full inline-block"
                 :class="adjForm.type === 'add' ? 'bg-indigo-500' : 'bg-purple-600'"></span>
-              {{ adjForm.type === 'add' ? 'Add Cash to Cashbook' : 'Withdraw Cash from Cashbook' }}
+              {{ editingAdj ? 'Edit Adjustment' : (adjForm.type === 'add' ? 'Add Cash to Cashbook' : 'Withdraw Cash from Cashbook') }}
             </h3>
             <button @click="adjModal = false" class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
           </div>
@@ -1013,7 +1245,7 @@
 import { ref, reactive, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
-import { LockClosedIcon, PlusIcon, MinusIcon, ArrowDownTrayIcon, PrinterIcon, ExclamationTriangleIcon } from '@heroicons/vue/24/outline'
+import { LockClosedIcon, PlusIcon, MinusIcon, ArrowDownTrayIcon, PrinterIcon, ExclamationTriangleIcon, PencilIcon, TrashIcon } from '@heroicons/vue/24/outline'
 import { fmtDate } from '../utils/date.js'
 
 const route  = useRoute()
@@ -1021,10 +1253,11 @@ const router = useRouter()
 
 // ── tabs ───────────────────────────────────────────────
 const tabs = [
-  { id: 'cashbook',  label: '📒 Cashbook' },
-  { id: 'purchases', label: '🔴 Purchases (Buy)' },
-  { id: 'sales',     label: '🟢 Sales (Sell)' },
-  { id: 'expenses',  label: '🟠 Expenses' },
+  { id: 'cashbook',   label: '📒 Cashbook' },
+  { id: 'purchases',  label: '🔴 Purchases (Buy)' },
+  { id: 'sales',      label: '🟢 Sales (Sell)' },
+  { id: 'expenses',   label: '🟠 Expenses' },
+  { id: 'gold-loans', label: '🏅 Gold Loans' },
 ]
 
 const VALID_TABS = tabs.map(t => t.id)
@@ -1822,39 +2055,195 @@ async function submitPrivateSms() {
 }
 
 // ── ADJUSTMENTS ────────────────────────────────────────
-const adjModal  = ref(false)
-const adjSaving = ref(false)
-const adjError  = ref('')
+const adjModal   = ref(false)
+const adjSaving  = ref(false)
+const adjError   = ref('')
+const editingAdj = ref(null)
 
 const adjForm = reactive({
   adjustment_date: '', type: 'add', description: '',
   amount: 0, payment_method: 'cash', notes: '',
 })
 
-function openAdjModal(type) {
+function openAdjModal(type, entry = null) {
   adjError.value = ''
-  Object.assign(adjForm, {
-    adjustment_date: new Date().toISOString().slice(0, 10),
-    type,
-    description: '',
-    amount: 0,
-    payment_method: 'cash',
-    notes: '',
-  })
+  if (type === 'edit' && entry) {
+    editingAdj.value = entry
+    Object.assign(adjForm, {
+      adjustment_date: entry.entry_date,
+      type:            entry.type,
+      description:     entry.description ?? '',
+      amount:          entry.cash_in > 0 ? entry.cash_in : entry.cash_out,
+      payment_method:  entry.payment_method ?? 'cash',
+      notes:           entry.notes ?? '',
+    })
+  } else {
+    editingAdj.value = null
+    Object.assign(adjForm, {
+      adjustment_date: new Date().toISOString().slice(0, 10),
+      type,
+      description: '',
+      amount: 0,
+      payment_method: 'cash',
+      notes: '',
+    })
+  }
   adjModal.value = true
 }
 
 async function saveAdj() {
   adjSaving.value = true; adjError.value = ''
   try {
-    await axios.post('/api/private-cash-adjustments', adjForm)
+    if (editingAdj.value) {
+      await axios.put(`/api/private-cash-adjustments/${editingAdj.value.id}`, adjForm)
+    } else {
+      await axios.post('/api/private-cash-adjustments', adjForm)
+    }
     adjModal.value = false
+    editingAdj.value = null
     await loadCashbook()
   } catch (e) {
     adjError.value = e.response?.data?.message ?? Object.values(e.response?.data?.errors ?? {}).flat().join(', ') ?? 'Error saving'
   } finally { adjSaving.value = false }
 }
 
+async function deleteAdj(entry) {
+  if (!confirm('Delete this adjustment? This cannot be undone.')) return
+  try {
+    await axios.delete(`/api/private-cash-adjustments/${entry.id}`)
+    await loadCashbook()
+  } catch (e) {
+    alert(e.response?.data?.message ?? 'Delete failed')
+  }
+}
+
+// ── PRIVATE GOLD LOANS ─────────────────────────────────
+const goldLoans  = ref([])
+const loadingGl  = ref(false)
+const glSearch   = ref('')
+const glStatus   = ref('')
+const glExpanded = ref(new Set())
+const glModal    = ref(false)
+const glSaving   = ref(false)
+const glError    = ref('')
+
+const glForm = reactive({
+  borrower_name: '', borrower_nic: '', borrower_phone: '',
+  pledge_description: '', declared_karat: '', net_weight: 0,
+  loan_amount: 0, interest_rate_monthly: 0,
+  disbursed_date: '', maturity_date: '', notes: '',
+})
+
+const repayModal  = ref(false)
+const repaySaving = ref(false)
+const repayError  = ref('')
+const repayLoan   = ref(null)
+const repayForm   = reactive({ payment_date: '', principal_paid: 0, interest_paid: 0, notes: '' })
+
+async function loadGoldLoans() {
+  loadingGl.value = true
+  try {
+    const { data } = await axios.get('/api/private-gold-loans', { params: { search: glSearch.value, status: glStatus.value } })
+    goldLoans.value = Array.isArray(data) ? data : []
+  } catch (e) {
+    console.error('Gold loans load error:', e)
+    goldLoans.value = []
+  } finally { loadingGl.value = false }
+}
+
+function toggleGlExpand(id) {
+  if (glExpanded.value.has(id)) glExpanded.value.delete(id)
+  else glExpanded.value.add(id)
+  glExpanded.value = new Set(glExpanded.value)
+}
+
+function openGlModal() {
+  glError.value = ''
+  Object.assign(glForm, {
+    borrower_name: '', borrower_nic: '', borrower_phone: '',
+    pledge_description: '', declared_karat: '', net_weight: 0,
+    loan_amount: 0, interest_rate_monthly: 0,
+    disbursed_date: new Date().toISOString().slice(0, 10), maturity_date: '', notes: '',
+  })
+  glModal.value = true
+}
+
+async function saveGl() {
+  glSaving.value = true; glError.value = ''
+  try {
+    await axios.post('/api/private-gold-loans', glForm)
+    glModal.value = false
+    await loadGoldLoans()
+  } catch (e) {
+    glError.value = e.response?.data?.message ?? Object.values(e.response?.data?.errors ?? {}).flat().join(', ') ?? 'Error saving'
+  } finally { glSaving.value = false }
+}
+
+async function deleteGl(loan) {
+  if (!confirm(`Delete loan ${loan.loan_number}? This cannot be undone.`)) return
+  try {
+    await axios.delete(`/api/private-gold-loans/${loan.id}`)
+    await loadGoldLoans()
+  } catch (e) { alert(e.response?.data?.message ?? 'Delete failed') }
+}
+
+function openRepayModal(loan) {
+  repayError.value = ''
+  repayLoan.value  = loan
+  Object.assign(repayForm, {
+    payment_date: new Date().toISOString().slice(0, 10),
+    principal_paid: 0, interest_paid: 0, notes: '',
+  })
+  repayModal.value = true
+}
+
+async function saveRepay() {
+  repaySaving.value = true; repayError.value = ''
+  try {
+    const { data } = await axios.post(`/api/private-gold-loans/${repayLoan.value.id}/repayments`, repayForm)
+    const idx = goldLoans.value.findIndex(l => l.id === data.id)
+    if (idx !== -1) goldLoans.value[idx] = data
+    repayModal.value = false
+  } catch (e) {
+    repayError.value = e.response?.data?.message ?? Object.values(e.response?.data?.errors ?? {}).flat().join(', ') ?? 'Error saving'
+  } finally { repaySaving.value = false }
+}
+
+async function deleteRepayment(loan, repayment) {
+  if (!confirm('Delete this repayment?')) return
+  try {
+    const { data } = await axios.delete(`/api/private-gold-loans/${loan.id}/repayments/${repayment.id}`)
+    const idx = goldLoans.value.findIndex(l => l.id === data.id)
+    if (idx !== -1) goldLoans.value[idx] = data
+  } catch (e) { alert(e.response?.data?.message ?? 'Delete failed') }
+}
+
+// ── CASHBOOK ROW ACTIONS ───────────────────────────────
+function editEntry(e) {
+  if (e.kind === 'purchase')   openPurchaseModal(e)
+  else if (e.kind === 'sale')       openSaleModal(e)
+  else if (e.kind === 'expense')    openExpenseModal(e)
+  else if (e.kind === 'adjustment') openAdjModal('edit', e)
+}
+
+async function deleteEntry(e) {
+  if (!confirm('Delete this entry? This cannot be undone.')) return
+  const urlMap = {
+    purchase:   `/api/informal-purchases/${e.id}`,
+    sale:        `/api/private-sales/${e.id}`,
+    expense:     `/api/private-expenses/${e.id}`,
+    adjustment:  `/api/private-cash-adjustments/${e.id}`,
+  }
+  const url = urlMap[e.kind]
+  if (!url) return
+  try {
+    await axios.delete(url)
+    await loadCashbook()
+  } catch (err) {
+    alert(err.response?.data?.message ?? 'Delete failed')
+  }
+}
+
 // ── init ───────────────────────────────────────────────
-onMounted(() => Promise.all([loadShopSettings(), loadCashbook(), loadPurchases(), loadSales(), loadExpenses(), loadBuyers(), loadTodayRates()]))
+onMounted(() => Promise.all([loadShopSettings(), loadCashbook(), loadPurchases(), loadSales(), loadExpenses(), loadBuyers(), loadTodayRates(), loadGoldLoans()]))
 </script>

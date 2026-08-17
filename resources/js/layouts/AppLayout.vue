@@ -227,10 +227,11 @@ const currentRole = computed(() => auth.user?.role ?? 'branch')
 const canOverrideGoldRate = computed(() => !!auth.user?.can_override_gold_rate)
 
 const privateBookNavItems = [
-  { tab: 'cashbook',  label: 'Cashbook',          icon: BookmarkIcon },
-  { tab: 'sales',     label: 'Sales (Cash In)',    icon: ArrowDownOnSquareIcon },
-  { tab: 'purchases', label: 'Purchases (Buy)',    icon: ArrowUpOnSquareIcon },
-  { tab: 'expenses',  label: 'Expenses',           icon: AdjustmentsHorizontalIcon },
+  { tab: 'cashbook',   label: 'Cashbook',          icon: BookmarkIcon },
+  { tab: 'sales',      label: 'Sales (Cash In)',    icon: ArrowDownOnSquareIcon },
+  { tab: 'purchases',  label: 'Purchases (Buy)',    icon: ArrowUpOnSquareIcon },
+  { tab: 'expenses',   label: 'Expenses',           icon: AdjustmentsHorizontalIcon },
+  { tab: 'gold-loans', label: 'Gold Loans',         icon: CurrencyDollarIcon },
 ]
 
 function isPrivateTabActive(tab) {

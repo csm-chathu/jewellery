@@ -31,6 +31,7 @@ use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\InformalPurchaseController;
 use App\Http\Controllers\Api\PrivateCashAdjustmentController;
+use App\Http\Controllers\Api\PrivateGoldLoanController;
 use App\Http\Controllers\Api\PrivateExpenseController;
 use App\Http\Controllers\Api\PrivateSaleController;
 use App\Http\Controllers\Api\PrivateBuyerController;
@@ -250,6 +251,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/private-cash-adjustments',                        [PrivateCashAdjustmentController::class, 'store']);
     Route::put('/private-cash-adjustments/{privateCashAdjustment}', [PrivateCashAdjustmentController::class, 'update']);
     Route::delete('/private-cash-adjustments/{privateCashAdjustment}', [PrivateCashAdjustmentController::class, 'destroy']);
+
+    Route::get('/private-gold-loans',                                                        [PrivateGoldLoanController::class, 'index']);
+    Route::post('/private-gold-loans',                                                       [PrivateGoldLoanController::class, 'store']);
+    Route::put('/private-gold-loans/{privateGoldLoan}',                                      [PrivateGoldLoanController::class, 'update']);
+    Route::delete('/private-gold-loans/{privateGoldLoan}',                                   [PrivateGoldLoanController::class, 'destroy']);
+    Route::post('/private-gold-loans/{privateGoldLoan}/repayments',                          [PrivateGoldLoanController::class, 'storeRepayment']);
+    Route::delete('/private-gold-loans/{privateGoldLoan}/repayments/{repayment}',            [PrivateGoldLoanController::class, 'destroyRepayment']);
 
     Route::get('/private-buyers',                    [PrivateBuyerController::class, 'index']);
     Route::post('/private-buyers',                   [PrivateBuyerController::class, 'store']);
