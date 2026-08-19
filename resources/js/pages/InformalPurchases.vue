@@ -1329,6 +1329,13 @@ const photoFieldMap = {
   weight:    'weight_photo_url',
 }
 
+function cloudinaryPublicId(url) {
+  if (!url) return ''
+  // e.g. https://res.cloudinary.com/cloud/image/upload/v1234/folder/file.jpg → folder/file
+  const match = url.match(/\/upload\/(?:v\d+\/)?(.+)\.[^.]+$/)
+  return match ? match[1] : ''
+}
+
 function compressPhoto(file, maxWidth = 1200, quality = 0.82) {
   return new Promise((resolve) => {
     const img = new Image()
@@ -1480,7 +1487,7 @@ function openPurchaseModal(p) {
   editingPurchase.value = p
   pError.value = ''
   Object.assign(pForm, {
-    purchase_date:    p?.purchase_date ?? new Date().toISOString().slice(0, 10),
+    purchase_date:    (p?.purchase_date ?? p?.entry_date ?? new Date().toISOString()).slice(0, 10),
     item_type:        p?.item_type ?? 'jewelry',
     description:      p?.description ?? '',
     declared_karat:   p?.declared_karat ?? '22K',
@@ -1496,6 +1503,10 @@ function openPurchaseModal(p) {
     invoice_photo_url: p?.invoice_photo_url ?? '',
     weight_photo_url:  p?.weight_photo_url ?? '',
   })
+  photoPublicIds.nic_front = cloudinaryPublicId(p?.nic_front_url)
+  photoPublicIds.nic_back  = cloudinaryPublicId(p?.nic_back_url)
+  photoPublicIds.invoice   = cloudinaryPublicId(p?.invoice_photo_url)
+  photoPublicIds.weight    = cloudinaryPublicId(p?.weight_photo_url)
   purchaseModal.value = true
 }
 
