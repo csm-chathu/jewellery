@@ -25,6 +25,15 @@ function compressFile(file, maxWidth = 1200, quality = 0.82) {
   })
 }
 
+export async function deleteFromCloudinary(publicId) {
+  if (!publicId) return
+  try {
+    await axios.delete('/api/uploads/cloudinary', { data: { public_id: publicId } })
+  } catch (e) {
+    console.warn('Cloudinary delete failed:', e)
+  }
+}
+
 export async function uploadToCloudinary(fileOrBlob, options = {}) {
   const { defaultFolder } = cloudinaryConfig()
 

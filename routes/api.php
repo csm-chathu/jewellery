@@ -68,7 +68,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/categories/all',  [CategoryController::class, 'all']);
     Route::get('/suppliers/all',   [SupplierController::class, 'all']);
     Route::get('/customers/all',   [CustomerController::class, 'all']);
-    Route::post('/uploads/cloudinary', [CloudinaryUploadController::class, 'store']);
+    Route::post('/uploads/cloudinary',   [CloudinaryUploadController::class, 'store']);
+    Route::delete('/uploads/cloudinary', [CloudinaryUploadController::class, 'destroy']);
 
     // CRUD resources
     Route::apiResource('categories', CategoryController::class);

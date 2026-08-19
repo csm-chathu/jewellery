@@ -83,4 +83,42 @@ class CloudinaryUploadController extends Controller
             'format' => $payload['format'] ?? null,
         ]);
     }
+
+    public function destroy(Request $request)
+    {
+        $data = $request->validate([
+            'public_id' => 'required|string|max:500',
+        ]);
+
+        $cloudName = config('cloudinary.cloud_name');
+        $apiKey    = config('cloudinary.api_key');
+        $apiSecret = config('cloudinary.api_secret');
+
+        if (!$cloudName || !$apiKey || !$apiSecret) {
+            return response()->json(['message' => 'Cloudinary not configured.'], 422);
+        }
+
+        $timestamp = time();
+        $params    = ['public_id' => $data['public_id'], 'timestamp' => $timestamp];
+        ksort($params);
+        $signature = sha1(
+            collect($params)->map(fn($v, $k) => "$k=$v")->implode('&') . $apiSecret
+        );
+
+        $client = new Client([
+            'timeout' => 30,
+            'verify'  => filter_var(config('cloudinary.verify', true), FILTER_VALIDATE_BOOLEAN),
+        ]);
+
+        $client->post("https://api.cloudinary.com/v1_1/{$cloudName}/image/destroy", [
+            'form_params' => [
+                'public_id' => $data['public_id'],
+                'api_key'   => $apiKey,
+                'timestamp' => $timestamp,
+                'signature' => $signature,
+            ],
+        ]);
+
+        return response()->json(['message' => 'Deleted']);
+    }
 }

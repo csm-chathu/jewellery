@@ -759,7 +759,7 @@
                       <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3 9.75h18M4.5 19.5h15a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H4.5A1.5 1.5 0 003 6v12a1.5 1.5 0 001.5 1.5z"/></svg>
                       <span class="text-xs">Tap to add</span>
                     </div>
-                    <button v-if="pForm.nic_front_url" type="button" @click.stop="pForm.nic_front_url = ''"
+                    <button v-if="pForm.nic_front_url" type="button" @click.stop="removePhoto('nic_front')"
                       class="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center text-xs hover:bg-red-600">&times;</button>
                   </div>
                   <input ref="fNicFront" type="file" accept="image/*" class="hidden" @change="onFileSelect($event, 'nic_front')" />
@@ -786,7 +786,7 @@
                       <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3 9.75h18M4.5 19.5h15a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H4.5A1.5 1.5 0 003 6v12a1.5 1.5 0 001.5 1.5z"/></svg>
                       <span class="text-xs">Tap to add</span>
                     </div>
-                    <button v-if="pForm.nic_back_url" type="button" @click.stop="pForm.nic_back_url = ''"
+                    <button v-if="pForm.nic_back_url" type="button" @click.stop="removePhoto('nic_back')"
                       class="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center text-xs hover:bg-red-600">&times;</button>
                   </div>
                   <input ref="fNicBack" type="file" accept="image/*" class="hidden" @change="onFileSelect($event, 'nic_back')" />
@@ -813,7 +813,7 @@
                       <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3 9.75h18M4.5 19.5h15a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H4.5A1.5 1.5 0 003 6v12a1.5 1.5 0 001.5 1.5z"/></svg>
                       <span class="text-xs">Tap to add</span>
                     </div>
-                    <button v-if="pForm.invoice_photo_url" type="button" @click.stop="pForm.invoice_photo_url = ''"
+                    <button v-if="pForm.invoice_photo_url" type="button" @click.stop="removePhoto('invoice')"
                       class="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center text-xs hover:bg-red-600">&times;</button>
                   </div>
                   <input ref="fInvoice" type="file" accept="image/*" class="hidden" @change="onFileSelect($event, 'invoice')" />
@@ -840,7 +840,7 @@
                       <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3 9.75h18M4.5 19.5h15a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H4.5A1.5 1.5 0 003 6v12a1.5 1.5 0 001.5 1.5z"/></svg>
                       <span class="text-xs">Tap to add</span>
                     </div>
-                    <button v-if="pForm.weight_photo_url" type="button" @click.stop="pForm.weight_photo_url = ''"
+                    <button v-if="pForm.weight_photo_url" type="button" @click.stop="removePhoto('weight')"
                       class="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center text-xs hover:bg-red-600">&times;</button>
                   </div>
                   <input ref="fWeight" type="file" accept="image/*" class="hidden" @change="onFileSelect($event, 'weight')" />
@@ -1315,6 +1315,9 @@ const pForm = reactive({
   nic_front_url: '', nic_back_url: '', invoice_photo_url: '', weight_photo_url: '',
 })
 
+// tracks public_ids for deletion — not sent to API
+const photoPublicIds = reactive({ nic_front: '', nic_back: '', invoice: '', weight: '' })
+
 // ── photo upload ───────────────────────────────────────
 const photoUploading = reactive({ nic_front: false, nic_back: false, invoice: false, weight: false })
 const anyPhotoUploading = computed(() => Object.values(photoUploading).some(Boolean))
@@ -1353,7 +1356,7 @@ async function uploadToCloudinary(file) {
   const { data } = await axios.post('/api/uploads/cloudinary', fd, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
-  return data.url
+  return { url: data.url, public_id: data.public_id }
 }
 
 async function onFileSelect(event, field) {
@@ -1361,13 +1364,23 @@ async function onFileSelect(event, field) {
   if (!file) return
   photoUploading[field] = true
   try {
-    pForm[photoFieldMap[field]] = await uploadToCloudinary(file)
+    const { url, public_id } = await uploadToCloudinary(file)
+    pForm[photoFieldMap[field]] = url
+    photoPublicIds[field] = public_id ?? ''
   } catch {
     alert('Photo upload failed. Please try again.')
   } finally {
     photoUploading[field] = false
     event.target.value = ''
   }
+}
+
+async function removePhoto(field) {
+  if (photoPublicIds[field]) {
+    axios.delete('/api/uploads/cloudinary', { data: { public_id: photoPublicIds[field] } }).catch(() => {})
+    photoPublicIds[field] = ''
+  }
+  pForm[photoFieldMap[field]] = ''
 }
 
 // ── camera ────────────────────────────────────────────

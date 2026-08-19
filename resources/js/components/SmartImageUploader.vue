@@ -94,7 +94,7 @@
 
 <script setup>
 import { nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue'
-import { uploadToCloudinary } from '@/utils/cloudinary'
+import { uploadToCloudinary, deleteFromCloudinary } from '@/utils/cloudinary'
 
 const props = defineProps({
   modelValue: { type: Array, default: () => [] },
@@ -227,6 +227,7 @@ function capturePhoto() {
 function removeItem(id) {
   const item = items.value.find(x => x.id === id)
   if (item?.preview?.startsWith('blob:')) URL.revokeObjectURL(item.preview)
+  if (item?.uploaded?.public_id) deleteFromCloudinary(item.uploaded.public_id)
   items.value = items.value.filter(x => x.id !== id)
   syncUploaded()
 }
