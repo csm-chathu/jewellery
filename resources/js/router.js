@@ -61,7 +61,8 @@ const routes = [
             { path: 'gold-balance-summary', name: 'gold-balance-summary', component: () => import('@/pages/GoldBalanceSummary.vue') },
             { path: 'gold-loan-ledger', name: 'gold-loan-ledger', component: () => import('@/pages/GoldLoanLedger.vue') },
             { path: 'gold-list-udaya', name: 'gold-list-udaya', component: () => import('@/pages/GoldListUdaya.vue') },
-            { path: 'cash-balance-table', name: 'cash-balance-table', component: () => import('@/pages/CashBalanceTable.vue') },
+            { path: 'cash-balance-table',  name: 'cash-balance-table',  component: () => import('@/pages/CashBalanceTable.vue') },
+            { path: 'private-gold-loans',  name: 'private-gold-loans',  component: () => import('@/pages/PrivateGoldLoans.vue') },
             // Getting Started / Onboarding
             { path: 'getting-started', name: 'getting-started', component: () => import('@/pages/GettingStarted.vue') },
             // Account Transfers

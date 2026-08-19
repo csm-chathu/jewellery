@@ -199,7 +199,8 @@ const adminNavItems = [
   { to: '/gold-balance-summary', label: 'Gold Balance Summary', icon: ScaleIcon,          roles: ['gold_buyer'] },
   { to: '/gold-loan-ledger',    label: 'Udaya Loan Summary',   icon: DocumentTextIcon,   roles: ['gold_buyer'] },
   { to: '/gold-list-udaya',    label: 'Gold List Udaya',      icon: ClipboardDocumentListIcon, roles: ['gold_buyer'] },
-  { to: '/cash-balance-table', label: 'Cash Balance Table',  icon: BanknotesIcon,             roles: ['gold_buyer'] },
+  { to: '/cash-balance-table',  label: 'Cash Balance Table',  icon: BanknotesIcon,       roles: ['gold_buyer'] },
+  { to: '/private-gold-loans', label: 'Gold Loans',          icon: CurrencyDollarIcon,  roles: ['gold_buyer'] },
   { to: '/getting-started', label: 'Getting Started', icon: QuestionMarkCircleIcon, roles: ['admin', 'manager', 'auditor'] },
 ]
 
@@ -231,7 +232,6 @@ const privateBookNavItems = [
   { tab: 'sales',      label: 'Sales (Cash In)',    icon: ArrowDownOnSquareIcon },
   { tab: 'purchases',  label: 'Purchases (Buy)',    icon: ArrowUpOnSquareIcon },
   { tab: 'expenses',   label: 'Expenses',           icon: AdjustmentsHorizontalIcon },
-  { tab: 'gold-loans', label: 'Gold Loans',         icon: CurrencyDollarIcon },
 ]
 
 function isPrivateTabActive(tab) {
