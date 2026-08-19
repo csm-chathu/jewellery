@@ -9,6 +9,7 @@
         <PlusIcon class="w-4 h-4" /> Add Item
       </button>
     </div>
+    
 
     <!-- Summary cards -->
     <div v-if="rows.length" class="grid grid-cols-4 gap-4">
