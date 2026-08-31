@@ -258,7 +258,8 @@ class SaleController extends Controller
                 }
             }
 
-            if ($totalExcess > 0.001) {
+            // Booking excess is posted at settlement (delivery), not here
+            if ($saleType === 'instant' && $totalExcess > 0.001) {
                 $pMethod = in_array($data['payment_method'], ['cash', 'bank_transfer'])
                     ? $data['payment_method'] : 'cash';
                 PrivateSale::create([
@@ -360,6 +361,28 @@ class SaleController extends Controller
                 'journal_entry_id'=> $entry->id,
                 'notes'           => $data['notes'] ?? $sale->notes,
             ]);
+
+            // Post excess above karat-rate to private cashbook now that money is confirmed received
+            $officialTotal = $this->calculateOfficialTotal($sale);
+            $excess = round($sale->total - $officialTotal, 2);
+            if ($excess > 0.001) {
+                $pMethod = in_array($data['payment_method'], ['cash', 'bank_transfer'])
+                    ? $data['payment_method'] : 'cash';
+                PrivateSale::create([
+                    'sale_date'      => now()->toDateString(),
+                    'buyer_name'     => $sale->customer?->name,
+                    'description'    => "Excess sale income — {$sale->invoice_number} (booking settled)",
+                    'item_type'      => 'jewelry',
+                    'gross_weight'   => 0,
+                    'net_weight'     => 0,
+                    'declared_karat' => 'mixed',
+                    'rate_per_gram'  => 0,
+                    'total_amount'   => $excess,
+                    'payment_method' => $pMethod,
+                    'recorded_by'    => auth()->id(),
+                    'branch_id'      => $sale->branch_id,
+                ]);
+            }
 
             AuditLog::record('sale_booking_settled', "Booking {$sale->invoice_number} settled and delivered", $sale);
             DB::commit();
