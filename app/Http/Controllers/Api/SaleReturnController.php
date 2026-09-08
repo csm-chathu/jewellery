@@ -7,6 +7,7 @@ use App\Models\Account;
 use App\Models\AuditLog;
 use App\Models\JournalEntry;
 use App\Models\JournalEntryLine;
+use App\Models\PrivateSale;
 use App\Models\Sale;
 use App\Models\SaleReturn;
 use App\Models\SaleReturnItem;
@@ -41,6 +42,7 @@ class SaleReturnController extends Controller
         ]);
 
         // Load items with existing return totals
+        $sale->loadMissing('customer');
         $saleItems = $sale->items()->with('product')->get()->keyBy('id');
 
         // Calculate already-returned quantities per sale_item
@@ -110,9 +112,37 @@ class SaleReturnController extends Controller
                 $ri['product']->increment('stock_quantity', $ri['quantity']);
             }
 
-            // Post reversal journal entry
-            if ($refundAmount > 0 && $data['refund_method'] !== 'none') {
-                $this->postReturnJournal($sale, $saleReturn, $refundAmount, $data['refund_method']);
+            // Split refund into official GL portion and private cashbook excess portion
+            $billedTotal   = (float) $sale->total;
+            $officialTotal = (float) ($sale->official_total ?? $billedTotal);
+            $refundRatio   = $billedTotal > 0 ? $refundAmount / $billedTotal : 1;
+            $officialRefund = round($officialTotal * $refundRatio, 2);
+            $excessRefund   = round($refundAmount - $officialRefund, 2);
+
+            // Post reversal journal entry for the official (karat-rate) portion only
+            if ($officialRefund > 0 && $data['refund_method'] !== 'none') {
+                $this->postReturnJournal($sale, $saleReturn, $officialRefund, $data['refund_method'], $refundAmount);
+            }
+
+            // Reverse the excess from private cashbook
+            if ($excessRefund > 0.01) {
+                $prefix = 'IGS-' . strtoupper(substr(md5(uniqid()), 0, 6));
+                PrivateSale::create([
+                    'reference_number' => $prefix,
+                    'sale_date'        => now()->toDateString(),
+                    'buyer_name'       => $sale->customer?->name ?? 'Customer',
+                    'description'      => "Return reversal (excess) — {$sale->invoice_number} / {$saleReturn->return_number}",
+                    'item_type'        => 'jewelry',
+                    'gross_weight'     => 0,
+                    'net_weight'       => 0,
+                    'declared_karat'   => 'mixed',
+                    'rate_per_gram'    => 0,
+                    'total_amount'     => -$excessRefund,
+                    'payment_method'   => $data['refund_method'] === 'cash' ? 'cash' : 'bank_transfer',
+                    'notes'            => "Auto-reversal: excess refunded to customer on sale return",
+                    'recorded_by'      => $request->user()->id,
+                    'branch_id'        => $sale->branch_id,
+                ]);
             }
 
             // Update sale payment_status
@@ -134,14 +164,17 @@ class SaleReturnController extends Controller
         }
     }
 
-    private function postReturnJournal(Sale $sale, SaleReturn $saleReturn, float $amount, string $refundMethod): void
+    private function postReturnJournal(Sale $sale, SaleReturn $saleReturn, float $officialRefund, string $refundMethod, float $totalRefund = 0): void
     {
         $revenue     = Account::where('code', '4000')->first();
         $cashAccount = $refundMethod === 'cash'
             ? Account::where('code', '1000')->first()
             : Account::where('code', '1010')->first();
 
-        if (!$revenue || !$cashAccount) return; // silently skip if accounts not configured
+        if (!$revenue || !$cashAccount) return;
+
+        $totalRefund = $totalRefund ?: $officialRefund;
+        $excessRefund = round($totalRefund - $officialRefund, 2);
 
         $entry = JournalEntry::create([
             'entry_number'   => $this->nextEntryNumber(),
@@ -154,23 +187,34 @@ class SaleReturnController extends Controller
             'status'         => 'posted',
         ]);
 
-        // DR Revenue (reverse the income)
+        // DR Revenue — reverse only the official karat-rate portion
         JournalEntryLine::create([
             'journal_entry_id' => $entry->id,
             'account_id'       => $revenue->id,
-            'debit'            => $amount,
+            'debit'            => $officialRefund,
             'credit'           => 0,
-            'description'      => 'Sales return — revenue reversal',
+            'description'      => 'Sales return — revenue reversal (official portion)',
         ]);
 
-        // CR Cash/Bank (refund paid out)
+        // CR Cash/Bank — full billed amount refunded to customer
         JournalEntryLine::create([
             'journal_entry_id' => $entry->id,
             'account_id'       => $cashAccount->id,
             'debit'            => 0,
-            'credit'           => $amount,
-            'description'      => 'Refund to customer',
+            'credit'           => $totalRefund,
+            'description'      => 'Refund to customer (full billed amount)',
         ]);
+
+        // If excess existed, DR Revenue again for the excess to balance the entry
+        if ($excessRefund > 0.01) {
+            JournalEntryLine::create([
+                'journal_entry_id' => $entry->id,
+                'account_id'       => $revenue->id,
+                'debit'            => $excessRefund,
+                'credit'           => 0,
+                'description'      => 'Sales return — excess portion (private cashbook reversed separately)',
+            ]);
+        }
     }
 
     private function nextEntryNumber(): string

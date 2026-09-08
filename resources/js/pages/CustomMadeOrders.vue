@@ -231,7 +231,7 @@
                 <label class="form-label">Karat</label>
                 <select v-model="form.karat" class="form-input">
                   <option value="">—</option>
-                  <option v-for="k in ['9k','14k','18k','22k','24k']" :key="k" :value="k">{{ k.toUpperCase() }}</option>
+                  <option v-for="k in carats" :key="k.id" :value="k.label">{{ k.label }}</option>
                 </select>
               </div>
               <div>
@@ -453,6 +453,7 @@ import { PaintBrushIcon, ReceiptRefundIcon } from '@heroicons/vue/24/outline'
 
 const orders   = ref({ data: [], total: 0, last_page: 1 })
 const customers = ref([])
+const carats    = ref([])
 const page     = ref(1)
 const filters  = reactive({ search: '', status: '' })
 const loading  = ref(false)
@@ -862,12 +863,14 @@ async function load() {
 }
 
 onMounted(async () => {
-  const [c, branding] = await Promise.all([
+  const [c, branding, kar] = await Promise.all([
     axios.get('/api/custom-made-orders/options/customers'),
     axios.get('/api/shop-branding').catch(() => ({ data: {} })),
+    axios.get('/api/carats').catch(() => ({ data: [] })),
   ])
   customers.value = c.data
   shopSettings.value = branding.data ?? {}
+  carats.value = Array.isArray(kar.data) ? kar.data : (kar.data?.data ?? [])
   load()
 })
 </script>
