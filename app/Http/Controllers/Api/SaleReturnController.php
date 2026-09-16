@@ -83,7 +83,7 @@ class SaleReturnController extends Controller
             }
 
             $retPrefix    = 'RET-' . now()->format('Ymd') . '-';
-            $lastRet      = SaleReturn::withTrashed()->where('return_number', 'like', $retPrefix . '%')->orderByRaw('CAST(SUBSTR(return_number, ?) AS UNSIGNED) DESC', [strlen($retPrefix) + 1])->value('return_number');
+            $lastRet      = SaleReturn::where('return_number', 'like', $retPrefix . '%')->orderByRaw('CAST(SUBSTR(return_number, ?) AS UNSIGNED) DESC', [strlen($retPrefix) + 1])->value('return_number');
             $returnNumber = $retPrefix . str_pad($lastRet ? (int) substr($lastRet, strlen($retPrefix)) + 1 : 1, 4, '0', STR_PAD_LEFT);
 
             $saleReturn = SaleReturn::create([
