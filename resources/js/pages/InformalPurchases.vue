@@ -276,6 +276,14 @@
             </tr>
           </tbody>
         </table>
+        <div v-if="pMeta.last_page > 1" class="flex items-center justify-between px-4 py-2.5 border-t bg-gray-50 text-xs text-gray-500">
+          <span>{{ (pPage-1)*pMeta.per_page+1 }}–{{ Math.min(pPage*pMeta.per_page, pMeta.total) }} of {{ pMeta.total }}</span>
+          <div class="flex items-center gap-1">
+            <button :disabled="pPage<=1" @click="pPage--; loadPurchases()" class="px-2 py-1 rounded border hover:bg-white disabled:opacity-40">‹ Prev</button>
+            <span class="px-2">{{ pPage }} / {{ pMeta.last_page }}</span>
+            <button :disabled="pPage>=pMeta.last_page" @click="pPage++; loadPurchases()" class="px-2 py-1 rounded border hover:bg-white disabled:opacity-40">Next ›</button>
+          </div>
+        </div>
       </div>
     </template>
 
@@ -346,6 +354,14 @@
             </tr>
           </tbody>
         </table>
+        <div v-if="sMeta.last_page > 1" class="flex items-center justify-between px-4 py-2.5 border-t bg-gray-50 text-xs text-gray-500">
+          <span>{{ (sPage-1)*sMeta.per_page+1 }}–{{ Math.min(sPage*sMeta.per_page, sMeta.total) }} of {{ sMeta.total }}</span>
+          <div class="flex items-center gap-1">
+            <button :disabled="sPage<=1" @click="sPage--; loadSales()" class="px-2 py-1 rounded border hover:bg-white disabled:opacity-40">‹ Prev</button>
+            <span class="px-2">{{ sPage }} / {{ sMeta.last_page }}</span>
+            <button :disabled="sPage>=sMeta.last_page" @click="sPage++; loadSales()" class="px-2 py-1 rounded border hover:bg-white disabled:opacity-40">Next ›</button>
+          </div>
+        </div>
       </div>
     </template>
 
@@ -419,6 +435,14 @@
             </tr>
           </tbody>
         </table>
+        <div v-if="eMeta.last_page > 1" class="flex items-center justify-between px-4 py-2.5 border-t bg-gray-50 text-xs text-gray-500">
+          <span>{{ (ePage-1)*eMeta.per_page+1 }}–{{ Math.min(ePage*eMeta.per_page, eMeta.total) }} of {{ eMeta.total }}</span>
+          <div class="flex items-center gap-1">
+            <button :disabled="ePage<=1" @click="ePage--; loadExpenses()" class="px-2 py-1 rounded border hover:bg-white disabled:opacity-40">‹ Prev</button>
+            <span class="px-2">{{ ePage }} / {{ eMeta.last_page }}</span>
+            <button :disabled="ePage>=eMeta.last_page" @click="ePage++; loadExpenses()" class="px-2 py-1 rounded border hover:bg-white disabled:opacity-40">Next ›</button>
+          </div>
+        </div>
       </div>
     </template>
 
@@ -1303,6 +1327,8 @@ async function loadCashbook() {
 const purchases = ref([])
 const loadingP  = ref(false)
 const pFilters  = reactive({ search: '', date_from: '', date_to: '' })
+const pPage     = ref(1)
+const pMeta     = ref({ total: 0, last_page: 1, per_page: 25 })
 const purchaseModal  = ref(false)
 const editingPurchase = ref(null)
 const pSaving = ref(false)
@@ -1478,8 +1504,9 @@ function pCalc() {
 async function loadPurchases() {
   loadingP.value = true
   try {
-    const { data } = await axios.get('/api/informal-purchases', { params: pFilters })
+    const { data } = await axios.get('/api/informal-purchases', { params: { ...pFilters, page: pPage.value } })
     purchases.value = data.data ?? data
+    if (data.last_page !== undefined) pMeta.value = { total: data.total, last_page: data.last_page, per_page: data.per_page }
   } finally { loadingP.value = false }
 }
 
@@ -1648,6 +1675,8 @@ async function createAndSelectBuyer() {
 const salesList  = ref([])
 const loadingS   = ref(false)
 const sFilters   = reactive({ search: '', date_from: '', date_to: '' })
+const sPage      = ref(1)
+const sMeta      = ref({ total: 0, last_page: 1, per_page: 50 })
 const saleModal  = ref(false)
 const editingSale = ref(null)
 const sSaving = ref(false)
@@ -1675,8 +1704,9 @@ watch(() => pForm.declared_karat, (karat) => {
 async function loadSales() {
   loadingS.value = true
   try {
-    const { data } = await axios.get('/api/private-sales', { params: sFilters })
+    const { data } = await axios.get('/api/private-sales', { params: { ...sFilters, page: sPage.value } })
     salesList.value = data.data ?? data
+    if (data.last_page !== undefined) sMeta.value = { total: data.total, last_page: data.last_page, per_page: data.per_page }
   } finally { loadingS.value = false }
 }
 
@@ -1731,6 +1761,8 @@ async function deleteSale(s) {
 const expensesList  = ref([])
 const loadingE      = ref(false)
 const eFilters      = reactive({ search: '', category: '', date_from: '', date_to: '' })
+const ePage         = ref(1)
+const eMeta         = ref({ total: 0, last_page: 1, per_page: 50 })
 const expenseModal  = ref(false)
 const editingExpense = ref(null)
 const eSaving = ref(false)
@@ -1744,8 +1776,9 @@ const eForm = reactive({
 async function loadExpenses() {
   loadingE.value = true
   try {
-    const { data } = await axios.get('/api/private-expenses', { params: eFilters })
+    const { data } = await axios.get('/api/private-expenses', { params: { ...eFilters, page: ePage.value } })
     expensesList.value = data.data ?? data
+    if (data.last_page !== undefined) eMeta.value = { total: data.total, last_page: data.last_page, per_page: data.per_page }
   } finally { loadingE.value = false }
 }
 
@@ -2289,5 +2322,9 @@ async function deleteEntry(e) {
 }
 
 // ── init ───────────────────────────────────────────────
+watch(pFilters, () => { pPage.value = 1 }, { deep: true })
+watch(sFilters, () => { sPage.value = 1 }, { deep: true })
+watch(eFilters, () => { ePage.value = 1 }, { deep: true })
+
 onMounted(() => Promise.all([loadShopSettings(), loadCashbook(), loadPurchases(), loadSales(), loadExpenses(), loadBuyers(), loadTodayRates(), loadGoldLoans()]))
 </script>

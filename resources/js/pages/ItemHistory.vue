@@ -97,6 +97,10 @@
             <p class="text-xs text-orange-500">Returned</p>
             <p class="font-bold text-orange-700 text-sm">{{ summary.total_returned }} pcs</p>
           </div>
+          <div v-if="summary.total_written_off" class="text-center px-3 py-1.5 rounded-lg bg-red-50 border border-red-100">
+            <p class="text-xs text-red-500">Written Off</p>
+            <p class="font-bold text-red-700 text-sm">{{ summary.total_written_off }} pcs</p>
+          </div>
           <div class="text-center px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200">
             <p class="text-xs text-amber-600">Current Stock</p>
             <p class="font-bold text-amber-700 text-sm">{{ summary.current_stock }} pcs</p>
@@ -112,12 +116,12 @@
               <th class="table-th">Date</th>
               <th class="table-th">Reference</th>
               <th class="table-th">Type</th>
-              <th class="table-th">Party</th>
+              <th class="table-th">Party / Detail</th>
               <th class="table-th text-right">Qty In</th>
               <th class="table-th text-right">Qty Out</th>
-              <th class="table-th text-right">Unit Price</th>
-              <th class="table-th text-right">Total</th>
-              <th class="table-th">Payment</th>
+              <th class="table-th text-right">Balance</th>
+              <th class="table-th text-right">Amount</th>
+              <th class="table-th">Notes</th>
             </tr>
           </thead>
           <tbody>
@@ -127,16 +131,17 @@
             <tr v-for="(e, i) in entries" :key="i"
               :class="[
                 'border-b last:border-0',
-                e.type === 'purchase' ? 'hover:bg-blue-50' :
-                e.type === 'return'   ? 'hover:bg-orange-50' : 'hover:bg-green-50'
+                e.type === 'created'   ? 'bg-gray-50' :
+                e.type === 'purchase'  ? 'hover:bg-blue-50' :
+                e.type === 'return'    ? 'hover:bg-orange-50' :
+                e.type === 'layaway'   ? 'hover:bg-purple-50' :
+                e.type === 'write_off' ? 'hover:bg-red-50' : 'hover:bg-green-50'
               ]">
-              <td class="table-td text-xs text-gray-500 whitespace-nowrap">
-                {{ fmtDate(e.date) }}
-              </td>
+              <td class="table-td text-xs text-gray-500 whitespace-nowrap">{{ fmtDate(e.date) }}</td>
               <td class="table-td font-mono text-xs text-gray-700">{{ e.ref }}</td>
               <td class="table-td">
-                <span :class="typeBadge(e.type)" class="px-2 py-0.5 rounded-full text-xs font-medium">
-                  {{ e.type }}
+                <span :class="typeBadge(e.type)" class="px-2 py-0.5 rounded-full text-xs font-medium capitalize">
+                  {{ e.type.replace('_', ' ') }}
                 </span>
               </td>
               <td class="table-td">
@@ -151,16 +156,21 @@
                 <span v-if="e.qty_out" class="font-semibold text-red-500">-{{ e.qty_out }}</span>
                 <span v-else class="text-gray-300">—</span>
               </td>
-              <td class="table-td text-right text-gray-700">{{ lkr(e.unit_amount) }}</td>
               <td class="table-td text-right">
-                <p :class="e.type === 'sale' ? 'font-semibold text-green-700' : 'text-gray-700'">
+                <span :class="e.balance > 0 ? 'text-gray-700' : 'text-red-600'" class="font-semibold">
+                  {{ e.balance }}
+                </span>
+              </td>
+              <td class="table-td text-right">
+                <p v-if="e.total" :class="e.type === 'sale' ? 'font-semibold text-green-700' : 'text-gray-700'">
                   {{ lkr(e.total) }}
                 </p>
                 <p v-if="e.official && e.official !== e.total" class="text-xs text-gray-400">
                   Official: {{ lkr(e.official) }}
                 </p>
+                <span v-if="!e.total" class="text-gray-300">—</span>
               </td>
-              <td class="table-td text-xs text-gray-500 capitalize">{{ e.payment ?? e.notes ?? '—' }}</td>
+              <td class="table-td text-xs text-gray-500">{{ e.notes ?? '—' }}</td>
             </tr>
           </tbody>
         </table>
@@ -203,8 +213,11 @@ function fmtDate(d) {
 }
 
 function typeBadge(type) {
-  if (type === 'purchase') return 'bg-blue-100 text-blue-700'
-  if (type === 'return')   return 'bg-orange-100 text-orange-700'
+  if (type === 'purchase')  return 'bg-blue-100 text-blue-700'
+  if (type === 'return')    return 'bg-orange-100 text-orange-700'
+  if (type === 'layaway')   return 'bg-purple-100 text-purple-700'
+  if (type === 'write_off') return 'bg-red-100 text-red-700'
+  if (type === 'created')   return 'bg-gray-100 text-gray-600'
   return 'bg-green-100 text-green-700'
 }
 
