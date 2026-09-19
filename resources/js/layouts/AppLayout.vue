@@ -186,6 +186,7 @@ const adminNavItems = [
   { to: '/reports', label: 'Reports', icon: ChartBarIcon, roles: ['admin', 'manager', 'accountant', 'auditor'] },
   { to: '/stock-ledger',    label: 'Stock Ledger',        icon: ClipboardDocumentListIcon, roles: ['admin', 'manager', 'auditor'] },
   { to: '/category-stock', label: 'Daily Stock Value',    icon: TagIcon,                   roles: ['admin', 'manager', 'auditor'] },
+  { to: '/item-history',   label: 'Item History',          icon: ClipboardDocumentListIcon, roles: ['admin', 'manager', 'auditor'] },
   { to: '/day-end', label: 'Day End', icon: ClipboardDocumentCheckIcon, roles: ['admin', 'manager', 'cashier', 'branch', 'auditor'] },
   { to: '/audit-log', label: 'Audit Log', icon: ClipboardDocumentListIcon, roles: ['admin', 'auditor'] },
   { to: '/users', label: 'Users', icon: UserGroupIcon, roles: ['admin'] },
@@ -285,6 +286,7 @@ const pageTitles = {
   'informal-purchases':   'Private Gold Book',
   'custom-made-orders':  'Custom Made Orders',
   'stock-ledger':        'Stock Ledger',
+  'item-history':        'Item History',
   'getting-started':     'Getting Started Guide',
   'account-transfers':   'Account Transfers',
 }

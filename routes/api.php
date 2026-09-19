@@ -142,6 +142,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/reports/gold-loans',       [ReportController::class, 'goldLoansReport']);
     Route::get('/reports/stock-ledger',       [ReportController::class, 'stockLedger']);
     Route::get('/reports/category-stock',     [ReportController::class, 'categoryStockValue']);
+    Route::get('/reports/item-history',       [ReportController::class, 'itemHistory']);
     Route::get('/reports/revenue-check',      [ReportController::class, 'revenueCheck']);
     Route::get('/reports/cashbook',           [ReportController::class, 'cashbook']);
 

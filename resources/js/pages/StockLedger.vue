@@ -18,16 +18,33 @@
 
     <!-- Filters -->
     <div class="card flex flex-wrap gap-3 items-end">
-      <div class="flex-1 min-w-56">
+      <div class="flex-1 min-w-56 relative" ref="productPickerEl">
         <label class="text-xs text-gray-500 block mb-1">Product *</label>
-        <select v-model="filters.product_id" class="form-input w-full" @change="load">
-          <option :value="null">— Select a product —</option>
-          <option v-for="p in products" :key="p.id" :value="p.id">
-            {{ p.name }}
-            <template v-if="p.sku"> · {{ p.sku }}</template>
-            <template v-if="p.karat"> · {{ p.karat }}</template>
-          </option>
-        </select>
+        <input
+          v-model="productSearch"
+          type="text"
+          class="form-input w-full"
+          placeholder="Search by name, SKU or barcode…"
+          @focus="showProductDrop = true"
+          @input="showProductDrop = true"
+          autocomplete="off"
+        />
+        <div v-if="showProductDrop && filteredProducts.length"
+          class="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+          <button
+            v-for="p in filteredProducts" :key="p.id"
+            type="button"
+            class="w-full text-left px-3 py-2 text-sm hover:bg-amber-50 flex items-center justify-between gap-2"
+            @mousedown.prevent="selectProduct(p)"
+          >
+            <span class="font-medium text-gray-800">{{ p.name }}</span>
+            <span class="text-xs text-gray-400 shrink-0">{{ p.sku }}<template v-if="p.karat"> · {{ p.karat }}</template></span>
+          </button>
+        </div>
+        <p v-if="showProductDrop && productSearch && !filteredProducts.length"
+          class="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow text-sm text-gray-400 px-3 py-2">
+          No products found
+        </p>
       </div>
       <div>
         <label class="text-xs text-gray-500 block mb-1">From</label>
@@ -205,7 +222,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
 import axios from 'axios'
 import {
   ClipboardDocumentListIcon, PrinterIcon, ArrowPathIcon,
@@ -213,6 +230,32 @@ import {
 } from '@heroicons/vue/24/outline'
 
 const products = ref([])
+const productSearch = ref('')
+const showProductDrop = ref(false)
+const productPickerEl = ref(null)
+
+const filteredProducts = computed(() => {
+  const q = productSearch.value.trim().toLowerCase()
+  if (!q) return products.value.slice(0, 50)
+  return products.value.filter(p =>
+    p.name?.toLowerCase().includes(q) ||
+    p.sku?.toLowerCase().includes(q) ||
+    p.barcode?.toLowerCase().includes(q)
+  ).slice(0, 50)
+})
+
+function selectProduct(p) {
+  filters.product_id = p.id
+  productSearch.value = `${p.name}${p.sku ? ' · ' + p.sku : ''}${p.karat ? ' · ' + p.karat : ''}`
+  showProductDrop.value = false
+  load()
+}
+
+function onClickOutside(e) {
+  if (productPickerEl.value && !productPickerEl.value.contains(e.target)) {
+    showProductDrop.value = false
+  }
+}
 const ledger   = ref(null)
 const loading  = ref(false)
 
@@ -345,7 +388,10 @@ function printLedger() {
   win.addEventListener('load', () => { win.focus(); win.print() })
 }
 
+onBeforeUnmount(() => document.removeEventListener('mousedown', onClickOutside))
+
 onMounted(async () => {
+  document.addEventListener('mousedown', onClickOutside)
   const { data } = await axios.get('/api/products', { params: { per_page: 500 } })
   products.value = data.data ?? data
 })

@@ -30,7 +30,10 @@ class SaleController extends Controller
             ->when(request('search'), fn($q, $s) => $q->where(function ($inner) use ($s) {
                 $inner->where('invoice_number', 'like', "%$s%")
                       ->orWhereHas('customer', fn($cq) => $cq->where('name', 'like', "%$s%")
-                                                              ->orWhere('phone', 'like', "%$s%"));
+                                                              ->orWhere('phone', 'like', "%$s%"))
+                      ->orWhereHas('items.product', fn($pq) => $pq->where('name', 'like', "%$s%")
+                                                                   ->orWhere('sku', 'like', "%$s%")
+                                                                   ->orWhere('barcode', 'like', "%$s%"));
             }))
             ->when(request('customer_id'), fn($q, $c) => $q->where('customer_id', $c))
             ->when(request('status'), fn($q, $s) => $q->where('payment_status', $s))

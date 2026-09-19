@@ -13,6 +13,7 @@ use App\Models\Purchase;
 use App\Models\PurchaseItem;
 use App\Models\Sale;
 use App\Models\SaleItem;
+use App\Models\SaleReturnItem;
 use App\Models\SalaryPayment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -822,5 +823,114 @@ class ReportController extends Controller
             ])->values(),
             'date' => today()->toDateString(),
         ]);
+    }
+
+    /** Item History Report: full purchase/sale/return timeline for a product */
+    public function itemHistory(Request $request)
+    {
+        $user = $request->user();
+        abort_unless(in_array($user->role, ['admin', 'manager', 'auditor']), 403);
+
+        // Search products by name / SKU / barcode
+        $search = trim($request->get('search', ''));
+        if ($search === '') {
+            return response()->json(['products' => [], 'history' => null]);
+        }
+
+        $matchedProducts = Product::where('name', 'like', "%{$search}%")
+            ->orWhere('sku', 'like', "%{$search}%")
+            ->orWhere('barcode', 'like', "%{$search}%")
+            ->with('category:id,name')
+            ->limit(20)
+            ->get(['id','name','sku','barcode','karat','weight','stock_quantity','category_id']);
+
+        if ($request->has('product_id')) {
+            $product = Product::with(['category:id,name', 'supplier:id,name'])
+                ->findOrFail($request->product_id);
+
+            // Purchases
+            $purchases = PurchaseItem::with([
+                    'purchase:id,purchase_number,purchased_at,supplier_id,payment_type',
+                    'purchase.supplier:id,name',
+                ])
+                ->where('product_id', $product->id)
+                ->whereHas('purchase', fn($q) => $q->whereNull('deleted_at'))
+                ->get()
+                ->map(fn($item) => [
+                    'date'        => $item->purchase->purchased_at->toDateString(),
+                    'datetime'    => $item->purchase->purchased_at->toDateTimeString(),
+                    'ref'         => $item->purchase->purchase_number,
+                    'type'        => 'purchase',
+                    'party'       => $item->purchase->supplier?->name ?? '—',
+                    'qty_in'      => (int) $item->quantity,
+                    'qty_out'     => 0,
+                    'unit_amount' => (float) $item->unit_cost,
+                    'total'       => round((float) $item->unit_cost * (int) $item->quantity, 2),
+                    'notes'       => $item->purchase->payment_type ?? null,
+                ]);
+
+            // Sales
+            $sales = SaleItem::with([
+                    'sale:id,invoice_number,sold_at,customer_id,payment_method,total,official_total',
+                    'sale.customer:id,name,phone',
+                ])
+                ->where('product_id', $product->id)
+                ->whereHas('sale', fn($q) => $q->whereNull('deleted_at'))
+                ->get()
+                ->map(fn($item) => [
+                    'date'        => $item->sale->sold_at->toDateString(),
+                    'datetime'    => $item->sale->sold_at->toDateTimeString(),
+                    'ref'         => $item->sale->invoice_number,
+                    'type'        => 'sale',
+                    'party'       => $item->sale->customer?->name ?? 'Walk-in',
+                    'party_phone' => $item->sale->customer?->phone ?? null,
+                    'qty_in'      => 0,
+                    'qty_out'     => (int) $item->quantity,
+                    'unit_amount' => (float) ($item->display_price ?? $item->unit_price),
+                    'total'       => round((float) ($item->display_price ?? $item->unit_price) * (int) $item->quantity, 2),
+                    'official'    => round((float) $item->unit_price * (int) $item->quantity, 2),
+                    'payment'     => $item->sale->payment_method ?? null,
+                ]);
+
+            // Returns
+            $returns = SaleReturnItem::with([
+                    'saleReturn:id,return_number,returned_at,refund_method,sale_id',
+                    'saleReturn.sale:id,invoice_number',
+                ])
+                ->where('product_id', $product->id)
+                ->get()
+                ->map(fn($item) => [
+                    'date'        => $item->saleReturn->returned_at->toDateString(),
+                    'datetime'    => $item->saleReturn->returned_at->toDateTimeString(),
+                    'ref'         => $item->saleReturn->return_number,
+                    'type'        => 'return',
+                    'party'       => 'Return — ' . ($item->saleReturn->sale->invoice_number ?? ''),
+                    'qty_in'      => (int) $item->quantity,
+                    'qty_out'     => 0,
+                    'unit_amount' => (float) $item->unit_price,
+                    'total'       => (float) $item->total,
+                    'payment'     => $item->saleReturn->refund_method ?? null,
+                ]);
+
+            $entries = $purchases->merge($sales)->merge($returns)
+                ->sortBy('datetime')
+                ->values();
+
+            return response()->json([
+                'products' => $matchedProducts,
+                'product'  => $product,
+                'entries'  => $entries,
+                'summary'  => [
+                    'total_purchased' => $purchases->sum('qty_in'),
+                    'total_sold'      => $sales->sum('qty_out'),
+                    'total_returned'  => $returns->sum('qty_in'),
+                    'current_stock'   => $product->stock_quantity,
+                    'total_purchase_value' => $purchases->sum('total'),
+                    'total_sale_value'     => $sales->sum('total'),
+                ],
+            ]);
+        }
+
+        return response()->json(['products' => $matchedProducts, 'history' => null]);
     }
 }
