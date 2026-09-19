@@ -20,7 +20,12 @@ class PurchaseController extends Controller
         $user = request()->user();
         $purchases = Purchase::with(['supplier:id,name', 'user:id,name', 'journalEntry:id,entry_number'])
             ->when(!$user->isAdmin(), fn($q) => $q->where('branch_id', $user->branch_id))
-            ->when(request('search'), fn($q, $s) => $q->where('purchase_number', 'like', "%$s%"))
+            ->when(request('search'), fn($q, $s) => $q->where(function ($inner) use ($s) {
+                $inner->where('purchase_number', 'like', "%$s%")
+                      ->orWhereHas('items.product', fn($pq) => $pq->where('name', 'like', "%$s%")
+                                                                    ->orWhere('sku', 'like', "%$s%")
+                                                                    ->orWhere('barcode', 'like', "%$s%"));
+            }))
             ->when(request('supplier_id'), fn($q, $s) => $q->where('supplier_id', $s))
             ->latest('purchased_at')
             ->paginate(request('per_page', 20));

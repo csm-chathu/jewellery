@@ -2,7 +2,7 @@
   <div class="space-y-4">
     <div class="flex items-center justify-between">
       <div class="flex gap-3">
-        <input v-model="search" type="search" placeholder="PO number…" class="form-input w-44" @input="debouncedFetch" />
+        <input v-model="search" type="search" placeholder="PO number, SKU, barcode…" class="form-input w-44" @input="debouncedFetch" />
         <select v-model="supplierFilter" class="form-input w-44" @change="fetch">
           <option value="">All suppliers</option>
           <option v-for="s in suppliers" :key="s.id" :value="s.id">{{ s.name }}</option>
