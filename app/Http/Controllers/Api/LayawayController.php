@@ -220,10 +220,19 @@ class LayawayController extends Controller
                 $layaway->refresh();
             }
 
+            // ── Guard: must be fully paid before conversion ─────────────────
+            if ($layaway->balance_amount > 0) {
+                return response()->json([
+                    'message' => 'Cannot convert: outstanding balance of LKR ' . number_format($layaway->balance_amount, 2) . ' must be collected first.',
+                ], 422);
+            }
+
             // ── Create Sale record ──────────────────────────────────────────
-            // Use paid_amount as the actual sale value (covers partial-pay handover cases)
-            $saleAmount = (float) $layaway->paid_amount;
-            $discount   = max(0, (float) $layaway->total_amount - $saleAmount);
+            // Sale is always for the agreed total_amount; deposits already cleared it.
+            // Re-sum from payments to avoid stale paid_amount column.
+            $totalDeposited = (float) $layaway->payments()->sum('amount');
+            $saleAmount     = (float) $layaway->total_amount;
+            $discount       = 0;
 
             $invoiceSeq    = Sale::whereDate('created_at', today())->count() + 1;
             $invoiceNumber = 'INV-' . now()->format('Ymd') . '-' . str_pad($invoiceSeq, 4, '0', STR_PAD_LEFT);
@@ -296,16 +305,16 @@ class LayawayController extends Controller
                 'status'         => 'posted',
             ]);
 
-            // DR Customer Deposit (clear liability — only what was actually deposited)
+            // DR Customer Deposit — clear the full deposited liability (sum of payments)
             JournalEntryLine::create([
                 'journal_entry_id' => $entry->id,
                 'account_id'       => $depositAccount->id,
-                'debit'            => $saleAmount,
+                'debit'            => $totalDeposited,
                 'credit'           => 0,
                 'description'      => "Layaway deposit cleared — {$layaway->reference_number}",
             ]);
 
-            // CR Sales Revenue
+            // CR Sales Revenue — the agreed sale price
             JournalEntryLine::create([
                 'journal_entry_id' => $entry->id,
                 'account_id'       => $revenueAccount->id,
@@ -313,6 +322,21 @@ class LayawayController extends Controller
                 'credit'           => $saleAmount,
                 'description'      => "Sales revenue recognised — {$invoiceNumber}",
             ]);
+
+            // CR Cash — refund any over-deposit back to customer
+            $overDeposit = $totalDeposited - $saleAmount;
+            if ($overDeposit > 0) {
+                $cashAccount = $this->paymentAccountByMethod($data['payment_method']);
+                if ($cashAccount) {
+                    JournalEntryLine::create([
+                        'journal_entry_id' => $entry->id,
+                        'account_id'       => $cashAccount->id,
+                        'debit'            => 0,
+                        'credit'           => $overDeposit,
+                        'description'      => "Over-deposit refund to customer — {$layaway->reference_number}",
+                    ]);
+                }
+            }
 
             $sale->update(['journal_entry_id' => $entry->id]);
 
@@ -500,7 +524,8 @@ class LayawayController extends Controller
             'created_by'     => auth()->id(),
         ]);
 
-        $newPaid    = $layaway->paid_amount + $data['amount'];
+        // Re-sum from payments table to avoid compounding any column drift
+        $newPaid    = (float) $layaway->payments()->sum('amount');
         $newBalance = $layaway->total_amount - $newPaid;
         $newStatus  = $newBalance <= 0 ? 'completed' : $layaway->status;
 
