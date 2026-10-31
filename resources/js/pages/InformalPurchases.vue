@@ -200,13 +200,14 @@
           </tbody>
           <tfoot v-if="cashbookEntries.length" class="bg-gray-100 border-t-2 border-gray-300">
             <tr>
-              <td colspan="5" class="px-4 py-2.5 text-xs font-bold text-gray-600 uppercase">Totals</td>
+              <td colspan="4" class="px-4 py-2.5 text-xs font-bold text-gray-600 uppercase">Totals</td>
               <td class="px-4 py-2.5 text-right font-bold text-green-700">LKR {{ lkr(summary.total_in) }}</td>
               <td class="px-4 py-2.5 text-right font-bold text-red-700">LKR {{ lkr(summary.total_out) }}</td>
               <td class="px-4 py-2.5 text-right font-bold"
                 :class="summary.balance >= 0 ? 'text-blue-700' : 'text-orange-700'">
                 LKR {{ lkr(summary.balance) }}
               </td>
+              <td></td>
             </tr>
           </tfoot>
         </table>
