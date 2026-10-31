@@ -134,7 +134,7 @@
             <tr v-else-if="!cashbookEntries.length">
               <td colspan="8" class="py-8 text-center text-gray-400">No entries found</td>
             </tr>
-            <tr v-for="e in cashbookEntries" :key="`${e.kind}-${e.id}`"
+            <tr v-for="e in pagedCashbookEntries" :key="`${e.kind}-${e.id}`"
               class="hover:bg-gray-50"
               :class="{
                 'bg-green-50/40':  e.kind === 'sale',
@@ -210,6 +210,14 @@
             </tr>
           </tfoot>
         </table>
+        <div v-if="cashbookEntries.length > CB_PER_PAGE" class="flex items-center justify-between px-4 py-2.5 border-t bg-gray-50 text-xs text-gray-500">
+          <span>{{ (cbPage - 1) * CB_PER_PAGE + 1 }}–{{ Math.min(cbPage * CB_PER_PAGE, cashbookEntries.length) }} of {{ cashbookEntries.length }}</span>
+          <div class="flex items-center gap-1">
+            <button :disabled="cbPage <= 1" @click="cbPage--" class="px-2 py-1 rounded border hover:bg-white disabled:opacity-40">‹ Prev</button>
+            <span class="px-2">{{ cbPage }} / {{ cbLastPage }}</span>
+            <button :disabled="cbPage >= cbLastPage" @click="cbPage++" class="px-2 py-1 rounded border hover:bg-white disabled:opacity-40">Next ›</button>
+          </div>
+        </div>
       </div>
     </template>
 
@@ -1306,12 +1314,20 @@ function lkr(val) {
 const summary = reactive({ total_in: 0, total_out: 0, total_purchases: 0, total_expenses: 0, balance: 0 })
 
 // ── CASHBOOK ───────────────────────────────────────────
+const CB_PER_PAGE = 50
 const cashbookEntries = ref([])
 const loadingCb = ref(false)
 const cbFilters = reactive({ date_from: '', date_to: '' })
+const cbPage = ref(1)
+const cbLastPage = computed(() => Math.max(1, Math.ceil(cashbookEntries.value.length / CB_PER_PAGE)))
+const pagedCashbookEntries = computed(() => {
+  const desc = cashbookEntries.value.slice().reverse()
+  return desc.slice((cbPage.value - 1) * CB_PER_PAGE, cbPage.value * CB_PER_PAGE)
+})
 
 async function loadCashbook() {
   loadingCb.value = true
+  cbPage.value = 1
   try {
     const { data } = await axios.get('/api/private-cashbook', { params: cbFilters })
     cashbookEntries.value     = data.entries
