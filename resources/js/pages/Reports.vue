@@ -86,7 +86,6 @@
                 <th class="table-th text-right">Weight (g)</th>
                 <th class="table-th text-right">Qty</th>
                 <th class="table-th text-right">Unit Price</th>
-                <th class="table-th text-right">Item Total</th>
                 <th class="table-th text-right">Invoice Total</th>
                 <th class="table-th text-right">Paid</th>
                 <th class="table-th">Method</th>
@@ -118,7 +117,6 @@
                     </td>
                     <td class="table-td text-center">{{ item.quantity }}</td>
                     <td class="table-td text-right font-mono">{{ lkr(item.unit_price) }}</td>
-                    <td class="table-td text-right font-mono font-medium">{{ lkr(item.total) }}</td>
                     <td class="table-td text-right font-mono font-semibold text-green-700">
                       {{ idx === 0 ? lkr(r.official_total) : '' }}
                     </td>
