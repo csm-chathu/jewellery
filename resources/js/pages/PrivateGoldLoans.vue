@@ -340,90 +340,143 @@ async function deleteRepayment(loan, repayment) {
   } catch (e) { alert(e.response?.data?.message ?? 'Delete failed') }
 }
 
-const printing = ref(null)
+const printing     = ref(null)
+const shopSettings = ref({})
 
-function printLoan(loan) {
+async function loadShopSettings() {
+  try { const { data } = await axios.get('/api/shop-branding'); shopSettings.value = data } catch { /* non-critical */ }
+}
+
+function openPrint(html) {
+  const win = window.open('', '_blank', 'width=800,height=900')
+  win.document.write(html)
+  win.document.close()
+  win.addEventListener('load', () => { win.focus(); win.print() })
+}
+
+function a5Css() {
+  return `
+    @media print { @page { size: A5; margin: 10mm 12mm; } }
+    * { box-sizing: border-box; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #111; margin: 0; padding: 12px 16px; }
+    .hdr { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:12px; padding-bottom:10px; border-bottom:2px solid #1a1a1a; }
+    .logo { max-height:52px; max-width:80px; object-fit:contain; }
+    .shop-name { font-size:15px; font-weight:800; letter-spacing:0.5px; text-transform:uppercase; margin-bottom:2px; }
+    .shop-sub { font-size:10px; color:#555; line-height:1.5; }
+    .meta-r { text-align:right; min-width:140px; }
+    .inv-title { font-size:17px; font-weight:900; letter-spacing:2px; margin-bottom:6px; color:#b45309; }
+    .meta-table { font-size:10px; border-collapse:collapse; margin-left:auto; }
+    .meta-table td { padding:1px 4px; }
+    .meta-table td:first-child { color:#888; text-align:right; }
+    .meta-table td:last-child { font-size:11px; text-align:left; }
+    .cust { font-size:11px; background:#f9f9f9; border:1px solid #e5e7eb; padding:6px 10px; border-radius:4px; margin-bottom:10px; }
+    .section { display:grid; grid-template-columns:1fr 1fr; gap:4px 20px; margin-bottom:10px; }
+    .row { display:flex; flex-direction:column; padding:3px 0; border-bottom:1px dashed #f0f0f0; }
+    .lbl { font-size:9px; text-transform:uppercase; color:#9ca3af; letter-spacing:.4px; }
+    .val { font-size:11px; font-weight:600; }
+    table.items { width:100%; border-collapse:collapse; font-size:11px; margin-bottom:10px; }
+    table.items thead tr { background:#1a1a1a; color:#fff; }
+    table.items th { padding:5px 6px; font-size:10px; font-weight:700; letter-spacing:0.3px; }
+    table.items tbody tr { border-bottom:1px solid #e5e7eb; }
+    table.items tbody tr:nth-child(even) { background:#fafafa; }
+    table.items td { padding:5px 6px; vertical-align:top; }
+    .totals { display:flex; justify-content:flex-end; margin-top:8px; }
+    .totals-box { min-width:220px; }
+    .tline { display:flex; justify-content:space-between; font-size:11px; padding:3px 0; border-bottom:1px dashed #e5e7eb; }
+    .grand { display:flex; justify-content:space-between; font-size:11px; font-weight:800; border-top:2px solid #1a1a1a; border-bottom:2px solid #1a1a1a; padding:4px 0; margin:2px 0; }
+    .footer { text-align:center; margin-top:16px; padding-top:10px; border-top:1px dashed #ccc; font-size:11px; }
+    .sigs { display:flex; justify-content:space-between; margin-top:32px; }
+    .sig { border-top:1px solid #374151; width:160px; text-align:center; padding-top:4px; font-size:10px; color:#6b7280; }
+  `
+}
+
+function fmtLkr(val) {
+  return 'LKR ' + Number(val || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+async function printLoan(loan) {
   printing.value = loan.id
   try {
-    const repayments = loan.repayments ?? []
-    const lkr = (v) => Number(v || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    if (!shopSettings.value.shop_name) {
+      try { const { data } = await axios.get('/api/shop-branding'); shopSettings.value = data } catch { /* non-critical */ }
+    }
+    const shop = shopSettings.value
+    const today = new Date().toLocaleDateString('en-LK', { day: '2-digit', month: 'short', year: 'numeric' })
     const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-LK', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
+    const repayments = loan.repayments ?? []
 
     const repayRows = repayments.length
       ? repayments.map(r => `<tr>
           <td>${fmtDate(r.payment_date)}</td>
-          <td style="text-align:right">LKR ${lkr(r.principal_paid)}</td>
-          <td style="text-align:right">LKR ${lkr(r.interest_paid)}</td>
-          <td style="text-align:right">LKR ${lkr((r.principal_paid || 0) + (r.interest_paid || 0))}</td>
+          <td style="text-align:right">${fmtLkr(r.principal_paid)}</td>
+          <td style="text-align:right">${fmtLkr(r.interest_paid)}</td>
+          <td style="text-align:right;font-weight:700">${fmtLkr((r.principal_paid || 0) + (r.interest_paid || 0))}</td>
           <td>${r.notes ?? '—'}</td>
         </tr>`).join('')
-      : '<tr><td colspan="5" style="text-align:center;color:#888">No repayments yet</td></tr>'
+      : '<tr><td colspan="5" style="text-align:center;color:#888;padding:8px">No repayments yet</td></tr>'
 
-    const statusColor = { active: '#1d4ed8', overdue: '#dc2626', closed: '#16a34a', forfeited: '#6b7280' }[loan.status] ?? '#374151'
+    const outstandingColor = Number(loan.outstanding_principal) > 0 ? '#dc2626' : '#16a34a'
 
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/>
-<title>Gold Loan — ${loan.loan_number}</title>
-<style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:Arial,sans-serif;font-size:13px;color:#111;padding:24px;max-width:680px;margin:auto}
-  .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px}
-  .shop-name{font-size:20px;font-weight:700}
-  .shop-sub{font-size:11px;color:#555;margin-top:2px}
-  .doc-meta{text-align:right;font-size:12px}
-  .doc-meta .ln{font-size:16px;font-weight:700;color:#b45309}
-  hr{border:none;border-top:1px solid #e5e7eb;margin:12px 0}
-  .section{display:grid;grid-template-columns:1fr 1fr;gap:6px 24px;margin-bottom:14px}
-  .row{display:flex;flex-direction:column}
-  .label{font-size:10px;text-transform:uppercase;color:#6b7280;letter-spacing:.5px;margin-bottom:1px}
-  .value{font-size:13px;font-weight:600}
-  table{width:100%;border-collapse:collapse;margin-top:10px}
-  th{background:#1f2937;color:#fff;padding:6px 10px;text-align:left;font-size:12px}
-  td{padding:6px 10px;font-size:12px;border-bottom:1px solid #f3f4f6}
-  .badge{display:inline-block;padding:2px 10px;border-radius:99px;font-size:11px;font-weight:700;color:#fff;background:${statusColor}}
-  .footer{margin-top:24px;text-align:center;font-size:11px;color:#9ca3af}
-  @media print{body{padding:0}}
-</style></head><body>
-<div class="header">
-  <div>
-    <div class="shop-name">රන් අත්වැල් GOLD HOUSE</div>
-    <div class="shop-sub">Private Gold Book — Loan Receipt</div>
-  </div>
-  <div class="doc-meta">
-    <div class="ln">${loan.loan_number}</div>
-    <div>Issued: ${fmtDate(loan.disbursed_date)}</div>
-    <div>Maturity: ${fmtDate(loan.maturity_date)}</div>
-    <div style="margin-top:4px"><span class="badge">${(loan.status ?? '').toUpperCase()}</span></div>
-  </div>
-</div>
-<hr/>
-<div class="section">
-  <div class="row"><span class="label">Borrower</span><span class="value">${loan.borrower_name ?? '—'}</span></div>
-  <div class="row"><span class="label">NIC</span><span class="value">${loan.borrower_nic ?? '—'}</span></div>
-  <div class="row"><span class="label">Phone</span><span class="value">${loan.borrower_phone ?? '—'}</span></div>
-  <div class="row"><span class="label">Pledge Item</span><span class="value">${loan.pledge_description ?? '—'}</span></div>
-  <div class="row"><span class="label">Declared Karat</span><span class="value">${loan.declared_karat ?? '—'}</span></div>
-  <div class="row"><span class="label">Net Weight</span><span class="value">${loan.net_weight ?? '0'}g</span></div>
-</div>
-<hr/>
-<div class="section">
-  <div class="row"><span class="label">Loan Amount</span><span class="value" style="color:#1d4ed8">LKR ${lkr(loan.loan_amount)}</span></div>
-  <div class="row"><span class="label">Interest Rate</span><span class="value">${loan.interest_rate_monthly ?? 0}% / month</span></div>
-  <div class="row"><span class="label">Outstanding</span><span class="value" style="color:${Number(loan.outstanding_principal) > 0 ? '#dc2626' : '#16a34a'}">LKR ${lkr(loan.outstanding_principal)}</span></div>
-  <div class="row"><span class="label">Notes</span><span class="value" style="font-weight:400">${loan.notes ?? '—'}</span></div>
-</div>
-<hr/>
-<div style="font-weight:600;font-size:12px;margin-bottom:4px;color:#374151">Repayment History</div>
-<table>
-  <thead><tr><th>Date</th><th style="text-align:right">Principal</th><th style="text-align:right">Interest</th><th style="text-align:right">Total</th><th>Notes</th></tr></thead>
-  <tbody>${repayRows}</tbody>
-</table>
-<div class="footer">*** Private Gold Book record ***</div>
-<script>setTimeout(()=>window.print(),300)<\/script>
-</body></html>`
-
-    const w = window.open('', '_blank', 'width=720,height=900')
-    w.document.write(html)
-    w.document.close()
+    openPrint(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Loan — ${loan.loan_number}</title>
+    <style>${a5Css()}</style></head><body>
+    <div class="hdr">
+      <div style="display:flex;align-items:flex-start;gap:10px">
+        ${shop.logo_url ? `<img src="${shop.logo_url}" class="logo">` : ''}
+        <div>
+          <div class="shop-name">${shop.shop_name || 'රන් අත්වැල් GOLD HOUSE'}</div>
+          ${shop.address ? `<div class="shop-sub" style="white-space:pre-line">${shop.address}</div>` : ''}
+          ${shop.phone ? `<div class="shop-sub">Tel: ${shop.phone}</div>` : ''}
+        </div>
+      </div>
+      <div class="meta-r">
+        <div class="inv-title">LOAN RECEIPT</div>
+        <table class="meta-table">
+          <tr><td>Loan No</td><td><strong>${loan.loan_number}</strong></td></tr>
+          <tr><td>Issued</td><td>${fmtDate(loan.disbursed_date)}</td></tr>
+          <tr><td>Maturity</td><td>${fmtDate(loan.maturity_date)}</td></tr>
+          <tr><td>Status</td><td><strong style="text-transform:uppercase">${loan.status ?? ''}</strong></td></tr>
+          <tr><td>Printed</td><td>${today}</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="cust">
+      <strong>${loan.borrower_name ?? '—'}</strong>
+      ${loan.borrower_phone ? `<span style="margin-left:8px;color:#555">${loan.borrower_phone}</span>` : ''}
+      ${loan.borrower_nic ? `<span style="margin-left:8px;color:#888;font-size:10px">NIC: ${loan.borrower_nic}</span>` : ''}
+    </div>
+    <div class="section">
+      <div class="row"><span class="lbl">Pledge Item</span><span class="val">${loan.pledge_description ?? '—'}</span></div>
+      <div class="row"><span class="lbl">Declared Karat</span><span class="val">${loan.declared_karat ?? '—'}</span></div>
+      <div class="row"><span class="lbl">Net Weight</span><span class="val">${Number(loan.net_weight || 0).toFixed(3)} g</span></div>
+      <div class="row"><span class="lbl">Interest Rate</span><span class="val">${loan.interest_rate_monthly ?? 0}% / month</span></div>
+    </div>
+    <div class="totals">
+      <div class="totals-box">
+        <div class="tline"><span>Loan Amount</span><span style="color:#1d4ed8;font-weight:700">${fmtLkr(loan.loan_amount)}</span></div>
+        <div class="grand"><span>OUTSTANDING</span><span style="color:${outstandingColor}">${fmtLkr(loan.outstanding_principal)}</span></div>
+        ${loan.notes ? `<div class="tline"><span>Notes</span><span style="max-width:160px;text-align:right">${loan.notes}</span></div>` : ''}
+      </div>
+    </div>
+    <div style="font-weight:700;font-size:11px;margin:10px 0 4px;color:#374151">Repayment History</div>
+    <table class="items">
+      <thead><tr>
+        <th style="text-align:left">Date</th>
+        <th style="text-align:right">Principal</th>
+        <th style="text-align:right">Interest</th>
+        <th style="text-align:right">Total</th>
+        <th style="text-align:left">Notes</th>
+      </tr></thead>
+      <tbody>${repayRows}</tbody>
+    </table>
+    <div class="sigs">
+      <div class="sig">Lender / Recorder</div>
+      <div class="sig">Borrower Signature</div>
+    </div>
+    <div class="footer">
+      <div style="font-weight:600">Private Gold Book Record</div>
+      ${shop.shop_name ? `<div style="font-size:10px;color:#888;margin-top:2px">${shop.shop_name}</div>` : ''}
+    </div>
+    </body></html>`)
   } catch (e) {
     alert('Could not generate print.')
   } finally {
@@ -431,5 +484,5 @@ function printLoan(loan) {
   }
 }
 
-onMounted(load)
+onMounted(() => { load(); loadShopSettings() })
 </script>
