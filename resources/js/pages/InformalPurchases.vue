@@ -526,6 +526,10 @@
                       class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-red-50 hover:bg-red-100 text-red-500 text-xs font-medium border border-red-200">
                       <TrashIcon class="w-3 h-3" /> Del
                     </button>
+                    <button @click.stop="printGl(loan)" :disabled="glPrinting === loan.id"
+                      class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gray-50 hover:bg-gray-100 text-gray-600 text-xs font-medium border border-gray-200">
+                      {{ glPrinting === loan.id ? '…' : '🖨' }}
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -2310,6 +2314,97 @@ async function deleteRepayment(loan, repayment) {
     const idx = goldLoans.value.findIndex(l => l.id === data.id)
     if (idx !== -1) goldLoans.value[idx] = data
   } catch (e) { alert(e.response?.data?.message ?? 'Delete failed') }
+}
+
+const glPrinting = ref(null)
+
+async function printGl(loan) {
+  glPrinting.value = loan.id
+  try {
+    if (!shopSettings.value.shop_name) {
+      try { const { data } = await axios.get('/api/shop-branding'); shopSettings.value = data } catch { /* non-critical */ }
+    }
+    const shop = shopSettings.value
+    const today = new Date().toLocaleDateString('en-LK', { day: '2-digit', month: 'short', year: 'numeric' })
+    const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-LK', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
+    const repayments = loan.repayments ?? []
+    const outstandingColor = Number(loan.outstanding_principal) > 0 ? '#dc2626' : '#16a34a'
+
+    const repayRows = repayments.length
+      ? repayments.map(r => `<tr>
+          <td>${fmtDate(r.payment_date)}</td>
+          <td style="text-align:right">${fmtLkr(r.principal_paid)}</td>
+          <td style="text-align:right">${fmtLkr(r.interest_paid)}</td>
+          <td style="text-align:right;font-weight:700">${fmtLkr((r.principal_paid || 0) + (r.interest_paid || 0))}</td>
+          <td>${r.notes ?? '—'}</td>
+        </tr>`).join('')
+      : '<tr><td colspan="5" style="text-align:center;color:#888;padding:8px">No repayments yet</td></tr>'
+
+    openPrint(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Loan — ${loan.loan_number}</title>
+    <style>${a5Css()}</style></head><body>
+    <div class="hdr">
+      <div style="display:flex;align-items:flex-start;gap:10px">
+        ${shop.logo_url ? `<img src="${shop.logo_url}" class="logo">` : ''}
+        <div>
+          <div class="shop-name">${shop.shop_name || 'රන් අත්වැල් GOLD HOUSE'}</div>
+          ${shop.address ? `<div class="shop-sub" style="white-space:pre-line">${shop.address}</div>` : ''}
+          ${shop.phone ? `<div class="shop-sub">Tel: ${shop.phone}</div>` : ''}
+        </div>
+      </div>
+      <div class="meta-r">
+        <div class="inv-title" style="color:#b45309">LOAN RECEIPT</div>
+        <table class="meta-table">
+          <tr><td>Loan No</td><td><strong>${loan.loan_number}</strong></td></tr>
+          <tr><td>Issued</td><td>${fmtDate(loan.disbursed_date)}</td></tr>
+          <tr><td>Maturity</td><td>${fmtDate(loan.maturity_date)}</td></tr>
+          <tr><td>Status</td><td><strong style="text-transform:uppercase">${loan.status ?? ''}</strong></td></tr>
+          <tr><td>Printed</td><td>${today}</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="cust">
+      <strong>${loan.borrower_name ?? '—'}</strong>
+      ${loan.borrower_phone ? `<span style="margin-left:8px;color:#555">${loan.borrower_phone}</span>` : ''}
+      ${loan.borrower_nic ? `<span style="margin-left:8px;color:#888;font-size:10px">NIC: ${loan.borrower_nic}</span>` : ''}
+    </div>
+    <div class="section">
+      <div class="row"><span class="lbl">Pledge Item</span><span class="val">${loan.pledge_description ?? '—'}</span></div>
+      <div class="row"><span class="lbl">Declared Karat</span><span class="val">${loan.declared_karat ?? '—'}</span></div>
+      <div class="row"><span class="lbl">Net Weight</span><span class="val">${Number(loan.net_weight || 0).toFixed(3)} g</span></div>
+      <div class="row"><span class="lbl">Interest Rate</span><span class="val">${loan.interest_rate_monthly ?? 0}% / month</span></div>
+    </div>
+    <div class="totals">
+      <div class="totals-box">
+        <div class="tline"><span>Loan Amount</span><span style="color:#1d4ed8;font-weight:700">${fmtLkr(loan.loan_amount)}</span></div>
+        <div class="grand"><span>OUTSTANDING</span><span style="color:${outstandingColor}">${fmtLkr(loan.outstanding_principal)}</span></div>
+        ${loan.notes ? `<div class="tline"><span>Notes</span><span style="max-width:160px;text-align:right">${loan.notes}</span></div>` : ''}
+      </div>
+    </div>
+    <div style="font-weight:700;font-size:11px;margin:10px 0 4px;color:#374151">Repayment History</div>
+    <table class="items">
+      <thead><tr>
+        <th style="text-align:left">Date</th>
+        <th style="text-align:right">Principal</th>
+        <th style="text-align:right">Interest</th>
+        <th style="text-align:right">Total</th>
+        <th style="text-align:left">Notes</th>
+      </tr></thead>
+      <tbody>${repayRows}</tbody>
+    </table>
+    <div class="sigs">
+      <div class="sig">Lender / Recorder</div>
+      <div class="sig">Borrower Signature</div>
+    </div>
+    <div class="footer">
+      <div style="font-weight:600">Private Gold Book Record</div>
+      ${shop.shop_name ? `<div style="font-size:10px;color:#888;margin-top:2px">${shop.shop_name}</div>` : ''}
+    </div>
+    </body></html>`)
+  } catch (e) {
+    alert('Could not generate print.')
+  } finally {
+    glPrinting.value = null
+  }
 }
 
 // ── CASHBOOK ROW ACTIONS ───────────────────────────────
