@@ -173,15 +173,48 @@ class PrivateSaleController extends Controller
                 'sub_kind'         => 'balance',
             ]);
 
+        // Gold loan disbursements (cash out)
+        $loanDisbursements = \App\Models\GoldLoan::query()
+            ->when(!$user->isAdmin(), fn($q) => $q->where('branch_id', $user->branch_id))
+            ->when($from, fn($q, $d) => $q->whereDate('disbursed_date', '>=', $d))
+            ->when($to,   fn($q, $d) => $q->whereDate('disbursed_date', '<=', $d))
+            ->with('customer:id,name')
+            ->get(['id', 'loan_number', 'disbursed_date', 'pledge_description', 'loan_amount', 'customer_id'])
+            ->map(fn($r) => [
+                'id'               => $r->id,
+                'reference_number' => $r->loan_number,
+                'entry_date'       => $r->disbursed_date,
+                'description'      => 'Loan to ' . ($r->customer->name ?? '—') . ' — ' . $r->pledge_description,
+                'amount'           => $r->loan_amount,
+                'kind'             => 'loan_disbursement',
+            ]);
+
+        // Gold loan repayments (cash in)
+        $loanRepayments = \App\Models\GoldLoanRepayment::query()
+            ->whereHas('goldLoan', fn($q) => $q->when(!$user->isAdmin(), fn($x) => $x->where('branch_id', $user->branch_id)))
+            ->when($from, fn($q, $d) => $q->whereDate('payment_date', '>=', $d))
+            ->when($to,   fn($q, $d) => $q->whereDate('payment_date', '<=', $d))
+            ->with('goldLoan:id,loan_number,customer_id', 'goldLoan.customer:id,name')
+            ->get(['id', 'payment_number', 'payment_date', 'amount', 'gold_loan_id'])
+            ->map(fn($r) => [
+                'id'               => $r->id,
+                'reference_number' => $r->payment_number,
+                'entry_date'       => $r->payment_date,
+                'description'      => 'Loan repayment ' . ($r->goldLoan->loan_number ?? '') . ' — ' . ($r->goldLoan->customer->name ?? '—'),
+                'amount'           => $r->amount,
+                'kind'             => 'loan_repayment',
+            ]);
+
         $entries = $purchases->concat($sales)->concat($expenses)->concat($adjustments)
             ->concat($customAdvances)->concat($customBalances)
+            ->concat($loanDisbursements)->concat($loanRepayments)
             ->sortBy('entry_date')
             ->values();
 
         // sales + adj(add) + custom_order = cash in (+); purchases + expenses + adj(withdraw) = cash out (-)
         $balance = 0;
         $rows = $entries->map(function ($e) use (&$balance) {
-            if ($e['kind'] === 'sale' || ($e['kind'] === 'adjustment' && $e['type'] === 'add') || $e['kind'] === 'custom_order') {
+            if ($e['kind'] === 'sale' || ($e['kind'] === 'adjustment' && $e['type'] === 'add') || $e['kind'] === 'custom_order' || $e['kind'] === 'loan_repayment') {
                 $balance += $e['amount'];
                 return [...$e, 'cash_in' => $e['amount'], 'cash_out' => 0, 'balance' => $balance];
             } else {

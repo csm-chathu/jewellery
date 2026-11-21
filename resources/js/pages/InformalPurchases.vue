@@ -137,8 +137,8 @@
             <tr v-for="e in pagedCashbookEntries" :key="`${e.kind}-${e.id}`"
               class="hover:bg-gray-50"
               :class="{
-                'bg-green-50/40':  e.kind === 'sale',
-                'bg-red-50/30':    e.kind === 'purchase',
+                'bg-green-50/40':  e.kind === 'sale' || e.kind === 'loan_repayment',
+                'bg-red-50/30':    e.kind === 'purchase' || e.kind === 'loan_disbursement',
                 'bg-orange-50/30': e.kind === 'expense',
                 'bg-indigo-50/40': e.kind === 'adjustment',
                 'bg-amber-50/40':  e.kind === 'custom_order',
@@ -149,13 +149,13 @@
                 <span class="inline-flex items-center gap-1.5">
                   <span class="inline-block w-2 h-2 rounded-full shrink-0"
                     :class="{
-                      'bg-green-500':  e.kind === 'sale',
-                      'bg-red-500':    e.kind === 'purchase',
+                      'bg-green-500':  e.kind === 'sale' || e.kind === 'loan_repayment',
+                      'bg-red-500':    e.kind === 'purchase' || e.kind === 'loan_disbursement',
                       'bg-orange-400': e.kind === 'expense',
                       'bg-indigo-500': e.kind === 'adjustment',
                       'bg-amber-500':  e.kind === 'custom_order',
                     }"></span>
-                  {{ e.description || (e.kind === 'sale' ? 'Gold Sale' : e.kind === 'purchase' ? 'Gold Purchase' : e.kind === 'expense' ? 'Expense' : e.kind === 'custom_order' ? (e.sub_kind === 'advance' ? 'Custom Order Advance' : 'Custom Order Balance') : e.type === 'add' ? 'Cash Added' : 'Cash Withdrawn') }}
+                  {{ e.description || (e.kind === 'sale' ? 'Gold Sale' : e.kind === 'purchase' ? 'Gold Purchase' : e.kind === 'expense' ? 'Expense' : e.kind === 'custom_order' ? (e.sub_kind === 'advance' ? 'Custom Order Advance' : 'Custom Order Balance') : e.kind === 'loan_disbursement' ? 'Loan Disbursed' : e.kind === 'loan_repayment' ? 'Loan Repayment' : e.type === 'add' ? 'Cash Added' : 'Cash Withdrawn') }}
                   <span v-if="e.kind === 'custom_order'"
                     class="text-xs px-1.5 py-0.5 rounded-full font-medium"
                     :class="e.sub_kind === 'advance' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'">
@@ -1887,7 +1887,7 @@ function fmtLkr(val) {
 // ── CSV EXPORT ────────────────────────────────────────
 function exportCSV() {
   const headers = ['Date', 'Ref #', 'Type', 'Description', 'Cash In (LKR)', 'Cash Out (LKR)', 'Balance (LKR)', 'Payment Method']
-  const kindLabel = (e) => e.kind === 'sale' ? 'Sale' : e.kind === 'purchase' ? 'Purchase' : e.kind === 'expense' ? 'Expense' : e.kind === 'custom_order' ? (e.sub_kind === 'advance' ? 'Custom Order Advance' : 'Custom Order Balance') : (e.type === 'add' ? 'Cash Added' : 'Cash Withdrawn')
+  const kindLabel = (e) => e.kind === 'sale' ? 'Sale' : e.kind === 'purchase' ? 'Purchase' : e.kind === 'expense' ? 'Expense' : e.kind === 'custom_order' ? (e.sub_kind === 'advance' ? 'Custom Order Advance' : 'Custom Order Balance') : e.kind === 'loan_disbursement' ? 'Loan Disbursed' : e.kind === 'loan_repayment' ? 'Loan Repayment' : (e.type === 'add' ? 'Cash Added' : 'Cash Withdrawn')
   const rows = cashbookEntries.value.map(e => [
     e.entry_date, e.reference_number, kindLabel(e), e.description || '',
     e.cash_in > 0 ? Number(e.cash_in).toFixed(2) : '',
@@ -1913,9 +1913,9 @@ function printCashbook() {
   const from = cbFilters.date_from || 'All time'
   const to   = cbFilters.date_to   || 'All time'
   const today = new Date().toLocaleDateString('en-LK')
-  const kindLabel = (e) => e.kind === 'sale' ? 'Sale' : e.kind === 'purchase' ? 'Purchase' : e.kind === 'expense' ? 'Expense' : e.kind === 'custom_order' ? (e.sub_kind === 'advance' ? 'Custom Order Advance' : 'Custom Order Balance') : (e.type === 'add' ? 'Cash Added' : 'Cash Withdrawn')
-  const kindColor = (e) => e.kind === 'sale' ? '#15803d' : e.kind === 'purchase' ? '#dc2626' : e.kind === 'expense' ? '#c2410c' : e.kind === 'custom_order' ? '#b45309' : '#4338ca'
-  const rowBg     = (e) => e.kind === 'sale' ? '#f0fdf4' : e.kind === 'purchase' ? '#fef2f2' : e.kind === 'expense' ? '#fff7ed' : e.kind === 'custom_order' ? '#fffbeb' : '#eef2ff'
+  const kindLabel = (e) => e.kind === 'sale' ? 'Sale' : e.kind === 'purchase' ? 'Purchase' : e.kind === 'expense' ? 'Expense' : e.kind === 'custom_order' ? (e.sub_kind === 'advance' ? 'Custom Order Advance' : 'Custom Order Balance') : e.kind === 'loan_disbursement' ? 'Loan Disbursed' : e.kind === 'loan_repayment' ? 'Loan Repayment' : (e.type === 'add' ? 'Cash Added' : 'Cash Withdrawn')
+  const kindColor = (e) => e.kind === 'sale' || e.kind === 'loan_repayment' ? '#15803d' : e.kind === 'purchase' || e.kind === 'loan_disbursement' ? '#dc2626' : e.kind === 'expense' ? '#c2410c' : e.kind === 'custom_order' ? '#b45309' : '#4338ca'
+  const rowBg     = (e) => e.kind === 'sale' || e.kind === 'loan_repayment' ? '#f0fdf4' : e.kind === 'purchase' || e.kind === 'loan_disbursement' ? '#fef2f2' : e.kind === 'expense' ? '#fff7ed' : e.kind === 'custom_order' ? '#fffbeb' : '#eef2ff'
 
   const tableRows = cashbookEntries.value.map(e => `
     <tr style="background:${rowBg(e)}">
