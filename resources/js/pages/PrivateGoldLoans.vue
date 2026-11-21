@@ -83,6 +83,10 @@
                     class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-red-50 hover:bg-red-100 text-red-500 text-xs font-medium border border-red-200">
                     <TrashIcon class="w-3 h-3" /> Del
                   </button>
+                  <button @click.stop="printLoan(loan)" :disabled="printing === loan.id"
+                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gray-50 hover:bg-gray-100 text-gray-600 text-xs font-medium border border-gray-200">
+                    {{ printing === loan.id ? '…' : '🖨' }}
+                  </button>
                 </div>
               </td>
             </tr>
@@ -334,6 +338,97 @@ async function deleteRepayment(loan, repayment) {
     const idx = loans.value.findIndex(l => l.id === data.id)
     if (idx !== -1) loans.value[idx] = data
   } catch (e) { alert(e.response?.data?.message ?? 'Delete failed') }
+}
+
+const printing = ref(null)
+
+function printLoan(loan) {
+  printing.value = loan.id
+  try {
+    const repayments = loan.repayments ?? []
+    const lkr = (v) => Number(v || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-LK', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
+
+    const repayRows = repayments.length
+      ? repayments.map(r => `<tr>
+          <td>${fmtDate(r.payment_date)}</td>
+          <td style="text-align:right">LKR ${lkr(r.principal_paid)}</td>
+          <td style="text-align:right">LKR ${lkr(r.interest_paid)}</td>
+          <td style="text-align:right">LKR ${lkr((r.principal_paid || 0) + (r.interest_paid || 0))}</td>
+          <td>${r.notes ?? '—'}</td>
+        </tr>`).join('')
+      : '<tr><td colspan="5" style="text-align:center;color:#888">No repayments yet</td></tr>'
+
+    const statusColor = { active: '#1d4ed8', overdue: '#dc2626', closed: '#16a34a', forfeited: '#6b7280' }[loan.status] ?? '#374151'
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/>
+<title>Gold Loan — ${loan.loan_number}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Arial,sans-serif;font-size:13px;color:#111;padding:24px;max-width:680px;margin:auto}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px}
+  .shop-name{font-size:20px;font-weight:700}
+  .shop-sub{font-size:11px;color:#555;margin-top:2px}
+  .doc-meta{text-align:right;font-size:12px}
+  .doc-meta .ln{font-size:16px;font-weight:700;color:#b45309}
+  hr{border:none;border-top:1px solid #e5e7eb;margin:12px 0}
+  .section{display:grid;grid-template-columns:1fr 1fr;gap:6px 24px;margin-bottom:14px}
+  .row{display:flex;flex-direction:column}
+  .label{font-size:10px;text-transform:uppercase;color:#6b7280;letter-spacing:.5px;margin-bottom:1px}
+  .value{font-size:13px;font-weight:600}
+  table{width:100%;border-collapse:collapse;margin-top:10px}
+  th{background:#1f2937;color:#fff;padding:6px 10px;text-align:left;font-size:12px}
+  td{padding:6px 10px;font-size:12px;border-bottom:1px solid #f3f4f6}
+  .badge{display:inline-block;padding:2px 10px;border-radius:99px;font-size:11px;font-weight:700;color:#fff;background:${statusColor}}
+  .footer{margin-top:24px;text-align:center;font-size:11px;color:#9ca3af}
+  @media print{body{padding:0}}
+</style></head><body>
+<div class="header">
+  <div>
+    <div class="shop-name">රන් අත්වැල් GOLD HOUSE</div>
+    <div class="shop-sub">Private Gold Book — Loan Receipt</div>
+  </div>
+  <div class="doc-meta">
+    <div class="ln">${loan.loan_number}</div>
+    <div>Issued: ${fmtDate(loan.disbursed_date)}</div>
+    <div>Maturity: ${fmtDate(loan.maturity_date)}</div>
+    <div style="margin-top:4px"><span class="badge">${(loan.status ?? '').toUpperCase()}</span></div>
+  </div>
+</div>
+<hr/>
+<div class="section">
+  <div class="row"><span class="label">Borrower</span><span class="value">${loan.borrower_name ?? '—'}</span></div>
+  <div class="row"><span class="label">NIC</span><span class="value">${loan.borrower_nic ?? '—'}</span></div>
+  <div class="row"><span class="label">Phone</span><span class="value">${loan.borrower_phone ?? '—'}</span></div>
+  <div class="row"><span class="label">Pledge Item</span><span class="value">${loan.pledge_description ?? '—'}</span></div>
+  <div class="row"><span class="label">Declared Karat</span><span class="value">${loan.declared_karat ?? '—'}</span></div>
+  <div class="row"><span class="label">Net Weight</span><span class="value">${loan.net_weight ?? '0'}g</span></div>
+</div>
+<hr/>
+<div class="section">
+  <div class="row"><span class="label">Loan Amount</span><span class="value" style="color:#1d4ed8">LKR ${lkr(loan.loan_amount)}</span></div>
+  <div class="row"><span class="label">Interest Rate</span><span class="value">${loan.interest_rate_monthly ?? 0}% / month</span></div>
+  <div class="row"><span class="label">Outstanding</span><span class="value" style="color:${Number(loan.outstanding_principal) > 0 ? '#dc2626' : '#16a34a'}">LKR ${lkr(loan.outstanding_principal)}</span></div>
+  <div class="row"><span class="label">Notes</span><span class="value" style="font-weight:400">${loan.notes ?? '—'}</span></div>
+</div>
+<hr/>
+<div style="font-weight:600;font-size:12px;margin-bottom:4px;color:#374151">Repayment History</div>
+<table>
+  <thead><tr><th>Date</th><th style="text-align:right">Principal</th><th style="text-align:right">Interest</th><th style="text-align:right">Total</th><th>Notes</th></tr></thead>
+  <tbody>${repayRows}</tbody>
+</table>
+<div class="footer">*** Private Gold Book record ***</div>
+<script>setTimeout(()=>window.print(),300)<\/script>
+</body></html>`
+
+    const w = window.open('', '_blank', 'width=720,height=900')
+    w.document.write(html)
+    w.document.close()
+  } catch (e) {
+    alert('Could not generate print.')
+  } finally {
+    printing.value = null
+  }
 }
 
 onMounted(load)
